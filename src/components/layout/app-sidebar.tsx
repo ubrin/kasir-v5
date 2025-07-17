@@ -23,7 +23,6 @@ const menuItems = [
   { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
   { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
   { href: '/customers', label: 'Pelanggan', icon: Users },
-  { href: '/invoices', label: 'Faktur', icon: FileText },
   { href: '/payment-report', label: 'Laporan', icon: BarChart3 },
 ];
 
