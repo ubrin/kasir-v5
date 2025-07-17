@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Package, Printer, ArrowLeft } from 'lucide-react';
+import Image from 'next/image';
 
 export default function InvoicePage() {
     const params = useParams();
@@ -57,11 +58,9 @@ export default function InvoicePage() {
                     <div className="flex justify-between items-start">
                         <div>
                              <div className="flex items-center gap-3 mb-4">
-                                <div className="bg-primary text-primary-foreground rounded-lg p-3">
-                                    <Package className="h-8 w-8" />
-                                </div>
+                                <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={48} height={48} className="h-12 w-12" />
                                 <div>
-                                    <h1 className="text-2xl font-bold text-primary">InvoiceFlow</h1>
+                                    <h1 className="text-2xl font-bold text-primary">PT CYBERNETWORK CORP</h1>
                                     <p className="text-muted-foreground">Jl. Teknologi No. 1, Technopark, Indonesia</p>
                                 </div>
                             </div>

@@ -11,6 +11,9 @@ import {
   SidebarMenuButton,
   SidebarFooter
 } from '@/components/ui/sidebar';
+import Image from 'next/image';
+import {Button} from '@/components/ui/button';
+
 
 const menuItems = [
   { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
@@ -25,13 +28,11 @@ export default function AppSidebar() {
   return (
     <Sidebar className="dark:bg-background border-r dark:border-slate-800">
       <SidebarHeader>
-        <div className="flex items-center gap-2 p-2 justify-center">
-            <Button variant="ghost" size="icon" className="text-primary-foreground bg-primary rounded-full" asChild>
-                <Link href="/delinquency">
-                    <Package className="h-6 w-6" />
-                </Link>
-            </Button>
-          <h1 className="text-xl font-semibold text-foreground hidden group-data-[state=expanded]:block">InvoiceFlow</h1>
+        <div className="flex items-center gap-2 p-2 justify-start">
+            <Link href="/delinquency" className="flex items-center gap-2">
+                <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={40} height={40} className="h-10 w-10" />
+                <h1 className="text-lg font-semibold text-foreground hidden group-data-[state=expanded]:block">PT CYBERNETWORK CORP</h1>
+            </Link>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
@@ -69,4 +70,4 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
-import {Button} from '@/components/ui/button';
+

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Bot } from "lucide-react"
+import Image from "next/image"
 
 export default function SignupPage() {
   return (
@@ -18,11 +18,9 @@ export default function SignupPage() {
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
           <div className="flex justify-center mb-4">
-            <div className="bg-primary text-primary-foreground rounded-full p-3">
-              <Bot className="h-8 w-8" />
-            </div>
+            <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={64} height={64} className="h-16 w-16" />
           </div>
-          <CardTitle className="text-2xl text-center">Daftar ke InvoiceFlow</CardTitle>
+          <CardTitle className="text-2xl text-center">Daftar ke PT CYBERNETWORK CORP</CardTitle>
           <CardDescription className="text-center">
             Masukkan informasi Anda untuk membuat akun
           </CardDescription>
