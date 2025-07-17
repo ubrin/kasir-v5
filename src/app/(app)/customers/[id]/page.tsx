@@ -1,12 +1,15 @@
 
 'use client';
+import { useState } from "react";
 import { customers, invoices } from "@/lib/data"
 import { notFound, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Edit, Save, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -14,9 +17,33 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   const router = useRouter();
   const customer = customers.find((c) => c.id === params.id)
   const customerInvoices = invoices.filter((invoice) => invoice.customerId === params.id);
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableCustomer, setEditableCustomer] = useState(customer);
 
   if (!customer) {
     notFound()
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setEditableCustomer(prev => prev ? { ...prev, [id]: id === 'subscriptionMbps' || id === 'amountDue' ? Number(value) : value } : null);
+  };
+
+  const handleSave = () => {
+    // In a real app, you'd save this to a database
+    if (editableCustomer) {
+        const index = customers.findIndex(c => c.id === editableCustomer.id);
+        if (index !== -1) {
+            customers[index] = editableCustomer;
+        }
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditableCustomer(customer);
+    setIsEditing(false);
   }
 
   const getBadgeClasses = (status: 'lunas' | 'belum lunas', dueDate: string) => {
@@ -50,47 +77,78 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>{customer.name}</CardTitle>
-          <CardDescription>ID Pelanggan: {customer.id}</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>{isEditing ? "Ubah Detail Pelanggan" : editableCustomer?.name}</CardTitle>
+              <CardDescription>ID Pelanggan: {editableCustomer?.id}</CardDescription>
+            </div>
+            {isEditing ? (
+                <div className="flex gap-2">
+                    <Button onClick={handleSave} size="sm"><Save className="mr-2 h-4 w-4"/> Simpan</Button>
+                    <Button onClick={handleCancel} size="sm" variant="outline"><X className="mr-2 h-4 w-4"/> Batal</Button>
+                </div>
+            ) : (
+                <Button onClick={() => setIsEditing(true)} size="sm" variant="outline"><Edit className="mr-2 h-4 w-4"/> Ubah</Button>
+            )}
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="grid gap-1">
-              <p className="text-sm font-medium text-muted-foreground">Status</p>
-              <Badge variant={customer.amountDue > 0 ? "destructive" : "secondary"} className={`${customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"} w-fit`}>
-                {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
-              </Badge>
-            </div>
-            <div className="grid gap-1">
-              <p className="text-sm font-medium text-muted-foreground">Alamat</p>
-              <p>{customer.address}</p>
-            </div>
-             <div className="grid gap-1">
-              <p className="text-sm font-medium text-muted-foreground">Tanggal Jatuh Tempo</p>
-              <p>Setiap tanggal {customer.dueDateCode}</p>
-            </div>
-            <div className="grid gap-1">
-              <p className="text-sm font-medium text-muted-foreground">Jumlah Tagihan</p>
-              <p>Rp{customer.amountDue.toLocaleString('id-ID')}</p>
-            </div>
-            <div className="grid gap-1">
-              <p className="text-sm font-medium text-muted-foreground">Total Tunggakan</p>
-              <p>Rp{customer.outstandingBalance.toLocaleString('id-ID')}</p>
-            </div>
-             <div className="grid gap-1">
-              <p className="text-sm font-medium text-muted-foreground">Usia Akun</p>
-              <p>{customer.accountAgeMonths} bulan</p>
-            </div>
-            <div className="grid gap-1">
-              <p className="text-sm font-medium text-muted-foreground">Paket</p>
-              <p>{customer.subscriptionMbps} Mbps</p>
-            </div>
-            <div className="grid gap-1 col-span-full">
-              <p className="text-sm font-medium text-muted-foreground">Catatan</p>
-              <p className="whitespace-pre-wrap">{customer.paymentHistory}</p>
-            </div>
-          </div>
+            {isEditing ? (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-2">
+                        <Label htmlFor="name">Nama</Label>
+                        <Input id="name" value={editableCustomer?.name} onChange={handleInputChange} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="address">Alamat</Label>
+                        <Input id="address" value={editableCustomer?.address} onChange={handleInputChange} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="subscriptionMbps">Paket (Mbps)</Label>
+                        <Input id="subscriptionMbps" type="number" value={editableCustomer?.subscriptionMbps} onChange={handleInputChange} />
+                    </div>
+                     <div className="grid gap-2">
+                        <Label htmlFor="amountDue">Jumlah Tagihan (Rp)</Label>
+                        <Input id="amountDue" type="number" value={editableCustomer?.amountDue} onChange={handleInputChange} />
+                    </div>
+                </div>
+            ) : (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-1">
+                    <p className="text-sm font-medium text-muted-foreground">Status</p>
+                    <Badge variant={editableCustomer?.amountDue ?? 0 > 0 ? "destructive" : "secondary"} className={`${editableCustomer?.amountDue ?? 0 > 0 ? "" : "bg-green-100 text-green-800"} w-fit`}>
+                        {editableCustomer?.amountDue ?? 0 > 0 ? "Belum Lunas" : "Lunas"}
+                    </Badge>
+                    </div>
+                    <div className="grid gap-1">
+                    <p className="text-sm font-medium text-muted-foreground">Alamat</p>
+                    <p>{editableCustomer?.address}</p>
+                    </div>
+                    <div className="grid gap-1">
+                    <p className="text-sm font-medium text-muted-foreground">Tanggal Jatuh Tempo</p>
+                    <p>Setiap tanggal {editableCustomer?.dueDateCode}</p>
+                    </div>
+                    <div className="grid gap-1">
+                    <p className="text-sm font-medium text-muted-foreground">Jumlah Tagihan</p>
+                    <p>Rp{editableCustomer?.amountDue.toLocaleString('id-ID')}</p>
+                    </div>
+                    <div className="grid gap-1">
+                    <p className="text-sm font-medium text-muted-foreground">Total Tunggakan</p>
+                    <p>Rp{editableCustomer?.outstandingBalance.toLocaleString('id-ID')}</p>
+                    </div>
+                    <div className="grid gap-1">
+                    <p className="text-sm font-medium text-muted-foreground">Usia Akun</p>
+                    <p>{editableCustomer?.accountAgeMonths} bulan</p>
+                    </div>
+                    <div className="grid gap-1">
+                    <p className="text-sm font-medium text-muted-foreground">Paket</p>
+                    <p>{editableCustomer?.subscriptionMbps} Mbps</p>
+                    </div>
+                    <div className="grid gap-1 col-span-full">
+                    <p className="text-sm font-medium text-muted-foreground">Catatan</p>
+                    <p className="whitespace-pre-wrap">{editableCustomer?.paymentHistory}</p>
+                    </div>
+                </div>
+            )}
         </CardContent>
       </Card>
 
