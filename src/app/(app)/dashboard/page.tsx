@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 
 const chartConfig = {
   revenue: {
-    label: "Revenue",
+    label: "Pendapatan",
     color: "hsl(var(--primary))",
   },
 }
@@ -29,59 +29,59 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Dasbor</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Revenue
+              Total Pendapatan
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              +20.1% from last month
+              +20.1% dari bulan lalu
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              New Customers
+              Pelanggan Baru
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+{newCustomers}</div>
             <p className="text-xs text-muted-foreground">
-              +180.1% from last month
+              +180.1% dari bulan lalu
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Outstanding Payments</CardTitle>
+            <CardTitle className="text-sm font-medium">Pembayaran Terutang</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${outstandingPayments.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              +19% from last month
+              +19% dari bulan lalu
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Delinquent Accounts
+              Akun Menunggak
             </CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+{delinquentAccounts}</div>
             <p className="text-xs text-muted-foreground">
-              +2 since last month
+              +2 sejak bulan lalu
             </p>
           </CardContent>
         </Card>
@@ -89,7 +89,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>Overview</CardTitle>
+            <CardTitle>Ringkasan</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
             <ResponsiveContainer width="100%" height={350}>
@@ -122,9 +122,9 @@ export default function DashboardPage() {
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Recent Invoices</CardTitle>
+            <CardTitle>Faktur Terbaru</CardTitle>
             <CardDescription>
-              You have {invoices.filter(i => i.status === 'pending').length} pending invoices.
+              Anda memiliki {invoices.filter(i => i.status === 'pending').length} faktur tertunda.
             </CardDescription>
           </CardHeader>
           <CardContent>

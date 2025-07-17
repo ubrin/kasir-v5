@@ -24,7 +24,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl text-center">InvoiceFlow</CardTitle>
           <CardDescription className="text-center">
-            Enter your email below to login to your account
+            Masukkan email Anda di bawah ini untuk masuk ke akun Anda
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -40,27 +40,27 @@ export default function LoginPage() {
             </div>
             <div className="grid gap-2">
               <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Kata Sandi</Label>
                 <Link
                   href="#"
                   className="ml-auto inline-block text-sm underline"
                 >
-                  Forgot your password?
+                  Lupa kata sandi Anda?
                 </Link>
               </div>
               <Input id="password" type="password" required />
             </div>
             <Button type="submit" className="w-full" asChild>
-              <Link href="/dashboard">Login</Link>
+              <Link href="/dashboard">Masuk</Link>
             </Button>
             <Button variant="outline" className="w-full">
-              Login with Google
+              Masuk dengan Google
             </Button>
           </div>
           <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
+            Belum punya akun?{" "}
             <Link href="/signup" className="underline">
-              Sign up
+              Daftar
             </Link>
           </div>
         </CardContent>

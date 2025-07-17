@@ -19,11 +19,11 @@ import { AlertTriangle, Bot, CheckCircle2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
-  customerId: z.string().min(1, 'Customer ID is required.'),
-  paymentHistory: z.string().min(10, 'Payment history is required.'),
-  accountAgeMonths: z.coerce.number().min(1, 'Account age must be at least 1 month.'),
-  averageMonthlyBill: z.coerce.number().min(0, 'Average monthly bill cannot be negative.'),
-  outstandingBalance: z.coerce.number().min(0, 'Outstanding balance cannot be negative.'),
+  customerId: z.string().min(1, 'ID Pelanggan wajib diisi.'),
+  paymentHistory: z.string().min(10, 'Riwayat pembayaran wajib diisi.'),
+  accountAgeMonths: z.coerce.number().min(1, 'Usia akun minimal 1 bulan.'),
+  averageMonthlyBill: z.coerce.number().min(0, 'Rata-rata tagihan bulanan tidak boleh negatif.'),
+  outstandingBalance: z.coerce.number().min(0, 'Saldo terutang tidak boleh negatif.'),
 });
 
 type DelinquencyFormValues = z.infer<typeof formSchema>;
@@ -65,11 +65,11 @@ export default function DelinquencyPage() {
       const result = await delinquencyPrediction(data);
       setPrediction(result);
     } catch (error) {
-      console.error("Prediction failed:", error);
+      console.error("Prediksi gagal:", error);
       toast({
         variant: "destructive",
-        title: "Prediction Failed",
-        description: "An error occurred while trying to predict delinquency.",
+        title: "Prediksi Gagal",
+        description: "Terjadi kesalahan saat mencoba memprediksi tunggakan.",
       });
     } finally {
       setIsLoading(false);
@@ -78,21 +78,21 @@ export default function DelinquencyPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-3xl font-bold tracking-tight">Delinquency Prediction</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Prediksi Tunggakan</h1>
       <div className="grid gap-8 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Predict Risk</CardTitle>
-            <CardDescription>Use AI to predict the risk of a customer becoming delinquent.</CardDescription>
+            <CardTitle>Prediksi Risiko</CardTitle>
+            <CardDescription>Gunakan AI untuk memprediksi risiko pelanggan menunggak.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-2">
-                    <Label>Select Customer (Optional)</Label>
+                    <Label>Pilih Pelanggan (Opsional)</Label>
                     <Select onValueChange={handleCustomerSelect}>
                         <SelectTrigger>
-                            <SelectValue placeholder="Load data from a customer..." />
+                            <SelectValue placeholder="Muat data dari pelanggan..." />
                         </SelectTrigger>
                         <SelectContent>
                             {customers.map(customer => (
@@ -106,7 +106,7 @@ export default function DelinquencyPage() {
                 
                 <FormField control={form.control} name="customerId" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Customer ID</FormLabel>
+                        <FormLabel>ID Pelanggan</FormLabel>
                         <FormControl><Input {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
@@ -114,7 +114,7 @@ export default function DelinquencyPage() {
 
                 <FormField control={form.control} name="paymentHistory" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Payment History</FormLabel>
+                        <FormLabel>Riwayat Pembayaran</FormLabel>
                         <FormControl><Textarea {...field} rows={4} /></FormControl>
                         <FormMessage />
                     </FormItem>
@@ -122,7 +122,7 @@ export default function DelinquencyPage() {
                 
                 <FormField control={form.control} name="accountAgeMonths" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Account Age (Months)</FormLabel>
+                        <FormLabel>Usia Akun (Bulan)</FormLabel>
                         <FormControl><Input type="number" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
@@ -130,7 +130,7 @@ export default function DelinquencyPage() {
 
                 <FormField control={form.control} name="averageMonthlyBill" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Average Monthly Bill ($)</FormLabel>
+                        <FormLabel>Rata-rata Tagihan Bulanan ($)</FormLabel>
                         <FormControl><Input type="number" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
@@ -138,14 +138,14 @@ export default function DelinquencyPage() {
 
                 <FormField control={form.control} name="outstandingBalance" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Outstanding Balance ($)</FormLabel>
+                        <FormLabel>Saldo Terutang ($)</FormLabel>
                         <FormControl><Input type="number" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )} />
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Predicting...' : 'Predict Delinquency Risk'}
+                    {isLoading ? 'Memprediksi...' : 'Prediksi Risiko Tunggakan'}
                 </Button>
               </form>
             </Form>
@@ -154,8 +154,8 @@ export default function DelinquencyPage() {
         <div className="lg:col-span-2">
             <Card className="sticky top-24">
                 <CardHeader>
-                    <CardTitle>AI Analysis</CardTitle>
-                    <CardDescription>The prediction result will appear here.</CardDescription>
+                    <CardTitle>Analisis AI</CardTitle>
+                    <CardDescription>Hasil prediksi akan muncul di sini.</CardDescription>
                 </CardHeader>
                 <CardContent className="min-h-[400px] flex items-center justify-center">
                     {isLoading ? (
@@ -174,16 +174,16 @@ export default function DelinquencyPage() {
                                 <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
                             )}
                             <h3 className={`text-2xl font-bold ${prediction.isDelinquentRisk ? 'text-destructive' : 'text-green-600'}`}>
-                                {prediction.isDelinquentRisk ? 'High Delinquency Risk' : 'Low Delinquency Risk'}
+                                {prediction.isDelinquentRisk ? 'Risiko Tunggakan Tinggi' : 'Risiko Tunggakan Rendah'}
                             </h3>
                             <div>
-                                <Label>Risk Score: {prediction.riskScore}</Label>
+                                <Label>Skor Risiko: {prediction.riskScore}</Label>
                                 <Progress value={prediction.riskScore} className={prediction.riskScore > 60 ? "[&>div]:bg-destructive" : ""} />
                             </div>
                             <Card className="text-left bg-muted/50">
                                 <CardHeader className="flex-row gap-3 items-center space-y-0">
                                     <Bot className="w-6 h-6 text-primary flex-shrink-0"/>
-                                    <CardTitle className="text-lg">Reasoning</CardTitle>
+                                    <CardTitle className="text-lg">Alasan</CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-muted-foreground">{prediction.reason}</p>
@@ -192,7 +192,7 @@ export default function DelinquencyPage() {
                         </div>
                     ) : (
                         <div className="text-center text-muted-foreground">
-                            <p>Fill out the form and click predict to see the AI analysis.</p>
+                            <p>Isi formulir dan klik prediksi untuk melihat analisis AI.</p>
                         </div>
                     )}
                 </CardContent>

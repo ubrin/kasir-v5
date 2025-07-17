@@ -41,32 +41,44 @@ const getBadgeClasses = (status: 'paid' | 'pending' | 'overdue') => {
     }
   };
 
+  const translateStatus = (status: 'paid' | 'pending' | 'overdue') => {
+    switch (status) {
+      case 'paid':
+        return 'Lunas';
+      case 'pending':
+        return 'Tertunda';
+      case 'overdue':
+        return 'Jatuh Tempo';
+    }
+  };
+
+
 export default function InvoicesPage() {
   return (
     <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Faktur</h1>
             <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> New Invoice
+                <PlusCircle className="mr-2 h-4 w-4" /> Faktur Baru
             </Button>
         </div>
         <Card>
             <CardHeader>
-                <CardTitle>Invoice History</CardTitle>
-                <CardDescription>A list of all invoices sent to your customers.</CardDescription>
+                <CardTitle>Riwayat Faktur</CardTitle>
+                <CardDescription>Daftar semua faktur yang dikirim ke pelanggan Anda.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
                 <TableHeader>
                     <TableRow>
-                    <TableHead>Invoice ID</TableHead>
-                    <TableHead>Customer</TableHead>
+                    <TableHead>ID Faktur</TableHead>
+                    <TableHead>Pelanggan</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Date</TableHead>
-                    <TableHead className="hidden md:table-cell">Due Date</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="hidden md:table-cell">Tanggal</TableHead>
+                    <TableHead className="hidden md:table-cell">Tanggal Jatuh Tempo</TableHead>
+                    <TableHead className="text-right">Jumlah</TableHead>
                     <TableHead>
-                        <span className="sr-only">Actions</span>
+                        <span className="sr-only">Aksi</span>
                     </TableHead>
                     </TableRow>
                 </TableHeader>
@@ -77,7 +89,7 @@ export default function InvoicesPage() {
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>
                             <Badge variant={getBadgeVariant(invoice.status)} className={getBadgeClasses(invoice.status)}>
-                                {invoice.status}
+                                {translateStatus(invoice.status)}
                             </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">{invoice.date}</TableCell>
@@ -88,14 +100,14 @@ export default function InvoicesPage() {
                             <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost">
                                 <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
+                                <span className="sr-only">Buka menu</span>
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem>View Details</DropdownMenuItem>
-                            <DropdownMenuItem>Send Reminder</DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-500">Void Invoice</DropdownMenuItem>
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                            <DropdownMenuItem>Lihat Detail</DropdownMenuItem>
+                            <DropdownMenuItem>Kirim Pengingat</DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-500">Batalkan Faktur</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         </TableCell>

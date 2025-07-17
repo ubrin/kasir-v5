@@ -24,26 +24,26 @@ export default function CustomersPage() {
   return (
     <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Pelanggan</h1>
             <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Customer
+                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Pelanggan
             </Button>
         </div>
         <Card>
             <CardHeader>
-                <CardTitle>Customer Overview</CardTitle>
-                <CardDescription>A list of all customers in your system.</CardDescription>
+                <CardTitle>Ringkasan Pelanggan</CardTitle>
+                <CardDescription>Daftar semua pelanggan di sistem Anda.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
                 <TableHeader>
                     <TableRow>
-                    <TableHead>Customer</TableHead>
+                    <TableHead>Pelanggan</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Company</TableHead>
-                    <TableHead className="text-right">Amount Due</TableHead>
+                    <TableHead className="hidden md:table-cell">Perusahaan</TableHead>
+                    <TableHead className="text-right">Jumlah Tagihan</TableHead>
                     <TableHead>
-                        <span className="sr-only">Actions</span>
+                        <span className="sr-only">Aksi</span>
                     </TableHead>
                     </TableRow>
                 </TableHeader>
@@ -64,7 +64,7 @@ export default function CustomersPage() {
                         </TableCell>
                         <TableCell>
                         <Badge variant={customer.status === "active" ? "default" : "secondary"} className={customer.status === "active" ? "" : "bg-gray-200 text-gray-800"}>
-                            {customer.status}
+                            {customer.status === "active" ? "Aktif" : "Tidak Aktif"}
                         </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">{customer.company}</TableCell>
@@ -74,14 +74,14 @@ export default function CustomersPage() {
                             <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost">
                                 <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
+                                <span className="sr-only">Buka menu</span>
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
-                            <DropdownMenuItem>View Invoices</DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-500">Delete</DropdownMenuItem>
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                            <DropdownMenuItem>Ubah</DropdownMenuItem>
+                            <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-500">Hapus</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                         </TableCell>

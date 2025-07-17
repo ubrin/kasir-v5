@@ -13,10 +13,10 @@ import {
 } from '@/components/ui/sidebar';
 
 const menuItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/customers', label: 'Customers', icon: Users },
-  { href: '/invoices', label: 'Invoices', icon: FileText },
-  { href: '/delinquency', label: 'Delinquency', icon: AlertTriangle },
+  { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
+  { href: '/customers', label: 'Pelanggan', icon: Users },
+  { href: '/invoices', label: 'Faktur', icon: FileText },
+  { href: '/delinquency', label: 'Tunggakan', icon: AlertTriangle },
 ];
 
 export default function AppSidebar() {
@@ -51,16 +51,16 @@ export default function AppSidebar() {
       <SidebarFooter className="p-2">
           <SidebarMenu>
             <SidebarMenuItem>
-                <SidebarMenuButton tooltip={{children: 'Settings'}}>
+                <SidebarMenuButton tooltip={{children: 'Pengaturan'}}>
                   <Settings className="h-5 w-5" />
-                  <span>Settings</span>
+                  <span>Pengaturan</span>
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={{children: 'Logout'}}>
+                <SidebarMenuButton asChild tooltip={{children: 'Keluar'}}>
                     <Link href="/">
                       <LogOut className="h-5 w-5" />
-                      <span>Logout</span>
+                      <span>Keluar</span>
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>

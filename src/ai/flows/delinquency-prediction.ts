@@ -12,19 +12,19 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const DelinquencyPredictionInputSchema = z.object({
-  customerId: z.string().describe('The unique identifier for the customer.'),
-  paymentHistory: z.string().describe('A history of the customer\'s payments, including dates and amounts.'),
-  accountAgeMonths: z.number().describe('The age of the customer\'s account in months.'),
-  averageMonthlyBill: z.number().describe('The average monthly bill amount for the customer.'),
-  outstandingBalance: z.number().describe('The current outstanding balance for the customer.'),
+  customerId: z.string().describe('Pengidentifikasi unik untuk pelanggan.'),
+  paymentHistory: z.string().describe('Riwayat pembayaran pelanggan, termasuk tanggal dan jumlah.'),
+  accountAgeMonths: z.number().describe('Usia akun pelanggan dalam bulan.'),
+  averageMonthlyBill: z.number().describe('Jumlah tagihan bulanan rata-rata untuk pelanggan.'),
+  outstandingBalance: z.number().describe('Saldo terutang saat ini untuk pelanggan.'),
 });
 
 export type DelinquencyPredictionInput = z.infer<typeof DelinquencyPredictionInputSchema>;
 
 const DelinquencyPredictionOutputSchema = z.object({
-  isDelinquentRisk: z.boolean().describe('Whether the customer is predicted to be at risk of delinquency.'),
-  riskScore: z.number().describe('A numerical score representing the customer\'s risk of delinquency (0-100).'),
-  reason: z.string().describe('The reason for the delinquency risk prediction.'),
+  isDelinquentRisk: z.boolean().describe('Apakah pelanggan diprediksi berisiko tunggakan.'),
+  riskScore: z.number().describe('Skor numerik yang mewakili risiko tunggakan pelanggan (0-100).'),
+  reason: z.string().describe('Alasan prediksi risiko tunggakan.'),
 });
 
 export type DelinquencyPredictionOutput = z.infer<typeof DelinquencyPredictionOutputSchema>;
