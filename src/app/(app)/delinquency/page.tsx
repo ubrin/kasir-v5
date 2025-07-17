@@ -1,6 +1,7 @@
 
 'use client';
 
+import * as React from "react";
 import {
   Table,
   TableBody,
@@ -15,6 +16,14 @@ import { customers, invoices } from "@/lib/data"
 import type { Customer } from "@/lib/types"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from "@/components/ui/select"
+
 
 type DelinquentCustomer = Customer & {
     overdueAmount: number;
@@ -23,6 +32,8 @@ type DelinquentCustomer = Customer & {
 
 export default function DelinquencyPage() {
     const router = useRouter();
+    const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
+
     const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas' && new Date(invoice.dueDate) < new Date());
     
     const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number }>>((acc, invoice) => {
@@ -41,11 +52,26 @@ export default function DelinquencyPage() {
         return acc;
     }, {});
 
-    const delinquentCustomers: DelinquentCustomer[] = Object.values(delinquentCustomersData).map(data => ({
+    const delinquentCustomersList: DelinquentCustomer[] = Object.values(delinquentCustomersData).map(data => ({
         ...data.customer,
         overdueAmount: data.overdueAmount,
         overdueInvoices: data.overdueInvoices,
     }));
+
+    const groupedDelinquentCustomers = delinquentCustomersList.reduce((acc, customer) => {
+        const code = customer.dueDateCode;
+        if (!acc[code]) {
+          acc[code] = [];
+        }
+        acc[code].push(customer);
+        return acc;
+      }, {} as Record<number, DelinquentCustomer[]>);
+
+    const groupKeys = Object.keys(groupedDelinquentCustomers).map(Number).sort((a, b) => a - b);
+
+    const filteredGroupKeys = selectedGroup === "all" 
+        ? groupKeys 
+        : groupKeys.filter(key => key.toString() === selectedGroup);
     
     const handleRowClick = (customerId: string) => {
         router.push(`/customers/${customerId}`);
@@ -53,54 +79,84 @@ export default function DelinquencyPage() {
 
   return (
     <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">Tagihan Pelanggan</h1>
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                <h1 className="text-3xl font-bold tracking-tight">Tagihan Pelanggan</h1>
+                <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Pilih grup" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Grup</SelectItem>
+                        {groupKeys.map(key => (
+                            <SelectItem key={key} value={key.toString()}>
+                                Grup Tanggal {key}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
-        <Card>
-            <CardContent className="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Pelanggan</TableHead>
-                            <TableHead>Alamat</TableHead>
-                            <TableHead className="text-center">Faktur Jatuh Tempo</TableHead>
-                            <TableHead className="text-right">Total Tagihan</TableHead>
-                            <TableHead><span className="sr-only">Aksi</span></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {delinquentCustomers.length > 0 ? (
-                        delinquentCustomers.map((customer) => (
-                            <TableRow 
-                                key={customer.id} 
-                                onClick={() => handleRowClick(customer.id)}
-                                className="cursor-pointer"
-                            >
-                                <TableCell className="font-semibold">{customer.name}</TableCell>
-                                <TableCell>{customer.address}</TableCell>
-                                <TableCell className="text-center">
-                                    <Badge variant="destructive">{customer.overdueInvoices}</Badge>
-                                </TableCell>
-                                <TableCell className="text-right font-bold text-destructive">
-                                    Rp{customer.overdueAmount.toLocaleString('id-ID')}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <Button size="sm" onClick={(e) => { e.stopPropagation(); /* Logika pembayaran */ }}>Bayar</Button>
-                                </TableCell>
-                            </TableRow>
-                        ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center h-48">
-                                    <p className="text-lg font-medium">Tidak ada tunggakan!</p>
-                                    <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!</p>
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+        
+        {filteredGroupKeys.length > 0 ? (
+            filteredGroupKeys.map((code) => (
+                <Card key={code}>
+                    <CardHeader>
+                        <CardTitle>Grup Tanggal {code}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Pelanggan</TableHead>
+                                    <TableHead>Alamat</TableHead>
+                                    <TableHead className="text-center">Faktur Jatuh Tempo</TableHead>
+                                    <TableHead className="text-right">Total Tagihan</TableHead>
+                                    <TableHead><span className="sr-only">Aksi</span></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {groupedDelinquentCustomers[code].map((customer) => (
+                                    <TableRow 
+                                        key={customer.id} 
+                                        onClick={() => handleRowClick(customer.id)}
+                                        className="cursor-pointer"
+                                    >
+                                        <TableCell className="font-semibold">{customer.name}</TableCell>
+                                        <TableCell>{customer.address}</TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant="destructive">{customer.overdueInvoices}</Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-destructive">
+                                            Rp{customer.overdueAmount.toLocaleString('id-ID')}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button size="sm" onClick={(e) => { e.stopPropagation(); /* Logika pembayaran */ }}>Bayar</Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            ))
+        ) : (
+             <Card>
+                <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
+                    {selectedGroup === "all" ? (
+                        <>
+                            <p className="text-lg font-medium">Tidak ada tunggakan!</p>
+                            <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-lg font-medium">Grup Tidak Ditemukan</p>
+                            <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak dalam grup yang dipilih.</p>
+                        </>
+                    )}
+                </CardContent>
+            </Card>
+        )}
     </div>
   )
 }
