@@ -72,12 +72,9 @@ export default function ReceiptPage() {
         const paidMonths = paidInvoices.map(inv => format(parseISO(inv.date), "MMMM yyyy", { locale: id })).join(', ');
 
         const message = `
-Terima kasih telah melakukan pembayaran. Berikut adalah rincian pembayaran Anda:
-No. Struk: ${payment.id}
-Tanggal: ${format(parseISO(payment.paymentDate), "dd/MM/yyyy HH:mm", { locale: id })}
-Pembayaran untuk: ${paidMonths}
+Terima kasih Anda telah melakukan Pembayaran internet untuk: ${paidMonths}
 Total Bayar: Rp${payment.totalPayment.toLocaleString('id-ID')}
-Metode: ${payment.paymentMethod.charAt(0).toUpperCase() + payment.paymentMethod.slice(1)}
+
 Terima kasih telah menggunakan layanan kami.
 - PT CYBERNETWORK CORP -
         `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
