@@ -107,32 +107,54 @@ export default function DelinquencyPage() {
     };
 
     const handlePaymentSuccess = (customerId: string, customerName: string, paymentDetails: any) => {
+        let amountPaid = paymentDetails.paidAmount;
+        const totalToPay = paymentDetails.totalPayment;
         
-        invoices.forEach(invoice => {
-            if (paymentDetails.selectedInvoices.includes(invoice.id)) {
+        // Sort selected invoices by date to pay off oldest ones first
+        const selectedInvoicesToProcess = invoices
+            .filter(inv => paymentDetails.selectedInvoices.includes(inv.id))
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+        if (amountPaid >= totalToPay) {
+            // Full payment or overpayment
+            selectedInvoicesToProcess.forEach(invoice => {
                 invoice.status = 'lunas';
+            });
+        } else {
+            // Partial payment
+            for (const invoice of selectedInvoicesToProcess) {
+                if (amountPaid >= invoice.amount) {
+                    amountPaid -= invoice.amount;
+                    invoice.status = 'lunas';
+                } else {
+                    invoice.amount -= amountPaid;
+                    amountPaid = 0;
+                    break; 
+                }
             }
-        });
-
-        // Update the customer's balance
+        }
+    
+        // Update the customer's main balance records
         const customer = customers.find(c => c.id === customerId);
         if (customer) {
             const remainingArrears = invoices
                 .filter(i => i.customerId === customerId && i.status === 'belum lunas')
                 .reduce((sum, i) => sum + i.amount, 0);
-
+    
             customer.amountDue = remainingArrears;
             customer.outstandingBalance = remainingArrears;
             if (remainingArrears === 0) {
                 customer.status = 'lunas';
+            } else {
+                customer.status = 'belum lunas';
             }
         }
-
+    
         toast({
             title: "Pembayaran Berhasil",
             description: `Pembayaran untuk ${customerName} telah berhasil diproses.`,
         });
-
+    
         setForceUpdate(prev => prev + 1);
     }
 
