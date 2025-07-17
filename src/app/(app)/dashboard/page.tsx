@@ -1,6 +1,6 @@
 'use client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
 import { DollarSign, Users, CreditCard, Activity, MoreHorizontal } from "lucide-react"
 import { revenueData, customers, invoices } from "@/lib/data"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -22,11 +22,20 @@ const chartConfig = {
   },
 }
 
+const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
+
 export default function DashboardPage() {
     const totalRevenue = invoices.filter(i => i.status === 'lunas').reduce((acc, i) => acc + i.amount, 0);
     const outstandingPayments = invoices.filter(i => i.status === 'belum lunas').reduce((acc, i) => acc + i.amount, 0);
     const newCustomers = customers.filter(c => differenceInMonths(new Date(), new Date(c.installationDate)) <= 1).length;
     const delinquentAccounts = invoices.filter(i => i.status === 'belum lunas' && new Date(i.dueDate) < new Date()).length;
+
+    const paidInvoices = invoices.filter(i => i.status === 'lunas').length;
+    const unpaidInvoices = invoices.filter(i => i.status === 'belum lunas').length;
+    const pieData = [
+      { name: 'Lunas', value: paidInvoices },
+      { name: 'Belum Lunas', value: unpaidInvoices },
+    ];
 
   return (
     <div className="flex flex-col gap-8">
@@ -87,10 +96,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Ringkasan</CardTitle>
+            <CardTitle>Ringkasan Pendapatan</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
             <ResponsiveContainer width="100%" height={350}>
@@ -119,6 +128,49 @@ export default function DashboardPage() {
                     />
                     <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Status Pembayaran Faktur</CardTitle>
+            <CardDescription>Visualisasi faktur yang sudah dan belum dibayar.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <PieChart>
+                <Tooltip
+                  contentStyle={{
+                      background: "hsl(var(--card))",
+                      borderColor: "hsl(var(--border))",
+                  }}
+                  formatter={(value: number, name: string) => [`${value} Faktur`, name]}
+                />
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={120}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                    const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+                    const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+                    return (
+                      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central">
+                        {`${(percent * 100).toFixed(0)}%`}
+                      </text>
+                    );
+                  }}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
+                  ))}
+                </Pie>
+                <Legend iconType="circle" />
+              </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
