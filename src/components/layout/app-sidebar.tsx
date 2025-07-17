@@ -27,9 +27,9 @@ const menuItems = [
     subItems: [
       { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
       { href: '/payment-report', label: 'Laporan', icon: BarChart3 },
+      { href: '/customers', label: 'Data Pelanggan', icon: Users },
     ]
   },
-  { href: '/customers', label: 'Pelanggan', icon: Users },
   { href: '/dashboard', label: 'Keuangan', icon: LayoutDashboard },
 ];
 
