@@ -23,11 +23,13 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select"
+import { differenceInDays, parseISO } from "date-fns";
 
 
 type DelinquentCustomer = Customer & {
     overdueAmount: number;
     overdueInvoices: number;
+    nearestDueDate: string;
 };
 
 export default function DelinquencyPage() {
@@ -37,7 +39,7 @@ export default function DelinquencyPage() {
     // Menampilkan semua faktur yang statusnya 'belum lunas'
     const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas');
     
-    const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number }>>((acc, invoice) => {
+    const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number, dueDates: string[] }>>((acc, invoice) => {
         const customer = customers.find((c) => c.id === invoice.customerId);
         if (customer) {
             if (!acc[customer.id]) {
@@ -45,19 +47,27 @@ export default function DelinquencyPage() {
                     customer: customer,
                     overdueAmount: 0,
                     overdueInvoices: 0,
+                    dueDates: [],
                 };
             }
             acc[customer.id].overdueAmount += invoice.amount;
             acc[customer.id].overdueInvoices += 1;
+            acc[customer.id].dueDates.push(invoice.dueDate);
         }
         return acc;
     }, {});
 
-    const delinquentCustomersList: DelinquentCustomer[] = Object.values(delinquentCustomersData).map(data => ({
-        ...data.customer,
-        overdueAmount: data.overdueAmount,
-        overdueInvoices: data.overdueInvoices,
-    }));
+    const delinquentCustomersList: DelinquentCustomer[] = Object.values(delinquentCustomersData).map(data => {
+        const sortedDueDates = data.dueDates.map(d => parseISO(d)).sort((a, b) => a.getTime() - b.getTime());
+        const nearestDueDate = sortedDueDates.length > 0 ? sortedDueDates[0].toISOString().split('T')[0] : '';
+        
+        return {
+            ...data.customer,
+            overdueAmount: data.overdueAmount,
+            overdueInvoices: data.overdueInvoices,
+            nearestDueDate: nearestDueDate,
+        }
+    });
 
     const groupedDelinquentCustomers = delinquentCustomersList.reduce((acc, customer) => {
         const code = customer.dueDateCode;
@@ -77,6 +87,19 @@ export default function DelinquencyPage() {
     const handleRowClick = (customerId: string) => {
         router.push(`/customers/${customerId}`);
     };
+
+    const formatDueDateCountdown = (dueDate: string) => {
+        if (!dueDate) return null;
+        const daysDiff = differenceInDays(parseISO(dueDate), new Date());
+
+        if (daysDiff < 0) {
+            return <Badge variant="destructive">Jatuh Tempo</Badge>
+        }
+        if (daysDiff === 0) {
+            return <Badge variant="outline" className="bg-blue-100 text-blue-800">Hari Ini</Badge>
+        }
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800">{daysDiff + 1} hari lagi</Badge>
+    }
 
   return (
     <div className="flex flex-col gap-8">
@@ -126,7 +149,7 @@ export default function DelinquencyPage() {
                                     <TableCell className="font-semibold">{customer.name}</TableCell>
                                     <TableCell>{customer.address}</TableCell>
                                     <TableCell className="text-center">
-                                        <Badge variant="destructive">{customer.overdueInvoices}</Badge>
+                                       {formatDueDateCountdown(customer.nearestDueDate)}
                                     </TableCell>
                                     <TableCell className="text-right font-bold text-destructive">
                                         Rp{customer.overdueAmount.toLocaleString('id-ID')}
