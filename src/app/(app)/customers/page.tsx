@@ -80,71 +80,80 @@ export default function CustomersPage() {
             </Button>
         </div>
 
-        {filteredGroupKeys.map((code) => (
-            <Card key={code}>
-                <CardHeader>
-                    <CardTitle>Tanggal {code}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Pelanggan</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="hidden md:table-cell">Paket (Mbps)</TableHead>
-                        <TableHead className="hidden md:table-cell">Alamat</TableHead>
-                        <TableHead className="text-right">Harga</TableHead>
-                        <TableHead>
-                            <span className="sr-only">Aksi</span>
-                        </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {groupedCustomers[code].map((customer) => (
-                        <TableRow 
-                            key={customer.id} 
-                            onClick={() => handleRowClick(customer.id)}
-                            className="cursor-pointer"
-                        >
-                            <TableCell className="font-semibold">
-                                {customer.name}
-                            </TableCell>
-                            <TableCell>
-                            <Badge variant={customer.amountDue > 0 ? "destructive" : "secondary"} className={customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"}>
-                                {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
-                            </Badge>
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">{customer.subscriptionMbps}</TableCell>
-                            <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
-                            <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
-                            <TableCell>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button 
-                                    aria-haspopup="true" 
-                                    size="icon" 
-                                    variant="ghost"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">Buka menu</span>
-                                </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                <DropdownMenuItem>Ubah</DropdownMenuItem>
-                                <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-500">Hapus</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                        ))}
-                    </TableBody>
-                    </Table>
+        {filteredGroupKeys.length > 0 ? (
+            filteredGroupKeys.map((code) => (
+                <Card key={code}>
+                    <CardHeader>
+                        <CardTitle>Grup Tanggal {code}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Pelanggan</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="hidden md:table-cell">Paket (Mbps)</TableHead>
+                            <TableHead className="hidden md:table-cell">Alamat</TableHead>
+                            <TableHead className="text-right">Harga</TableHead>
+                            <TableHead>
+                                <span className="sr-only">Aksi</span>
+                            </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {groupedCustomers[code].map((customer) => (
+                            <TableRow 
+                                key={customer.id} 
+                                onClick={() => handleRowClick(customer.id)}
+                                className="cursor-pointer"
+                            >
+                                <TableCell className="font-semibold">
+                                    {customer.name}
+                                </TableCell>
+                                <TableCell>
+                                <Badge variant={customer.amountDue > 0 ? "destructive" : "secondary"} className={customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"}>
+                                    {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
+                                </Badge>
+                                </TableCell>
+                                <TableCell className="hidden md:table-cell">{customer.subscriptionMbps}</TableCell>
+                                <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
+                                <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
+                                <TableCell>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button 
+                                        aria-haspopup="true" 
+                                        size="icon" 
+                                        variant="ghost"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Buka menu</span>
+                                    </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                    <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                    <DropdownMenuItem>Ubah</DropdownMenuItem>
+                                    <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-red-500">Hapus</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            ))
+        ) : (
+            <Card>
+                <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
+                    <p className="text-lg font-medium">Grup Tidak Ditemukan</p>
+                    <p className="text-muted-foreground">Tidak ada pelanggan dalam grup yang dipilih.</p>
                 </CardContent>
             </Card>
-        ))}
+        )}
     </div>
   )
 }
