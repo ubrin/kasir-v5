@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { addDays, format, startOfMonth, endOfMonth } from 'date-fns';
+import { addDays, format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { payments } from '@/lib/data';
@@ -15,6 +15,13 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from "@/components/ui/select"
 
 type GroupedPayments = {
   [date: string]: {
@@ -32,6 +39,8 @@ export default function PaymentReportPage() {
     to: endOfMonth(new Date()),
   });
 
+  const [selectedDate, setSelectedDate] = React.useState<string | undefined>();
+
   const filteredPayments = payments.filter(payment => {
     if (!date?.from) return true;
     const paymentDate = new Date(payment.paymentDate);
@@ -41,7 +50,7 @@ export default function PaymentReportPage() {
   });
 
   const groupedPayments = filteredPayments.reduce<GroupedPayments>((acc, payment) => {
-    const paymentDate = format(payment.paymentDate, 'yyyy-MM-dd');
+    const paymentDate = format(parseISO(payment.paymentDate.toISOString()), 'yyyy-MM-dd');
     if (!acc[paymentDate]) {
       acc[paymentDate] = { cash: 0, bri: 0, dana: 0, total: 0, details: [] };
     }
@@ -52,6 +61,18 @@ export default function PaymentReportPage() {
   }, {});
 
   const sortedDates = Object.keys(groupedPayments).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+  
+  React.useEffect(() => {
+    if (sortedDates.length > 0 && !selectedDate) {
+      setSelectedDate(sortedDates[0]);
+    } else if (sortedDates.length > 0 && selectedDate && !sortedDates.includes(selectedDate)) {
+      setSelectedDate(sortedDates[0]);
+    }
+     else if (sortedDates.length === 0) {
+        setSelectedDate(undefined);
+    }
+  }, [sortedDates, selectedDate]);
+
 
   const grandTotal = sortedDates.reduce(
     (acc, date) => {
@@ -71,6 +92,8 @@ export default function PaymentReportPage() {
         case 'dana': return <Badge className="bg-sky-500 text-white hover:bg-sky-600">DANA</Badge>;
     }
   }
+
+  const selectedDateData = selectedDate ? groupedPayments[selectedDate] : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -148,50 +171,65 @@ export default function PaymentReportPage() {
             </Table>
         </CardContent>
       </Card>
-
-
-      {sortedDates.map(dateStr => (
-        <Card key={dateStr}>
-          <CardHeader>
-            <CardTitle>{format(new Date(dateStr), 'eeee, d MMMM yyyy', { locale: id })}</CardTitle>
-             <div className="flex gap-4 text-sm text-muted-foreground pt-2">
-                <span>Cash: <span className="font-semibold text-foreground">Rp{groupedPayments[dateStr].cash.toLocaleString('id-ID')}</span></span>
-                <span>BRI: <span className="font-semibold text-foreground">Rp{groupedPayments[dateStr].bri.toLocaleString('id-ID')}</span></span>
-                <span>DANA: <span className="font-semibold text-foreground">Rp{groupedPayments[dateStr].dana.toLocaleString('id-ID')}</span></span>
-                <span className="font-bold">Total: <span className="text-primary">Rp{groupedPayments[dateStr].total.toLocaleString('id-ID')}</span></span>
-             </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pelanggan</TableHead>
-                  <TableHead>Metode Bayar</TableHead>
-                  <TableHead className="text-right">Jumlah Dibayar</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groupedPayments[dateStr].details.map(payment => (
-                  <TableRow key={payment.id}>
-                    <TableCell className="font-medium">{payment.customerName}</TableCell>
-                    <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
-                    <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ))}
-
-        {filteredPayments.length === 0 && (
-             <Card>
-                <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
-                    <p className="text-lg font-medium">Tidak Ada Data</p>
-                    <p className="text-muted-foreground">Tidak ada pembayaran yang tercatat pada periode tanggal yang dipilih.</p>
+      
+      {sortedDates.length > 0 && selectedDate && selectedDateData ? (
+        <>
+            <div className="flex justify-end">
+                <Select value={selectedDate} onValueChange={setSelectedDate}>
+                    <SelectTrigger className="w-[280px]">
+                        <SelectValue placeholder="Pilih tanggal laporan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {sortedDates.map(dateStr => (
+                             <SelectItem key={dateStr} value={dateStr}>
+                                {format(parseISO(dateStr), 'eeee, d MMMM yyyy', { locale: id })}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{format(parseISO(selectedDate), 'eeee, d MMMM yyyy', { locale: id })}</CardTitle>
+                    <div className="flex gap-4 text-sm text-muted-foreground pt-2">
+                        <span>Cash: <span className="font-semibold text-foreground">Rp{selectedDateData.cash.toLocaleString('id-ID')}</span></span>
+                        <span>BRI: <span className="font-semibold text-foreground">Rp{selectedDateData.bri.toLocaleString('id-ID')}</span></span>
+                        <span>DANA: <span className="font-semibold text-foreground">Rp{selectedDateData.dana.toLocaleString('id-ID')}</span></span>
+                        <span className="font-bold">Total: <span className="text-primary">Rp{selectedDateData.total.toLocaleString('id-ID')}</span></span>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Pelanggan</TableHead>
+                        <TableHead>Metode Bayar</TableHead>
+                        <TableHead className="text-right">Jumlah Dibayar</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {selectedDateData.details.map(payment => (
+                        <TableRow key={payment.id}>
+                            <TableCell className="font-medium">{payment.customerName}</TableCell>
+                            <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
+                            <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                    </Table>
                 </CardContent>
             </Card>
-        )}
+        </>
+      ) : (
+        <Card>
+            <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
+                <p className="text-lg font-medium">Tidak Ada Data</p>
+                <p className="text-muted-foreground">Tidak ada pembayaran yang tercatat pada periode tanggal yang dipilih.</p>
+            </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
+
+    
