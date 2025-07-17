@@ -94,9 +94,9 @@ export default function SignupPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Daftar ke APP GANTENG</CardTitle>
+          <CardTitle className="text-2xl text-center">Buat Akun Baru</CardTitle>
           <CardDescription className="text-center">
-            Masukkan informasi Anda untuk membuat akun baru.
+            Masukkan informasi Anda untuk membuat akun.
           </CardDescription>
         </CardHeader>
         <CardContent>

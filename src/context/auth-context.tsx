@@ -35,13 +35,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (firebaseUser) {
+        // Handle anonymous users who won't have a Firestore document.
+        if (firebaseUser.isAnonymous) {
+            const anonymousUser: AppUser = {
+                uid: firebaseUser.uid,
+                email: null,
+                firstName: 'Tamu',
+                lastName: '',
+                role: 'user', // Anonymous users are treated as 'user' role
+            };
+            setUser(anonymousUser);
+            setLoading(false);
+            return;
+        }
+
       const userDocRef = doc(db, 'users', firebaseUser.uid);
       const unsubscribeSnapshot = onSnapshot(userDocRef, (doc) => {
         if (doc.exists()) {
           setUser(doc.data() as AppUser);
         } else {
-          // This might happen if user is created but firestore doc fails
-          // Or if user data is deleted.
           setUser(null); 
         }
         setLoading(false);
@@ -53,7 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       return () => unsubscribeSnapshot();
     } else {
-        // No firebaseUser, so not loading.
         setLoading(false);
     }
   }, [firebaseUser]);

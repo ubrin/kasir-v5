@@ -3,7 +3,7 @@
 import Link from "next/link"
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signInAnonymously } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/context/auth-context";
 
@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 
 export default function LoginPage() {
@@ -61,6 +62,30 @@ export default function LoginPage() {
             setLoading(false);
         }
     };
+    
+    const handleAnonymousLogin = async () => {
+        setLoading(true);
+        setError("");
+        try {
+            await signInAnonymously(auth);
+             toast({
+                title: "Login Berhasil",
+                description: "Anda masuk sebagai tamu.",
+            });
+            router.push('/home');
+        } catch (error) {
+            console.error("Anonymous login failed:", error);
+            const errorMessage = "Login sebagai tamu gagal. Pastikan sudah diaktifkan di Firebase Console.";
+            setError(errorMessage);
+            toast({
+                title: "Login Gagal",
+                description: errorMessage,
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     if (authLoading || (!authLoading && user)) {
         return (
@@ -76,7 +101,7 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl text-center pt-6">APP GANTENG</CardTitle>
           <CardDescription className="text-center">
-            Selamat datang! Pastikan Anda telah mengisi file .env dan mengaktifkan metode login Email/Password di Firebase Console.
+            Selamat datang! Masuk untuk melanjutkan atau coba sebagai tamu.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -100,7 +125,7 @@ export default function LoginPage() {
                   href="#"
                   className="ml-auto inline-block text-sm underline"
                 >
-                  Lupa kata sandi Anda?
+                  Lupa kata sandi?
                 </Link>
               </div>
               <Input 
@@ -116,10 +141,23 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Masuk'}
             </Button>
-            <Button variant="outline" className="w-full" disabled={loading}>
-              Masuk dengan Google
-            </Button>
           </form>
+          
+          <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t"></span>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Atau lanjutkan dengan</span>
+              </div>
+          </div>
+
+          <div className="grid gap-2">
+              <Button variant="outline" className="w-full" disabled={loading} onClick={handleAnonymousLogin}>
+                  Masuk sebagai Tamu
+              </Button>
+          </div>
+
           <div className="mt-4 text-center text-sm">
             Belum punya akun?{" "}
             <Link href="/signup" className="underline">
