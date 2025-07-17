@@ -280,8 +280,10 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                     />
                 </div>
                  <div className="grid gap-2">
-                    <Label>{paymentDifference >= 0 ? 'Kembalian' : 'Total Kekurangan'}</Label>
-                    <p className="font-semibold text-lg">Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}</p>
+                    <Label>Kembalian</Label>
+                    <p className={cn("font-semibold text-lg", paymentDifference < 0 && "text-destructive")}>
+                        Rp{paymentDifference.toLocaleString('id-ID')}
+                    </p>
                 </div>
             </div>
 
