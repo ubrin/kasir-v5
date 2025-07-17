@@ -89,11 +89,11 @@ export default function CustomersPage() {
 
   return (
     <div className="flex flex-col gap-8">
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-                <h1 className="text-3xl font-bold tracking-tight">Pelanggan</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h1 className="text-3xl font-bold tracking-tight">Pelanggan</h1>
+            <div className="flex items-center gap-2">
                 <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full sm:w-[180px]">
                         <SelectValue placeholder="Pilih grup" />
                     </SelectTrigger>
                     <SelectContent>
@@ -105,8 +105,8 @@ export default function CustomersPage() {
                         ))}
                     </SelectContent>
                 </Select>
+                <AddCustomerDialog onCustomerAdded={handleCustomerAdded} />
             </div>
-            <AddCustomerDialog onCustomerAdded={handleCustomerAdded} />
         </div>
 
         {filteredGroupKeys.length > 0 ? (
@@ -121,8 +121,8 @@ export default function CustomersPage() {
                             <TableRow>
                             <TableHead>Pelanggan</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="hidden md:table-cell">Paket (Mbps)</TableHead>
-                            <TableHead className="hidden md:table-cell">Alamat</TableHead>
+                            <TableHead className="hidden md:table-cell">Paket</TableHead>
+                            <TableHead className="hidden sm:table-cell">Alamat</TableHead>
                             <TableHead className="text-right">Harga</TableHead>
                             <TableHead>
                                 <span className="sr-only">Aksi</span>
@@ -142,12 +142,12 @@ export default function CustomersPage() {
                                         {customer.name}
                                     </TableCell>
                                     <TableCell>
-                                    <Badge variant={overdue ? "destructive" : "secondary"} className={overdue ? "" : "bg-green-100 text-green-800"}>
-                                        {overdue ? "Belum Lunas" : "Lunas"}
+                                    <Badge variant={customer.amountDue > 0 ? "destructive" : "secondary"} className={`${customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"}`}>
+                                        {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
                                     </Badge>
                                     </TableCell>
-                                    <TableCell className="hidden md:table-cell">{customer.subscriptionMbps}</TableCell>
-                                    <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
+                                    <TableCell className="hidden md:table-cell">{customer.subscriptionMbps} Mbps</TableCell>
+                                    <TableCell className="hidden sm:table-cell">{customer.address}</TableCell>
                                     <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
                                     <TableCell>
                                     <DropdownMenu>
@@ -179,7 +179,7 @@ export default function CustomersPage() {
             ))
         ) : (
             <Card>
-                <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
+                <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
                     <p className="text-lg font-medium">Grup Tidak Ditemukan</p>
                     <p className="text-muted-foreground">Tidak ada pelanggan dalam grup yang dipilih.</p>
                 </CardContent>

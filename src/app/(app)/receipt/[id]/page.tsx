@@ -11,10 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, ArrowLeft, Send, Printer } from 'lucide-react';
+import { Download, ArrowLeft, Send, Printer, MoreVertical } from 'lucide-react';
 import Image from 'next/image';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function ReceiptPage() {
     const params = useParams();
@@ -94,23 +95,33 @@ Terima kasih telah menggunakan layanan kami.
     return (
         <div className="max-w-md mx-auto p-4 sm:p-6 lg:p-8 bg-background print:bg-white">
              <div className="flex justify-between items-center mb-6 print:hidden">
-                <Button variant="outline" onClick={() => router.back()}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Kembali
+                <Button variant="outline" size="icon" onClick={() => router.back()}>
+                    <ArrowLeft className="h-4 w-4" />
+                     <span className="sr-only">Kembali</span>
                 </Button>
                 <div className="flex gap-2">
-                    <Button onClick={handleDownloadPdf} variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Unduh PDF
-                    </Button>
-                    <Button onClick={handlePrint} variant="outline">
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print
-                    </Button>
                     <Button onClick={handleSendWhatsApp}>
-                        <Send className="mr-2 h-4 w-4" />
-                        Kirim Struk
+                        <Send className="mr-0 sm:mr-2 h-4 w-4" />
+                        <span className="hidden sm:inline">Kirim Struk</span>
                     </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                                <span className="sr-only">Opsi Lain</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={handlePrint}>
+                                <Printer className="mr-2 h-4 w-4" />
+                                <span>Print</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleDownloadPdf}>
+                                <Download className="mr-2 h-4 w-4" />
+                                <span>Unduh PDF</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
             <div ref={receiptRef}>

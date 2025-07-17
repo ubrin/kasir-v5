@@ -206,61 +206,92 @@ export default function DelinquencyPage() {
 
   return (
     <div className="flex flex-col gap-8">
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-                <h1 className="text-3xl font-bold tracking-tight">Tagihan Pelanggan</h1>
-                <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Pilih grup" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Grup</SelectItem>
-                        {groupKeys.map(key => (
-                            <SelectItem key={key} value={key.toString()}>
-                                Tanggal {key}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h1 className="text-3xl font-bold tracking-tight">Tagihan Pelanggan</h1>
+            <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Pilih grup" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Semua Grup</SelectItem>
+                    {groupKeys.map(key => (
+                        <SelectItem key={key} value={key.toString()}>
+                            Tanggal {key}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         </div>
         
         {isClient && filteredGroupKeys.length > 0 ? (
             <Accordion type="multiple" className="w-full space-y-4" defaultValue={filteredGroupKeys.map(String)}>
                 {filteredGroupKeys.map((code) => (
                     <AccordionItem value={String(code)} key={code} className="border rounded-lg overflow-hidden">
-                        <AccordionTrigger className="bg-muted/50 hover:bg-muted px-6 py-4">
+                        <AccordionTrigger className="bg-muted/50 hover:bg-muted px-4 sm:px-6 py-4">
                              <CardTitle>Tanggal {code}</CardTitle>
                         </AccordionTrigger>
                         <AccordionContent className="p-0">
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Pelanggan</TableHead>
-                                        <TableHead>Alamat</TableHead>
-                                        <TableHead className="text-center">Jatuh Tempo</TableHead>
-                                        <TableHead className="text-right">Total Tagihan</TableHead>
-                                        <TableHead className="text-right">Aksi</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {groupedDelinquentCustomers[code].map((customer) => (
-                                        <TableRow 
-                                            key={customer.id} 
-                                            onClick={() => handleRowClick(customer.id)}
-                                            className="cursor-pointer"
-                                        >
-                                            <TableCell className="font-semibold">{customer.name}</TableCell>
-                                            <TableCell>{customer.address}</TableCell>
-                                            <TableCell className="text-center">
-                                            {formatDueDateCountdown(customer.nearestDueDate)}
-                                            </TableCell>
-                                            <TableCell className="text-right font-bold text-destructive">
-                                                Rp{customer.overdueAmount.toLocaleString('id-ID')}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <Button variant="outline" size="icon" onClick={(e) => handleInvoiceClick(e, customer.id)}>
+                             <div className="hidden md:block">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Pelanggan</TableHead>
+                                            <TableHead>Alamat</TableHead>
+                                            <TableHead className="text-center">Jatuh Tempo</TableHead>
+                                            <TableHead className="text-right">Total Tagihan</TableHead>
+                                            <TableHead className="text-right pr-6">Aksi</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {groupedDelinquentCustomers[code].map((customer) => (
+                                            <TableRow 
+                                                key={customer.id} 
+                                                onClick={() => handleRowClick(customer.id)}
+                                                className="cursor-pointer"
+                                            >
+                                                <TableCell className="font-semibold">{customer.name}</TableCell>
+                                                <TableCell>{customer.address}</TableCell>
+                                                <TableCell className="text-center">
+                                                {formatDueDateCountdown(customer.nearestDueDate)}
+                                                </TableCell>
+                                                <TableCell className="text-right font-bold text-destructive">
+                                                    Rp{customer.overdueAmount.toLocaleString('id-ID')}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-2 pr-2">
+                                                        <Button variant="outline" size="icon" onClick={(e) => handleInvoiceClick(e, customer.id)}>
+                                                            <FileText className="h-4 w-4" />
+                                                            <span className="sr-only">Buat Invoice</span>
+                                                        </Button>
+                                                        <PaymentDialog
+                                                            customer={customer}
+                                                            onPaymentSuccess={handlePaymentSuccess}
+                                                        />
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                             </div>
+                             <div className="md:hidden space-y-4 p-4">
+                                {groupedDelinquentCustomers[code].map((customer) => (
+                                    <Card key={customer.id} onClick={() => handleRowClick(customer.id)} className="cursor-pointer">
+                                        <CardContent className="p-4 flex flex-col gap-3">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="font-semibold">{customer.name}</p>
+                                                    <p className="text-sm text-muted-foreground">{customer.address}</p>
+                                                </div>
+                                                {formatDueDateCountdown(customer.nearestDueDate)}
+                                            </div>
+                                            <div className="border-t pt-3 flex justify-between items-center">
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Total Tagihan</p>
+                                                    <p className="font-bold text-destructive">Rp{customer.overdueAmount.toLocaleString('id-ID')}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                     <Button variant="outline" size="icon" onClick={(e) => handleInvoiceClick(e, customer.id)}>
                                                         <FileText className="h-4 w-4" />
                                                         <span className="sr-only">Buat Invoice</span>
                                                     </Button>
@@ -269,18 +300,18 @@ export default function DelinquencyPage() {
                                                         onPaymentSuccess={handlePaymentSuccess}
                                                     />
                                                 </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                                </Table>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                             </div>
                         </AccordionContent>
                     </AccordionItem>
                 ))}
             </Accordion>
         ) : (
              <Card>
-                <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
+                <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
                     {isClient && !showDelinquencyList ? (
                         <>
                             <p className="text-lg font-medium">Daftar Tagihan Belum Tersedia</p>
