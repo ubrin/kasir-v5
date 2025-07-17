@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   title: 'InvoiceFlow',
   description: 'Kelola pelanggan dan penagihan dengan wawasan bertenaga AI.',
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "InvoiceFlow",
+  },
 };
 
 export default function RootLayout({
