@@ -3,7 +3,7 @@ export type Customer = {
   name: string;
   dueDateCode: number;
   avatar: string;
-  company: string;
+  address: string;
   status: 'active' | 'inactive';
   amountDue: number;
   paymentHistory: string;
@@ -19,7 +19,7 @@ export type Invoice = {
   date: string;
   dueDate: string;
   amount: number;
-  status: 'paid' | 'pending' | 'overdue';
+  status: 'lunas' | 'belum lunas';
 };
 
 export type RevenueData = {

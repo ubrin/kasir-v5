@@ -22,10 +22,10 @@ const chartConfig = {
 }
 
 export default function DashboardPage() {
-    const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.amount, 0);
-    const outstandingPayments = invoices.filter(i => i.status === 'pending' || i.status === 'overdue').reduce((acc, i) => acc + i.amount, 0);
+    const totalRevenue = invoices.filter(i => i.status === 'lunas').reduce((acc, i) => acc + i.amount, 0);
+    const outstandingPayments = invoices.filter(i => i.status === 'belum lunas').reduce((acc, i) => acc + i.amount, 0);
     const newCustomers = customers.filter(c => c.accountAgeMonths <= 1).length;
-    const delinquentAccounts = invoices.filter(i => i.status === 'overdue').length;
+    const delinquentAccounts = invoices.filter(i => i.status === 'belum lunas' && new Date(i.dueDate) < new Date()).length;
 
   return (
     <div className="flex flex-col gap-8">
@@ -125,13 +125,13 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Faktur Terbaru</CardTitle>
             <CardDescription>
-              Anda memiliki {invoices.filter(i => i.status === 'pending').length} faktur tertunda.
+              Anda memiliki {invoices.filter(i => i.status === 'belum lunas').length} faktur belum lunas.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
                 <TableBody>
-                    {invoices.slice(0, 5).map(invoice => (
+                    {invoices.filter(i => i.status === 'belum lunas').slice(0, 5).map(invoice => (
                         <TableRow key={invoice.id}>
                             <TableCell>
                                 <div className="font-medium">{invoice.customerName}</div>

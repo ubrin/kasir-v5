@@ -29,7 +29,7 @@ type DelinquentCustomer = Customer & {
 };
 
 export default function DelinquencyPage() {
-    const overdueInvoices = invoices.filter((invoice) => invoice.status === 'overdue');
+    const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas' && new Date(invoice.dueDate) < new Date());
     
     const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number }>>((acc, invoice) => {
         const customer = customers.find((c) => c.id === invoice.customerId);
@@ -70,7 +70,7 @@ export default function DelinquencyPage() {
                   <TableHead>Pelanggan</TableHead>
                   <TableHead>Total Tunggakan</TableHead>
                   <TableHead className="hidden md:table-cell">Faktur Jatuh Tempo</TableHead>
-                  <TableHead className="hidden md:table-cell">Perusahaan</TableHead>
+                  <TableHead className="hidden md:table-cell">Alamat</TableHead>
                   <TableHead>
                       <span className="sr-only">Aksi</span>
                   </TableHead>
@@ -97,7 +97,7 @@ export default function DelinquencyPage() {
                         <TableCell className="hidden md:table-cell text-center">
                             <Badge variant="destructive">{customer.overdueInvoices}</Badge>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{customer.company}</TableCell>
+                        <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
                         <TableCell>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

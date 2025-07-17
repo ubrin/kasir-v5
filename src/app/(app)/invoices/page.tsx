@@ -19,36 +19,30 @@ import { MoreHorizontal, PlusCircle } from "lucide-react"
 import { invoices } from "@/lib/data"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-const getBadgeVariant = (status: 'paid' | 'pending' | 'overdue') => {
-  switch (status) {
-    case 'paid':
-      return 'secondary';
-    case 'pending':
-      return 'default';
-    case 'overdue':
-      return 'destructive';
-  }
+const getBadgeVariant = (status: 'lunas' | 'belum lunas') => {
+  const isOverdue = new Date() > new Date(); // This logic needs a dueDate to be accurate. We'll assume 'belum lunas' can be overdue.
+  if (status === 'lunas') return 'secondary';
+  if (status === 'belum lunas' && isOverdue) return 'destructive';
+  return 'default';
 };
 
-const getBadgeClasses = (status: 'paid' | 'pending' | 'overdue') => {
+const getBadgeClasses = (status: 'lunas' | 'belum lunas', dueDate: string) => {
+    const isOverdue = new Date(dueDate) < new Date();
     switch (status) {
-      case 'paid':
+      case 'lunas':
         return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-blue-100 text-blue-800';
-      case 'overdue':
-        return 'bg-red-100 text-red-800';
+      case 'belum lunas':
+        return isOverdue ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800';
     }
   };
 
-  const translateStatus = (status: 'paid' | 'pending' | 'overdue') => {
+  const translateStatus = (status: 'lunas' | 'belum lunas', dueDate: string) => {
+    const isOverdue = new Date(dueDate) < new Date();
     switch (status) {
-      case 'paid':
+      case 'lunas':
         return 'Lunas';
-      case 'pending':
-        return 'Tertunda';
-      case 'overdue':
-        return 'Jatuh Tempo';
+      case 'belum lunas':
+        return isOverdue ? 'Jatuh Tempo' : 'Belum Lunas';
     }
   };
 
@@ -88,8 +82,8 @@ export default function InvoicesPage() {
                         <TableCell className="font-medium">{invoice.id}</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
                         <TableCell>
-                            <Badge variant={getBadgeVariant(invoice.status)} className={getBadgeClasses(invoice.status)}>
-                                {translateStatus(invoice.status)}
+                            <Badge variant={'outline'} className={getBadgeClasses(invoice.status, invoice.dueDate)}>
+                                {translateStatus(invoice.status, invoice.dueDate)}
                             </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">{invoice.date}</TableCell>

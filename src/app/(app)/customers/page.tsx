@@ -41,7 +41,7 @@ export default function CustomersPage() {
                     <TableHead>Pelanggan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Tgl. Jatuh Tempo</TableHead>
-                    <TableHead className="hidden md:table-cell">Perusahaan</TableHead>
+                    <TableHead className="hidden md:table-cell">Alamat</TableHead>
                     <TableHead className="text-right">Jumlah Tagihan</TableHead>
                     <TableHead>
                         <span className="sr-only">Aksi</span>
@@ -68,7 +68,7 @@ export default function CustomersPage() {
                         </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">Setiap tgl. {customer.dueDateCode}</TableCell>
-                        <TableCell className="hidden md:table-cell">{customer.company}</TableCell>
+                        <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
                         <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
                         <TableCell>
                         <DropdownMenu>

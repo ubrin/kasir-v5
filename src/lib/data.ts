@@ -6,7 +6,7 @@ export const customers: Customer[] = [
     name: 'Budi Santoso',
     dueDateCode: 5,
     avatar: 'https://i.pravatar.cc/150?u=cus_1',
-    company: 'Santoso Jaya',
+    address: 'Jl. Merdeka No. 1, Jakarta',
     status: 'active',
     amountDue: 22500000,
     paymentHistory: 'Membayar tepat waktu selama 12 bulan terakhir.',
@@ -19,7 +19,7 @@ export const customers: Customer[] = [
     name: 'Citra Lestari',
     dueDateCode: 10,
     avatar: 'https://i.pravatar.cc/150?u=cus_2',
-    company: 'Lestari & Co.',
+    address: 'Jl. Sudirman Kav. 5, Bandung',
     status: 'active',
     amountDue: 3750000,
     paymentHistory: 'Satu pembayaran terlambat 3 bulan yang lalu. Selebihnya bayar tepat waktu.',
@@ -32,7 +32,7 @@ export const customers: Customer[] = [
     name: 'Adi Nugroho',
     dueDateCode: 15,
     avatar: 'https://i.pravatar.cc/150?u=cus_3',
-    company: 'Nugroho Enterprises',
+    address: 'Jl. Gajah Mada No. 10, Surabaya',
     status: 'inactive',
     amountDue: 0,
     paymentHistory: 'Akun ditutup. Semua pembayaran sudah dilunasi.',
@@ -45,7 +45,7 @@ export const customers: Customer[] = [
     name: 'Dewi Anggraini',
     dueDateCode: 20,
     avatar: 'https://i.pravatar.cc/150?u=cus_4',
-    company: 'Anggraini Corp',
+    address: 'Jl. Thamrin No. 8, Medan',
     status: 'active',
     amountDue: 78000000,
     paymentHistory: 'Sering terlambat membayar selama 6 bulan terakhir. Beberapa pengingat telah dikirim.',
@@ -58,7 +58,7 @@ export const customers: Customer[] = [
     name: 'Eko Prasetyo',
     dueDateCode: 25,
     avatar: 'https://i.pravatar.cc/150?u=cus_5',
-    company: 'Prasetyo Goods',
+    address: 'Jl. Pahlawan No. 2, Semarang',
     status: 'active',
     amountDue: 0,
     paymentHistory: 'Pelanggan baru, tagihan pertama belum jatuh tempo.',
@@ -69,12 +69,12 @@ export const customers: Customer[] = [
 ];
 
 export const invoices: Invoice[] = [
-    { id: 'INV-001', customerId: 'cus_1', customerName: 'Budi Santoso', date: '2024-06-01', dueDate: '2024-07-01', amount: 22500000, status: 'pending' },
-    { id: 'INV-002', customerId: 'cus_2', customerName: 'Citra Lestari', date: '2024-06-05', dueDate: '2024-07-05', amount: 3750000, status: 'pending' },
-    { id: 'INV-003', customerId: 'cus_4', customerName: 'Dewi Anggraini', date: '2024-05-15', dueDate: '2024-06-15', amount: 39000000, status: 'overdue' },
-    { id: 'INV-004', customerId: 'cus_4', customerName: 'Dewi Anggraini', date: '2024-06-15', dueDate: '2024-07-15', amount: 39000000, status: 'pending' },
-    { id: 'INV-005', customerId: 'cus_1', customerName: 'Budi Santoso', date: '2024-05-01', dueDate: '2024-06-01', amount: 22500000, status: 'paid' },
-    { id: 'INV-006', customerId: 'cus_2', customerName: 'Citra Lestari', date: '2024-05-05', dueDate: '2024-06-05', amount: 3750000, status: 'paid' },
+    { id: 'INV-001', customerId: 'cus_1', customerName: 'Budi Santoso', date: '2024-06-01', dueDate: '2024-07-01', amount: 22500000, status: 'belum lunas' },
+    { id: 'INV-002', customerId: 'cus_2', customerName: 'Citra Lestari', date: '2024-06-05', dueDate: '2024-07-05', amount: 3750000, status: 'belum lunas' },
+    { id: 'INV-003', customerId: 'cus_4', customerName: 'Dewi Anggraini', date: '2024-05-15', dueDate: '2024-06-15', amount: 39000000, status: 'belum lunas' },
+    { id: 'INV-004', customerId: 'cus_4', customerName: 'Dewi Anggraini', date: '2024-06-15', dueDate: '2024-07-15', amount: 39000000, status: 'belum lunas' },
+    { id: 'INV-005', customerId: 'cus_1', customerName: 'Budi Santoso', date: '2024-05-01', dueDate: '2024-06-01', amount: 22500000, status: 'lunas' },
+    { id: 'INV-006', customerId: 'cus_2', customerName: 'Citra Lestari', date: '2024-05-05', dueDate: '2024-06-05', amount: 3750000, status: 'lunas' },
 ];
 
 export const revenueData: RevenueData[] = [
