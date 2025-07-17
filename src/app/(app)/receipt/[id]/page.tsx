@@ -128,7 +128,7 @@ Terima kasih telah menggunakan layanan kami.
                 <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="receipt-content">
                     <CardHeader className="p-4 text-center">
                         <div className="flex justify-center items-center gap-2 mb-2">
-                            <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={32} height={32} />
+                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={32} height={32} />
                             <h1 className="text-lg font-bold">PT CYBERNETWORK CORP</h1>
                         </div>
                         <p className="text-xs">suport by NAVAZ</p>

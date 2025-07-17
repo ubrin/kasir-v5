@@ -99,7 +99,7 @@ export default function InvoicePage() {
                         <div className="flex justify-between items-start">
                             <div>
                                 <div className="flex items-center gap-3 mb-4">
-                                    <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={48} height={48} />
+                                    <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={48} height={48} />
                                     <div>
                                         <h1 className="text-2xl font-bold text-primary">PT CYBERNETWORK CORP</h1>
                                         <p className="text-muted-foreground">suport by NAVAZ</p>

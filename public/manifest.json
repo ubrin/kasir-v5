@@ -1,13 +1,11 @@
-
 {
-  "theme_color": "#3F51B5",
-  "background_color": "#F5F5F5",
-  "display": "standalone",
-  "scope": "/",
-  "start_url": "/home",
   "name": "InvoiceFlow",
   "short_name": "InvoiceFlow",
   "description": "Kelola pelanggan dan penagihan dengan wawasan bertenaga AI.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F5F5",
+  "theme_color": "#3F51B5",
   "icons": [
     {
       "src": "/icon-192x192.png",
