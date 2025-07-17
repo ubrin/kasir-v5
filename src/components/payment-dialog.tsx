@@ -128,11 +128,13 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
         const currentMonth = getMonth(today);
         const currentYear = getYear(today);
 
-        // Find invoice for the current month among the customer's unpaid invoices
-        const currentMonthInvoice = customer.invoices.find(invoice => {
-            const invoiceDate = parseISO(invoice.date);
-            return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
-        });
+        // Find invoice for the current month among ALL customer's unpaid invoices
+        const currentMonthInvoice = invoices.find(invoice => 
+            invoice.customerId === customer.id &&
+            invoice.status === 'belum lunas' &&
+            getMonth(parseISO(invoice.date)) === currentMonth && 
+            getYear(parseISO(invoice.date)) === currentYear
+        );
 
         if (currentMonthInvoice) {
             setValue('selectedInvoices', [currentMonthInvoice.id]);
@@ -142,7 +144,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     } else {
         reset();
     }
-}, [open, customer.invoices, setValue, reset]);
+}, [open, customer.id, setValue, reset]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
