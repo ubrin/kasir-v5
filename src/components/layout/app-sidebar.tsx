@@ -21,8 +21,8 @@ import * as React from 'react';
 
 const menuItems = [
   { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
-  { href: '/customers', label: 'Pelanggan', icon: Users },
   { href: '/payment-report', label: 'Laporan', icon: BarChart3 },
+  { href: '/customers', label: 'Pelanggan', icon: Users },
   { href: '/dashboard', label: 'Keuangan', icon: LayoutDashboard },
 ];
 
