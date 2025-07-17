@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { differenceInMonths } from "date-fns"
 
 const chartConfig = {
   revenue: {
@@ -24,7 +25,7 @@ const chartConfig = {
 export default function DashboardPage() {
     const totalRevenue = invoices.filter(i => i.status === 'lunas').reduce((acc, i) => acc + i.amount, 0);
     const outstandingPayments = invoices.filter(i => i.status === 'belum lunas').reduce((acc, i) => acc + i.amount, 0);
-    const newCustomers = customers.filter(c => c.accountAgeMonths <= 1).length;
+    const newCustomers = customers.filter(c => differenceInMonths(new Date(), new Date(c.installationDate)) <= 1).length;
     const delinquentAccounts = invoices.filter(i => i.status === 'belum lunas' && new Date(i.dueDate) < new Date()).length;
 
   return (

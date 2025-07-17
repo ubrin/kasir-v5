@@ -6,7 +6,7 @@ export type Customer = {
   status: 'lunas' | 'belum lunas';
   amountDue: number;
   paymentHistory: string;
-  accountAgeMonths: number;
+  installationDate: string;
   outstandingBalance: number;
   subscriptionMbps: number;
 };
