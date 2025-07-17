@@ -14,7 +14,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { differenceInMonths, getMonth, getYear, parseISO, startOfMonth, endOfMonth } from "date-fns"
+import { differenceInMonths, getMonth, getYear, parseISO, startOfMonth, endOfMonth, isFuture, isWithinInterval, addDays, formatDistanceToNowStrict } from "date-fns"
+import { id } from 'date-fns/locale';
 
 const chartConfig = {
   revenue: {
@@ -66,6 +67,15 @@ export default function DashboardPage() {
       },
       { cash: 0, bri: 0, dana: 0, total: 0 }
     );
+
+    // Upcoming due invoices
+    const upcomingDueInvoices = invoices
+      .filter(invoice => {
+        const dueDate = parseISO(invoice.dueDate);
+        return invoice.status === 'belum lunas' && isFuture(dueDate) && isWithinInterval(dueDate, { start: today, end: addDays(today, 7) });
+      })
+      .sort((a, b) => parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime())
+      .slice(0, 5);
 
 
   return (
@@ -245,16 +255,36 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Faktur Jatuh Tempo Terdekat</CardTitle>
-            <CardDescription>Daftar pelanggan dengan faktur yang akan segera jatuh tempo.</CardDescription>
+            <CardDescription>Daftar pelanggan dengan faktur yang akan segera jatuh tempo dalam 7 hari.</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Placeholder for upcoming due invoices */}
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>Segera Hadir</p>
-            </div>
+             {upcomingDueInvoices.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingDueInvoices.map((invoice) => (
+                  <div key={invoice.id} className="flex items-center">
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback>{invoice.customerName.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="ml-4 space-y-1">
+                      <p className="text-sm font-medium leading-none">{invoice.customerName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Jatuh tempo dalam {formatDistanceToNowStrict(parseISO(invoice.dueDate), { locale: id, addSuffix: false })}
+                      </p>
+                    </div>
+                    <div className="ml-auto font-medium">Rp{invoice.amount.toLocaleString('id-ID')}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                <p className="text-sm">Tidak ada faktur yang akan jatuh tempo dalam waktu dekat.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
     </div>
   )
 }
+
+    
