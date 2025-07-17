@@ -121,41 +121,6 @@ export default function PaymentReportPage() {
         </Popover>
       </div>
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Ringkasan Laporan</CardTitle>
-            <CardDescription>Total penerimaan berdasarkan metode pembayaran pada periode yang dipilih.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Metode Pembayaran</TableHead>
-                        <TableHead className="text-right">Total Penerimaan</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow>
-                        <TableCell className="font-medium">Cash</TableCell>
-                        <TableCell className="text-right">Rp{grandTotal.cash.toLocaleString('id-ID')}</TableCell>
-                    </TableRow>
-                     <TableRow>
-                        <TableCell className="font-medium">BRI</TableCell>
-                        <TableCell className="text-right">Rp{grandTotal.bri.toLocaleString('id-ID')}</TableCell>
-                    </TableRow>
-                     <TableRow>
-                        <TableCell className="font-medium">DANA</TableCell>
-                        <TableCell className="text-right">Rp{grandTotal.dana.toLocaleString('id-ID')}</TableCell>
-                    </TableRow>
-                </TableBody>
-                <TableRow className="bg-muted/50 font-bold">
-                    <TableCell>TOTAL KESELURUHAN</TableCell>
-                    <TableCell className="text-right">Rp{grandTotal.total.toLocaleString('id-ID')}</TableCell>
-                </TableRow>
-            </Table>
-        </CardContent>
-      </Card>
-      
       {sortedDates.length > 0 ? (
         <Card>
             <CardHeader>
