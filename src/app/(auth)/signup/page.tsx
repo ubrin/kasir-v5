@@ -55,9 +55,27 @@ export default function SignupPage() {
             });
             router.push("/home");
         } catch (err: any) {
-            const errorMessage = err.code === 'auth/email-already-in-use'
-                ? 'Email ini sudah terdaftar.'
-                : 'Terjadi kesalahan. Silakan coba lagi.';
+            console.error("Signup failed:", err); // Log the full error for debugging
+            let errorMessage = "Terjadi kesalahan saat pendaftaran. Silakan coba lagi.";
+            if (err.code) {
+                switch (err.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'Email ini sudah terdaftar.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Format email tidak valid.';
+                        break;
+                    case 'permission-denied':
+                        errorMessage = 'Gagal menyimpan data pengguna. Periksa aturan keamanan Firestore Anda.';
+                        break;
+                    default:
+                        errorMessage = `Terjadi kesalahan: ${err.message}`;
+                        break;
+                }
+            }
             setError(errorMessage);
              toast({
                 title: "Pendaftaran Gagal",
