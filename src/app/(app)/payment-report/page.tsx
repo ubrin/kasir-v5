@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { addDays, format } from 'date-fns';
+import { addDays, format, startOfMonth, endOfMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { payments } from '@/lib/data';
@@ -28,8 +28,8 @@ type GroupedPayments = {
 
 export default function PaymentReportPage() {
   const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: new Date(),
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
   });
 
   const filteredPayments = payments.filter(payment => {
@@ -90,10 +90,10 @@ export default function PaymentReportPage() {
               {date?.from ? (
                 date.to ? (
                   <>
-                    {format(date.from, 'LLL dd, y')} - {format(date.to, 'LLL dd, y')}
+                    {format(date.from, 'LLL dd, y', {locale: id})} - {format(date.to, 'LLL dd, y', {locale: id})}
                   </>
                 ) : (
-                  format(date.from, 'LLL dd, y')
+                  format(date.from, 'LLL dd, y', {locale: id})
                 )
               ) : (
                 <span>Pilih tanggal</span>
