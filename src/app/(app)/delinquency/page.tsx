@@ -35,39 +35,51 @@ type DelinquentCustomer = Customer & {
 export default function DelinquencyPage() {
     const router = useRouter();
     const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
-
-    // Menampilkan semua faktur yang statusnya 'belum lunas'
-    const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas');
+    const [isClient, setIsClient] = React.useState(false);
     
-    const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number, dueDates: string[] }>>((acc, invoice) => {
-        const customer = customers.find((c) => c.id === invoice.customerId);
-        if (customer) {
-            if (!acc[customer.id]) {
-                acc[customer.id] = {
-                    customer: customer,
-                    overdueAmount: 0,
-                    overdueInvoices: 0,
-                    dueDates: [],
-                };
-            }
-            acc[customer.id].overdueAmount += invoice.amount;
-            acc[customer.id].overdueInvoices += 1;
-            acc[customer.id].dueDates.push(invoice.dueDate);
-        }
-        return acc;
-    }, {});
+    React.useEffect(() => {
+        setIsClient(true);
+    }, []);
 
-    const delinquentCustomersList: DelinquentCustomer[] = Object.values(delinquentCustomersData).map(data => {
-        const sortedDueDates = data.dueDates.map(d => parseISO(d)).sort((a, b) => a.getTime() - b.getTime());
-        const nearestDueDate = sortedDueDates.length > 0 ? sortedDueDates[0].toISOString().split('T')[0] : '';
+    const today = new Date();
+    const showDelinquencyList = today.getDate() >= 1;
+
+    let delinquentCustomersList: DelinquentCustomer[] = [];
+
+    if (showDelinquencyList) {
+        // Menampilkan semua faktur yang statusnya 'belum lunas'
+        const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas');
         
-        return {
-            ...data.customer,
-            overdueAmount: data.overdueAmount,
-            overdueInvoices: data.overdueInvoices,
-            nearestDueDate: nearestDueDate,
-        }
-    });
+        const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number, dueDates: string[] }>>((acc, invoice) => {
+            const customer = customers.find((c) => c.id === invoice.customerId);
+            if (customer) {
+                if (!acc[customer.id]) {
+                    acc[customer.id] = {
+                        customer: customer,
+                        overdueAmount: 0,
+                        overdueInvoices: 0,
+                        dueDates: [],
+                    };
+                }
+                acc[customer.id].overdueAmount += invoice.amount;
+                acc[customer.id].overdueInvoices += 1;
+                acc[customer.id].dueDates.push(invoice.dueDate);
+            }
+            return acc;
+        }, {});
+
+        delinquentCustomersList = Object.values(delinquentCustomersData).map(data => {
+            const sortedDueDates = data.dueDates.map(d => parseISO(d)).sort((a, b) => a.getTime() - b.getTime());
+            const nearestDueDate = sortedDueDates.length > 0 ? sortedDueDates[0].toISOString().split('T')[0] : '';
+            
+            return {
+                ...data.customer,
+                overdueAmount: data.overdueAmount,
+                overdueInvoices: data.overdueInvoices,
+                nearestDueDate: nearestDueDate,
+            }
+        });
+    }
 
     const groupedDelinquentCustomers = delinquentCustomersList.reduce((acc, customer) => {
         const code = customer.dueDateCode;
@@ -89,7 +101,7 @@ export default function DelinquencyPage() {
     };
 
     const formatDueDateCountdown = (dueDate: string) => {
-        if (!dueDate) return null;
+        if (!isClient || !dueDate) return null;
         const daysDiff = differenceInDays(parseISO(dueDate), new Date());
 
         if (daysDiff < 0) {
@@ -122,7 +134,7 @@ export default function DelinquencyPage() {
             </div>
         </div>
         
-        {filteredGroupKeys.length > 0 ? (
+        {isClient && filteredGroupKeys.length > 0 ? (
             filteredGroupKeys.map((code) => (
                 <Card key={code}>
                     <CardHeader>
@@ -167,16 +179,23 @@ export default function DelinquencyPage() {
         ) : (
              <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
-                    {selectedGroup === "all" ? (
+                    {isClient && !showDelinquencyList ? (
+                        <>
+                            <p className="text-lg font-medium">Daftar Tagihan Belum Tersedia</p>
+                            <p className="text-muted-foreground">Daftar tagihan akan muncul mulai tanggal 1 setiap bulan.</p>
+                        </>
+                    ) : selectedGroup === "all" && isClient ? (
                         <>
                             <p className="text-lg font-medium">Tidak ada tunggakan!</p>
                             <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!</p>
                         </>
-                    ) : (
+                    ) : isClient ? (
                         <>
                             <p className="text-lg font-medium">Grup Tidak Ditemukan</p>
                             <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak dalam grup yang dipilih.</p>
                         </>
+                    ) : (
+                        <p className="text-lg font-medium">Memuat data...</p>
                     )}
                 </CardContent>
             </Card>
