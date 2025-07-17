@@ -25,6 +25,8 @@ import {
 import { differenceInDays, parseISO, getMonth, getYear } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
+import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
 
 
 type DelinquentCustomer = Customer & {
@@ -106,22 +108,24 @@ export default function DelinquencyPage() {
         router.push(`/customers/${customerId}`);
     };
 
+    const handleInvoiceClick = (e: React.MouseEvent, customerId: string) => {
+        e.stopPropagation();
+        router.push(`/invoice/${customerId}`);
+    };
+
     const handlePaymentSuccess = (customerId: string, customerName: string, paymentDetails: any) => {
         let amountPaid = paymentDetails.paidAmount;
         const totalToPay = paymentDetails.totalPayment;
         
-        // Sort selected invoices by date to pay off oldest ones first
         const selectedInvoicesToProcess = invoices
             .filter(inv => paymentDetails.selectedInvoices.includes(inv.id))
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
         if (amountPaid >= totalToPay) {
-            // Full payment or overpayment
             selectedInvoicesToProcess.forEach(invoice => {
                 invoice.status = 'lunas';
             });
         } else {
-            // Partial payment
             for (const invoice of selectedInvoicesToProcess) {
                 if (amountPaid >= invoice.amount) {
                     amountPaid -= invoice.amount;
@@ -134,7 +138,6 @@ export default function DelinquencyPage() {
             }
         }
     
-        // Update the customer's main balance records
         const customer = customers.find(c => c.id === customerId);
         if (customer) {
             const remainingArrears = invoices
@@ -206,7 +209,7 @@ export default function DelinquencyPage() {
                                 <TableHead>Alamat</TableHead>
                                 <TableHead className="text-center">Jatuh Tempo</TableHead>
                                 <TableHead className="text-right">Total Tagihan</TableHead>
-                                <TableHead><span className="sr-only">Aksi</span></TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -225,10 +228,16 @@ export default function DelinquencyPage() {
                                         Rp{customer.overdueAmount.toLocaleString('id-ID')}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <PaymentDialog
-                                            customer={customer}
-                                            onPaymentSuccess={handlePaymentSuccess}
-                                        />
+                                        <div className="flex justify-end gap-2">
+                                             <Button variant="outline" size="icon" onClick={(e) => handleInvoiceClick(e, customer.id)}>
+                                                <FileText className="h-4 w-4" />
+                                                <span className="sr-only">Buat Invoice</span>
+                                            </Button>
+                                            <PaymentDialog
+                                                customer={customer}
+                                                onPaymentSuccess={handlePaymentSuccess}
+                                            />
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
