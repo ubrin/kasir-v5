@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, ArrowLeft, Send } from 'lucide-react';
+import { Download, ArrowLeft, Send, Printer } from 'lucide-react';
 import Image from 'next/image';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -82,6 +82,10 @@ Terima kasih telah menggunakan layanan kami.
         const whatsappUrl = `https://wa.me/${customer.phone}?text=${message}`;
         window.open(whatsappUrl, '_blank');
     };
+
+    const handlePrint = () => {
+        window.print();
+    }
     
     if (!isClient) {
         return null;
@@ -98,6 +102,10 @@ Terima kasih telah menggunakan layanan kami.
                     <Button onClick={handleDownloadPdf} variant="outline">
                         <Download className="mr-2 h-4 w-4" />
                         Unduh PDF
+                    </Button>
+                    <Button onClick={handlePrint} variant="outline">
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print
                     </Button>
                     <Button onClick={handleSendWhatsApp}>
                         <Send className="mr-2 h-4 w-4" />
