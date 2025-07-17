@@ -40,3 +40,12 @@ export type Payment = {
   totalPayment: number;
   changeAmount: number;
 };
+
+// New type for user data with roles
+export type AppUser = {
+  uid: string;
+  email: string | null;
+  firstName: string;
+  lastName: string;
+  role: 'admin' | 'user';
+};

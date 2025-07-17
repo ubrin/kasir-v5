@@ -20,26 +20,29 @@ import * as React from 'react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 
 
 const menuItems = [
-  { href: '/home', label: 'Home', icon: Home },
+  { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
   {
     label: 'Transaksi',
     icon: Package,
+    roles: ['admin', 'user'],
     subItems: [
-      { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
-      { href: '/payment-report', label: 'Laporan', icon: BarChart3 },
-      { href: '/customers', label: 'Data Pelanggan', icon: Users },
+      { href: '/delinquency', label: 'Tagihan', icon: CreditCard, roles: ['admin', 'user'] },
+      { href: '/payment-report', label: 'Laporan', icon: BarChart3, roles: ['admin'] },
+      { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
     ]
   },
-  { href: '/dashboard', label: 'Keuangan', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Keuangan', icon: LayoutDashboard, roles: ['admin'] },
 ];
 
 export default function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -58,6 +61,11 @@ export default function AppSidebar() {
     }
   };
 
+  const hasAccess = (roles: string[]) => {
+    if (!user?.role) return false;
+    return roles.includes(user.role);
+  }
+
   return (
     <Sidebar className="dark:bg-background border-r dark:border-slate-800">
       <SidebarHeader>
@@ -70,7 +78,7 @@ export default function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {menuItems.map((item, index) => (
+          {menuItems.filter(item => hasAccess(item.roles)).map((item, index) => (
             item.subItems ? (
               <Collapsible key={index} defaultOpen={false}>
                 <CollapsibleTrigger className="w-full">
@@ -84,7 +92,7 @@ export default function AppSidebar() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarMenu className="pl-7 pt-1">
-                    {item.subItems.map((subItem) => (
+                    {item.subItems.filter(subItem => hasAccess(subItem.roles)).map((subItem) => (
                        <SidebarMenuItem key={subItem.href}>
                          <SidebarMenuButton asChild isActive={pathname.startsWith(subItem.href!)} size="sm">
                             <Link href={subItem.href!}>

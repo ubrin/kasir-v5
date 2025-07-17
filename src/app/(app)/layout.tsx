@@ -14,16 +14,16 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, firebaseUser, loading } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !firebaseUser) {
       router.push('/');
     }
-  }, [user, loading, router]);
+  }, [firebaseUser, loading, router]);
 
-  if (loading || !user) {
+  if (loading || !firebaseUser) {
      return (
         <div className="flex min-h-screen w-full">
             <div className="hidden md:flex flex-col gap-4 p-4 border-r">

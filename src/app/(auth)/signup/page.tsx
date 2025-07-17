@@ -5,7 +5,8 @@ import Image from "next/image"
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 import { Button } from "@/components/ui/button"
 import {
@@ -36,7 +37,18 @@ export default function SignupPage() {
         setLoading(true);
         setError("");
         try {
-            await createUserWithEmailAndPassword(auth, email, password);
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Save user data to Firestore
+            await setDoc(doc(db, "users", user.uid), {
+                uid: user.uid,
+                firstName: firstName,
+                lastName: lastName,
+                email: user.email,
+                role: "user", // Default role
+            });
+
             toast({
                 title: "Pendaftaran Berhasil",
                 description: "Akun Anda telah dibuat. Anda akan diarahkan ke halaman utama.",
