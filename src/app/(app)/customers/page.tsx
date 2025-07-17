@@ -79,6 +79,13 @@ export default function CustomersPage() {
     router.push(`/customers/${customerId}`);
   };
 
+  const isOverdue = (dueDateCode: number, amountDue: number) => {
+    if (amountDue <= 0) return false;
+    const today = new Date();
+    const currentDay = today.getDate();
+    return currentDay > dueDateCode;
+  };
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -123,46 +130,48 @@ export default function CustomersPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {groupedCustomers[code].map((customer) => (
-                            <TableRow 
-                                key={customer.id} 
-                                onClick={() => handleRowClick(customer.id)}
-                                className="cursor-pointer"
-                            >
-                                <TableCell className="font-semibold">
-                                    {customer.name}
-                                </TableCell>
-                                <TableCell>
-                                <Badge variant={customer.amountDue > 0 ? "destructive" : "secondary"} className={customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"}>
-                                    {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
-                                </Badge>
-                                </TableCell>
-                                <TableCell className="hidden md:table-cell">{customer.subscriptionMbps}</TableCell>
-                                <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
-                                <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
-                                <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                    <Button 
-                                        aria-haspopup="true" 
-                                        size="icon" 
-                                        variant="ghost"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">Buka menu</span>
-                                    </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                    <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                    <DropdownMenuItem>Ubah</DropdownMenuItem>
-                                    <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
-                                    <DropdownMenuItem className="text-red-500">Hapus</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                            ))}
+                            {groupedCustomers[code].map((customer) => {
+                                const overdue = isOverdue(customer.dueDateCode, customer.amountDue);
+                                return (
+                                <TableRow 
+                                    key={customer.id} 
+                                    onClick={() => handleRowClick(customer.id)}
+                                    className="cursor-pointer"
+                                >
+                                    <TableCell className="font-semibold">
+                                        {customer.name}
+                                    </TableCell>
+                                    <TableCell>
+                                    <Badge variant={overdue ? "destructive" : "secondary"} className={overdue ? "" : "bg-green-100 text-green-800"}>
+                                        {overdue ? "Belum Lunas" : "Lunas"}
+                                    </Badge>
+                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell">{customer.subscriptionMbps}</TableCell>
+                                    <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
+                                    <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
+                                    <TableCell>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                        <Button 
+                                            aria-haspopup="true" 
+                                            size="icon" 
+                                            variant="ghost"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Buka menu</span>
+                                        </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                        <DropdownMenuItem>Ubah</DropdownMenuItem>
+                                        <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
+                                        <DropdownMenuItem className="text-red-500">Hapus</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            )})}
                         </TableBody>
                         </Table>
                     </CardContent>
