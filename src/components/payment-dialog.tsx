@@ -102,7 +102,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   }, [customer.invoices, selectedInvoices]);
 
   const totalPayment = Math.max(0, billToPay - discount);
-  const changeAmount = Math.max(0, paidAmount - totalPayment);
+  const paymentDifference = paidAmount - totalPayment;
 
   React.useEffect(() => {
     setValue('paidAmount', totalPayment);
@@ -112,7 +112,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     const paymentDetails = {
       ...data,
       totalPayment,
-      changeAmount,
+      changeAmount: Math.max(0, paymentDifference),
+      shortageAmount: Math.max(0, -paymentDifference),
       discount,
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
@@ -279,8 +280,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                     />
                 </div>
                  <div className="grid gap-2">
-                    <Label>Kembalian</Label>
-                    <p className="font-semibold text-lg">Rp{changeAmount.toLocaleString('id-ID')}</p>
+                    <Label>{paymentDifference >= 0 ? 'Kembalian' : 'Total Kekurangan'}</Label>
+                    <p className="font-semibold text-lg">Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}</p>
                 </div>
             </div>
 
