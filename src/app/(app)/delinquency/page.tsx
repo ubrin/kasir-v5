@@ -1,204 +1,133 @@
 'use client';
 
-import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { delinquencyPrediction, DelinquencyPredictionInput, DelinquencyPredictionOutput } from '@/ai/flows/delinquency-prediction';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useToast } from "@/hooks/use-toast";
-import { customers } from '@/lib/data';
-import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, Bot, CheckCircle2 } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import { MoreHorizontal } from "lucide-react"
+import { customers, invoices } from "@/lib/data"
+import type { Customer, Invoice } from "@/lib/types"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-const formSchema = z.object({
-  customerId: z.string().min(1, 'ID Pelanggan wajib diisi.'),
-  paymentHistory: z.string().min(10, 'Riwayat pembayaran wajib diisi.'),
-  accountAgeMonths: z.coerce.number().min(1, 'Usia akun minimal 1 bulan.'),
-  averageMonthlyBill: z.coerce.number().min(0, 'Rata-rata tagihan bulanan tidak boleh negatif.'),
-  outstandingBalance: z.coerce.number().min(0, 'Saldo terutang tidak boleh negatif.'),
-});
-
-type DelinquencyFormValues = z.infer<typeof formSchema>;
+type DelinquentCustomer = Customer & {
+    overdueAmount: number;
+    overdueInvoices: number;
+};
 
 export default function DelinquencyPage() {
-  const [prediction, setPrediction] = useState<DelinquencyPredictionOutput | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+    const overdueInvoices = invoices.filter((invoice) => invoice.status === 'overdue');
+    
+    const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number }>>((acc, invoice) => {
+        const customer = customers.find((c) => c.id === invoice.customerId);
+        if (customer) {
+            if (!acc[customer.id]) {
+                acc[customer.id] = {
+                    customer: customer,
+                    overdueAmount: 0,
+                    overdueInvoices: 0,
+                };
+            }
+            acc[customer.id].overdueAmount += invoice.amount;
+            acc[customer.id].overdueInvoices += 1;
+        }
+        return acc;
+    }, {});
 
-  const form = useForm<DelinquencyFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      customerId: '',
-      paymentHistory: '',
-      accountAgeMonths: 0,
-      averageMonthlyBill: 0,
-      outstandingBalance: 0,
-    },
-  });
-
-  const handleCustomerSelect = (customerId: string) => {
-    const customer = customers.find(c => c.id === customerId);
-    if (customer) {
-      form.reset({
-        customerId: customer.id,
-        paymentHistory: customer.paymentHistory,
-        accountAgeMonths: customer.accountAgeMonths,
-        averageMonthlyBill: customer.averageMonthlyBill,
-        outstandingBalance: customer.outstandingBalance,
-      });
-      setPrediction(null);
-    }
-  };
-
-  const onSubmit = async (data: DelinquencyFormValues) => {
-    setIsLoading(true);
-    setPrediction(null);
-    try {
-      const result = await delinquencyPrediction(data);
-      setPrediction(result);
-    } catch (error) {
-      console.error("Prediksi gagal:", error);
-      toast({
-        variant: "destructive",
-        title: "Prediksi Gagal",
-        description: "Terjadi kesalahan saat mencoba memprediksi tunggakan.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const delinquentCustomers: DelinquentCustomer[] = Object.values(delinquentCustomersData).map(data => ({
+        ...data.customer,
+        overdueAmount: data.overdueAmount,
+        overdueInvoices: data.overdueInvoices,
+    }));
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-3xl font-bold tracking-tight">Prediksi Tunggakan</h1>
-      <div className="grid gap-8 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">Pelanggan Menunggak</h1>
+      </div>
+      <Card>
           <CardHeader>
-            <CardTitle>Prediksi Risiko</CardTitle>
-            <CardDescription>Gunakan AI untuk memprediksi risiko pelanggan menunggak.</CardDescription>
+              <CardTitle>Daftar Pelanggan Menunggak</CardTitle>
+              <CardDescription>Pelanggan dengan satu atau lebih faktur yang telah jatuh tempo.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="space-y-2">
-                    <Label>Pilih Pelanggan (Opsional)</Label>
-                    <Select onValueChange={handleCustomerSelect}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Muat data dari pelanggan..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {customers.map(customer => (
-                                <SelectItem key={customer.id} value={customer.id}>
-                                    {customer.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                
-                <FormField control={form.control} name="customerId" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>ID Pelanggan</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-
-                <FormField control={form.control} name="paymentHistory" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Riwayat Pembayaran</FormLabel>
-                        <FormControl><Textarea {...field} rows={4} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-                
-                <FormField control={form.control} name="accountAgeMonths" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Usia Akun (Bulan)</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-
-                <FormField control={form.control} name="averageMonthlyBill" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Rata-rata Tagihan Bulanan ($)</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-
-                <FormField control={form.control} name="outstandingBalance" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Saldo Terutang ($)</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )} />
-
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Memprediksi...' : 'Prediksi Risiko Tunggakan'}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-        <div className="lg:col-span-2">
-            <Card className="sticky top-24">
-                <CardHeader>
-                    <CardTitle>Analisis AI</CardTitle>
-                    <CardDescription>Hasil prediksi akan muncul di sini.</CardDescription>
-                </CardHeader>
-                <CardContent className="min-h-[400px] flex items-center justify-center">
-                    {isLoading ? (
-                        <div className="w-full space-y-4">
-                            <Skeleton className="h-8 w-1/2 mx-auto" />
-                            <Skeleton className="h-12 w-1/4 mx-auto" />
-                            <Skeleton className="h-4 w-3/4" />
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-2/3" />
-                        </div>
-                    ) : prediction ? (
-                        <div className="w-full space-y-4 text-center">
-                            {prediction.isDelinquentRisk ? (
-                                <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
-                            ) : (
-                                <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
-                            )}
-                            <h3 className={`text-2xl font-bold ${prediction.isDelinquentRisk ? 'text-destructive' : 'text-green-600'}`}>
-                                {prediction.isDelinquentRisk ? 'Risiko Tunggakan Tinggi' : 'Risiko Tunggakan Rendah'}
-                            </h3>
-                            <div>
-                                <Label>Skor Risiko: {prediction.riskScore}</Label>
-                                <Progress value={prediction.riskScore} className={prediction.riskScore > 60 ? "[&>div]:bg-destructive" : ""} />
+              <Table>
+              <TableHeader>
+                  <TableRow>
+                  <TableHead>Pelanggan</TableHead>
+                  <TableHead>Total Tunggakan</TableHead>
+                  <TableHead className="hidden md:table-cell">Faktur Jatuh Tempo</TableHead>
+                  <TableHead className="hidden md:table-cell">Perusahaan</TableHead>
+                  <TableHead>
+                      <span className="sr-only">Aksi</span>
+                  </TableHead>
+                  </TableRow>
+              </TableHeader>
+              <TableBody>
+                  {delinquentCustomers.length > 0 ? (
+                    delinquentCustomers.map((customer) => (
+                    <TableRow key={customer.id} className="bg-destructive/5 hover:bg-destructive/10">
+                        <TableCell className="font-medium">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="hidden h-9 w-9 sm:flex">
+                                    <AvatarImage src={customer.avatar} alt="Avatar" />
+                                    <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="grid gap-0.5">
+                                    <p className="font-semibold">{customer.name}</p>
+                                    <p className="text-sm text-muted-foreground">{customer.email}</p>
+                                </div>
                             </div>
-                            <Card className="text-left bg-muted/50">
-                                <CardHeader className="flex-row gap-3 items-center space-y-0">
-                                    <Bot className="w-6 h-6 text-primary flex-shrink-0"/>
-                                    <CardTitle className="text-lg">Alasan</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-muted-foreground">{prediction.reason}</p>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    ) : (
-                        <div className="text-center text-muted-foreground">
-                            <p>Isi formulir dan klik prediksi untuk melihat analisis AI.</p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-      </div>
+                        </TableCell>
+                        <TableCell className="text-right text-destructive font-bold">
+                            ${customer.overdueAmount.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-center">
+                            <Badge variant="destructive">{customer.overdueInvoices}</Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{customer.company}</TableCell>
+                        <TableCell>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Buka menu</span>
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                            <DropdownMenuItem>Kirim Pengingat</DropdownMenuItem>
+                            <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
+                            <DropdownMenuItem>Hubungi Pelanggan</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24">
+                            Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!
+                        </TableCell>
+                    </TableRow>
+                  )}
+              </TableBody>
+              </Table>
+          </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
