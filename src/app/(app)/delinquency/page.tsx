@@ -24,6 +24,7 @@ import {
     SelectValue,
   } from "@/components/ui/select"
 import { differenceInDays, parseISO } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 
 type DelinquentCustomer = Customer & {
@@ -34,8 +35,10 @@ type DelinquentCustomer = Customer & {
 
 export default function DelinquencyPage() {
     const router = useRouter();
+    const { toast } = useToast();
     const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
     const [isClient, setIsClient] = React.useState(false);
+    const [forceUpdate, setForceUpdate] = React.useState(0);
     
     React.useEffect(() => {
         setIsClient(true);
@@ -47,7 +50,6 @@ export default function DelinquencyPage() {
     let delinquentCustomersList: DelinquentCustomer[] = [];
 
     if (showDelinquencyList) {
-        // Menampilkan semua faktur yang statusnya 'belum lunas'
         const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas');
         
         const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number, dueDates: string[] }>>((acc, invoice) => {
@@ -99,6 +101,31 @@ export default function DelinquencyPage() {
     const handleRowClick = (customerId: string) => {
         router.push(`/customers/${customerId}`);
     };
+
+    const handlePayment = (customerId: string, customerName: string) => {
+        // Mark all 'belum lunas' invoices for this customer as 'lunas'
+        invoices.forEach(invoice => {
+            if (invoice.customerId === customerId && invoice.status === 'belum lunas') {
+                invoice.status = 'lunas';
+            }
+        });
+
+        // Update the customer's balance
+        const customer = customers.find(c => c.id === customerId);
+        if (customer) {
+            customer.amountDue = 0;
+            customer.outstandingBalance = 0;
+            customer.status = 'lunas';
+        }
+
+        toast({
+            title: "Pembayaran Berhasil",
+            description: `Pembayaran untuk ${customerName} telah berhasil diproses.`,
+        });
+
+        // Force a re-render to update the list
+        setForceUpdate(prev => prev + 1);
+    }
 
     const formatDueDateCountdown = (dueDate: string) => {
         if (!isClient || !dueDate) return null;
@@ -167,7 +194,15 @@ export default function DelinquencyPage() {
                                         Rp{customer.overdueAmount.toLocaleString('id-ID')}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button size="sm" onClick={(e) => { e.stopPropagation(); /* Logika pembayaran */ }}>Bayar</Button>
+                                        <Button 
+                                            size="sm" 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                handlePayment(customer.id, customer.name);
+                                            }}
+                                        >
+                                            Bayar
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
