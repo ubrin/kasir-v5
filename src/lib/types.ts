@@ -30,8 +30,12 @@ export type Payment = {
   id: string;
   customerId: string;
   customerName: string;
-  paymentDate: Date;
+  paymentDate: string;
   paidAmount: number;
   paymentMethod: 'cash' | 'bri' | 'dana';
   invoiceIds: string[];
+  totalBill: number;
+  discount: number;
+  totalPayment: number;
+  changeAmount: number;
 };

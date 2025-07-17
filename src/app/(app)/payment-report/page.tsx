@@ -48,7 +48,7 @@ export default function PaymentReportPage() {
   });
 
   const groupedPayments = filteredPayments.reduce<GroupedPayments>((acc, payment) => {
-    const paymentDate = format(parseISO(payment.paymentDate.toISOString()), 'yyyy-MM-dd');
+    const paymentDate = format(parseISO(payment.paymentDate), 'yyyy-MM-dd');
     if (!acc[paymentDate]) {
       acc[paymentDate] = { cash: 0, bri: 0, dana: 0, total: 0, details: [] };
     }

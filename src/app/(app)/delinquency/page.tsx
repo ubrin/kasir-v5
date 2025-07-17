@@ -22,17 +22,18 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select"
-import { differenceInDays, parseISO, getMonth, getYear } from "date-fns";
+import { differenceInDays, parseISO, getMonth, getYear, format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { FileText, Receipt } from "lucide-react";
 import {
     Accordion,
     AccordionContent,
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion"
+import Link from "next/link";
 
 
 type DelinquentCustomer = Customer & {
@@ -120,16 +121,21 @@ export default function DelinquencyPage() {
     };
 
     const handlePaymentSuccess = (customerId: string, customerName: string, paymentDetails: any) => {
+        const newPaymentId = `PAY-${Date.now()}`;
         const newPayment: Payment = {
-            id: `PAY-${Date.now()}`,
+            id: newPaymentId,
             customerId: customerId,
             customerName: customerName,
-            paymentDate: paymentDetails.paymentDate,
+            paymentDate: format(paymentDetails.paymentDate, 'yyyy-MM-dd'),
             paidAmount: paymentDetails.paidAmount,
             paymentMethod: paymentDetails.paymentMethod,
             invoiceIds: paymentDetails.selectedInvoices,
+            totalBill: paymentDetails.billToPay,
+            discount: paymentDetails.discount,
+            totalPayment: paymentDetails.totalPayment,
+            changeAmount: paymentDetails.changeAmount,
         };
-        payments.push(newPayment);
+        payments.unshift(newPayment);
 
         let amountPaid = paymentDetails.paidAmount;
         const totalToPay = paymentDetails.totalPayment;
@@ -173,6 +179,13 @@ export default function DelinquencyPage() {
         toast({
             title: "Pembayaran Berhasil",
             description: `Pembayaran untuk ${customerName} telah berhasil diproses.`,
+            action: (
+                <Button asChild variant="secondary" size="sm">
+                    <Link href={`/receipt/${newPaymentId}`}>
+                        <Receipt className="mr-2 h-4 w-4" /> Lihat Struk
+                    </Link>
+                </Button>
+            ),
         });
     
         setForceUpdate(prev => prev + 1);

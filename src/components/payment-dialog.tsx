@@ -112,6 +112,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   const onSubmit = (data: PaymentFormValues) => {
     const paymentDetails = {
       ...data,
+      billToPay,
       totalPayment,
       changeAmount: Math.max(0, paymentDifference),
       shortageAmount: Math.max(0, -paymentDifference),
