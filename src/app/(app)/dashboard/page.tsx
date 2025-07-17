@@ -87,8 +87,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
+      <div className="grid gap-4">
+        <Card>
           <CardHeader>
             <CardTitle>Ringkasan</CardTitle>
           </CardHeader>
@@ -120,28 +120,6 @@ export default function DashboardPage() {
                     <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Faktur Terbaru</CardTitle>
-            <CardDescription>
-              Anda memiliki {invoices.filter(i => i.status === 'belum lunas').length} faktur belum lunas.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-                <TableBody>
-                    {invoices.filter(i => i.status === 'belum lunas').slice(0, 5).map(invoice => (
-                        <TableRow key={invoice.id}>
-                            <TableCell>
-                                <div className="font-medium">{invoice.customerName}</div>
-                            </TableCell>
-                            <TableCell className="text-right font-medium">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
           </CardContent>
         </Card>
       </div>
