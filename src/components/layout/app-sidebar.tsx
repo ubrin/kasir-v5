@@ -20,10 +20,10 @@ import * as React from 'react';
 
 
 const menuItems = [
-  { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
   { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
   { href: '/customers', label: 'Pelanggan', icon: Users },
   { href: '/payment-report', label: 'Laporan', icon: BarChart3 },
+  { href: '/dashboard', label: 'Keuangan', icon: LayoutDashboard },
 ];
 
 export default function AppSidebar() {
