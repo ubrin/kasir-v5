@@ -4,7 +4,7 @@ export type Customer = {
   dueDateCode: number;
   avatar: string;
   address: string;
-  status: 'active' | 'inactive';
+  status: 'lunas' | 'belum lunas';
   amountDue: number;
   paymentHistory: string;
   accountAgeMonths: number;

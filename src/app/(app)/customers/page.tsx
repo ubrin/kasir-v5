@@ -63,8 +63,8 @@ export default function CustomersPage() {
                             </div>
                         </TableCell>
                         <TableCell>
-                        <Badge variant={customer.status === "active" ? "default" : "secondary"} className={customer.status === "active" ? "" : "bg-gray-200 text-gray-800"}>
-                            {customer.status === "active" ? "Aktif" : "Tidak Aktif"}
+                        <Badge variant={customer.amountDue > 0 ? "default" : "secondary"} className={customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"}>
+                            {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
                         </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">Setiap tgl. {customer.dueDateCode}</TableCell>
