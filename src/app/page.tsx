@@ -22,7 +22,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl text-center">APLIKASI KASIR COKK</CardTitle>
           <CardDescription className="text-center">
-            Masukkan email Anda di bawah ini untuk masuk ke akun Anda
+            jika anda merasa aplikasi ini sangat membantu berikan dukungan anda dengan mendonasikan sedikit kekayaan anda melalui nomor dana saya 0812-3949-2626 agar saya bisa bayar angsuran
           </CardDescription>
         </CardHeader>
         <CardContent>
