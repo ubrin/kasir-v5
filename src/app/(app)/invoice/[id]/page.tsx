@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Package, Printer, ArrowLeft } from 'lucide-react';
+import { Printer, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 
 export default function InvoicePage() {

@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+    // Menambahkan domains untuk mengatasi masalah gambar lokal
+    domains: ['localhost'],
   },
 };
 
