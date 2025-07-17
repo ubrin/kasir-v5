@@ -91,8 +91,9 @@ export default function CustomersPage() {
                         <TableRow>
                         <TableHead>Pelanggan</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="hidden md:table-cell">Paket (Mbps)</TableHead>
                         <TableHead className="hidden md:table-cell">Alamat</TableHead>
-                        <TableHead className="text-right">Jumlah Tagihan</TableHead>
+                        <TableHead className="text-right">Harga</TableHead>
                         <TableHead>
                             <span className="sr-only">Aksi</span>
                         </TableHead>
@@ -113,6 +114,7 @@ export default function CustomersPage() {
                                 {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
                             </Badge>
                             </TableCell>
+                            <TableCell className="hidden md:table-cell">{customer.subscriptionMbps}</TableCell>
                             <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
                             <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
                             <TableCell>
