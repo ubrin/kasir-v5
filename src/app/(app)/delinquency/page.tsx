@@ -90,7 +90,7 @@ export default function DelinquencyPage() {
                         <SelectItem value="all">Semua Grup</SelectItem>
                         {groupKeys.map(key => (
                             <SelectItem key={key} value={key.toString()}>
-                                Grup Tanggal {key}
+                                Tanggal {key}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -102,7 +102,7 @@ export default function DelinquencyPage() {
             filteredGroupKeys.map((code) => (
                 <Card key={code}>
                     <CardHeader>
-                        <CardTitle>Grup Tanggal {code}</CardTitle>
+                        <CardTitle>Tanggal {code}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
