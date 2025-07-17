@@ -126,33 +126,33 @@ Terima kasih telah menggunakan layanan kami.
                     <CardContent className="p-4 text-xs">
                         <div className="grid grid-cols-3 gap-1 mb-2">
                            <div className="col-span-1">No Struk</div>
-                           <div className="col-span-2">: ${payment.id}</div>
+                           <div className="col-span-2">: {payment.id}</div>
                            <div className="col-span-1">Tanggal</div>
-                           <div className="col-span-2">: ${format(parseISO(payment.paymentDate), "dd/MM/yyyy HH:mm", { locale: id })}</div>
+                           <div className="col-span-2">: {format(parseISO(payment.paymentDate), "dd/MM/yyyy HH:mm", { locale: id })}</div>
                            <div className="col-span-1">Pelanggan</div>
-                           <div className="col-span-2">: ${payment.customerName}</div>
+                           <div className="col-span-2">: {payment.customerName}</div>
                         </div>
                         <p className="text-xs">--------------------------------</p>
                         <p className="text-center font-semibold my-1">RINCIAN PEMBAYARAN</p>
                         {paidInvoices.map(invoice => (
                              <div className="grid grid-cols-3 gap-1" key={invoice.id}>
-                                <div className="col-span-2">Tagihan ${format(parseISO(invoice.date), "MMMM yyyy")}</div>
-                                <div className="col-span-1 text-right">Rp${invoice.amount.toLocaleString('id-ID')}</div>
+                                <div className="col-span-2">Tagihan {format(parseISO(invoice.date), "MMMM yyyy")}</div>
+                                <div className="col-span-1 text-right">Rp{invoice.amount.toLocaleString('id-ID')}</div>
                             </div>
                         ))}
                          <p className="text-xs">--------------------------------</p>
                         <div className="grid grid-cols-3 gap-1 mt-2">
                             <div className="col-span-2 font-semibold">Total Tagihan</div>
-                            <div className="col-span-1 text-right">Rp${payment.totalBill.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right">Rp{payment.totalBill.toLocaleString('id-ID')}</div>
                             <div className="col-span-2 font-semibold">Diskon</div>
-                            <div className="col-span-1 text-right">Rp${payment.discount.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right">Rp{payment.discount.toLocaleString('id-ID')}</div>
                             <div className="col-span-2 font-semibold">Total Bayar</div>
-                            <div className="col-span-1 text-right">Rp${payment.totalPayment.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right">Rp{payment.totalPayment.toLocaleString('id-ID')}</div>
                              <p className="col-span-3 text-xs">--------------------------------</p>
                             <div className="col-span-2 font-semibold">Jumlah Dibayar</div>
-                            <div className="col-span-1 text-right font-bold">Rp${payment.paidAmount.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right font-bold">Rp{payment.paidAmount.toLocaleString('id-ID')}</div>
                              <div className="col-span-2 font-semibold">Kembalian</div>
-                            <div className="col-span-1 text-right font-bold">Rp${payment.changeAmount.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right font-bold">Rp{payment.changeAmount.toLocaleString('id-ID')}</div>
                         </div>
 
                     </CardContent>
