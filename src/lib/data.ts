@@ -1,88 +1,17 @@
 
 import type { Customer, Invoice, RevenueData, Payment } from './types';
 
-export const customers: Customer[] = [
-  {
-    id: 'cus_1',
-    name: 'Budi Santoso',
-    phone: '6281234567890',
-    dueDateCode: 5,
-    address: 'Jl. Merdeka No. 1, Jakarta',
-    status: 'belum lunas',
-    amountDue: 22500000,
-    paymentHistory: 'Membayar tepat waktu selama 6 bulan terakhir.',
-    installationDate: '2022-07-01',
-    outstandingBalance: 22500000,
-    subscriptionMbps: 100,
-    packagePrice: 22500000,
-  },
-  {
-    id: 'cus_2',
-    name: 'Citra Lestari',
-    phone: '6281234567891',
-    dueDateCode: 10,
-    address: 'Jl. Sudirman Kav. 5, Bandung',
-    status: 'belum lunas',
-    amountDue: 3750000,
-    paymentHistory: 'Satu pembayaran terlambat 3 bulan yang lalu. Selebihnya bayar tepat waktu.',
-    installationDate: '2023-01-15',
-    outstandingBalance: 3750000,
-    subscriptionMbps: 50,
-    packagePrice: 3750000,
-  },
-  {
-    id: 'cus_3',
-    name: 'Adi Nugroho',
-    phone: '6281234567892',
-    dueDateCode: 15,
-    address: 'Jl. Gajah Mada No. 10, Surabaya',
-    status: 'lunas',
-    amountDue: 0,
-    paymentHistory: 'Akun ditutup. Semua pembayaran sudah dilunasi.',
-    installationDate: '2021-07-20',
-    outstandingBalance: 0,
-    subscriptionMbps: 20,
-    packagePrice: 1500000,
-  },
-  {
-    id: 'cus_4',
-    name: 'Dewi Anggraini',
-    phone: '6281234567893',
-    dueDateCode: 20,
-    address: 'Jl. Thamrin No. 8, Medan',
-    status: 'belum lunas',
-    amountDue: 78000000,
-    paymentHistory: 'Sering terlambat membayar selama 6 bulan terakhir. Beberapa pengingat telah dikirim.',
-    installationDate: '2023-04-10',
-    outstandingBalance: 78000000,
-    subscriptionMbps: 200,
-    packagePrice: 39000000,
-  },
-  {
-    id: 'cus_5',
-    name: 'Eko Prasetyo',
-    phone: '6281234567894',
-    dueDateCode: 25,
-    address: 'Jl. Pahlawan No. 2, Semarang',
-    status: 'lunas',
-    amountDue: 0,
-    paymentHistory: 'Pelanggan baru, tagihan pertama belum jatuh tempo.',
-    installationDate: '2024-06-01',
-    outstandingBalance: 0,
-    subscriptionMbps: 75,
-    packagePrice: 2500000,
-  },
-];
+// This file is now deprecated for storing dynamic data.
+// Data is now fetched from and written to Firestore.
+// These arrays can be used for initial seeding or testing if needed.
 
-export const invoices: Invoice[] = [
-    { id: 'INV-001', customerId: 'cus_1', customerName: 'Budi Santoso', date: '2024-06-01', dueDate: '2024-07-01', amount: 22500000, status: 'belum lunas' },
-    { id: 'INV-002', customerId: 'cus_2', customerName: 'Citra Lestari', date: '2024-06-05', dueDate: '2024-07-05', amount: 3750000, status: 'belum lunas' },
-    { id: 'INV-003', customerId: 'cus_4', customerName: 'Dewi Anggraini', date: '2024-05-15', dueDate: '2024-06-15', amount: 39000000, status: 'belum lunas' },
-    { id: 'INV-004', customerId: 'cus_4', customerName: 'Dewi Anggraini', date: '2024-06-15', dueDate: '2024-07-15', amount: 39000000, status: 'belum lunas' },
-    { id: 'INV-005', customerId: 'cus_1', customerName: 'Budi Santoso', date: '2024-05-01', dueDate: '2024-06-01', amount: 22500000, status: 'lunas' },
-    { id: 'INV-006', customerId: 'cus_2', customerName: 'Citra Lestari', date: '2024-05-05', dueDate: '2024-06-05', amount: 3750000, status: 'lunas' },
-];
+export const customers: Customer[] = [];
 
+export const invoices: Invoice[] = [];
+
+export const payments: Payment[] = [];
+
+// Static data can remain here.
 export const revenueData: RevenueData[] = [
     { month: 'Jan', revenue: 60000000 },
     { month: 'Feb', revenue: 45000000 },
@@ -91,5 +20,3 @@ export const revenueData: RevenueData[] = [
     { month: 'Mei', revenue: 90000000 },
     { month: 'Jun', revenue: 82500000 },
 ];
-
-export const payments: Payment[] = [];

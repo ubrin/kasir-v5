@@ -1,25 +1,27 @@
 
 export type Customer = {
-  id: string;
+  id: string; // Corresponds to Firestore document ID
   name: string;
-  phone?: string; // Tambahkan nomor telepon
+  phone?: string;
   dueDateCode: number;
   address: string;
-  status: 'lunas' | 'belum lunas';
-  amountDue: number;
-  paymentHistory: string;
-  installationDate: string;
+  // Status will be derived from outstandingBalance now
+  // status: 'lunas' | 'belum lunas';
+  // amountDue will be replaced by outstandingBalance
+  // amountDue: number;
+  paymentHistory?: string; // Optional notes
+  installationDate: string; // Stored as 'yyyy-MM-dd'
   outstandingBalance: number;
   subscriptionMbps: number;
   packagePrice: number;
 };
 
 export type Invoice = {
-  id: string;
+  id: string; // Corresponds to Firestore document ID
   customerId: string;
   customerName: string;
-  date: string;
-  dueDate: string;
+  date: string; // 'yyyy-MM-dd'
+  dueDate: string; // 'yyyy-MM-dd'
   amount: number;
   status: 'lunas' | 'belum lunas';
 };
@@ -30,10 +32,10 @@ export type RevenueData = {
 };
 
 export type Payment = {
-  id: string;
+  id: string; // Corresponds to Firestore document ID
   customerId: string;
   customerName: string;
-  paymentDate: string;
+  paymentDate: string; // 'yyyy-MM-dd'
   paidAmount: number;
   paymentMethod: 'cash' | 'bri' | 'dana';
   invoiceIds: string[];
@@ -43,7 +45,6 @@ export type Payment = {
   changeAmount: number;
 };
 
-// New type for user data with roles
 export type AppUser = {
   uid: string;
   email: string | null;

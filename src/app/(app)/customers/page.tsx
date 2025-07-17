@@ -3,6 +3,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { collection, addDoc, getDocs, doc, deleteDoc, writeBatch, query, where, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import {
   Table,
   TableBody,
@@ -20,8 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal } from "lucide-react"
-import { customers, invoices } from "@/lib/data"
+import { MoreHorizontal, Loader2 } from "lucide-react"
 import type { Customer, Invoice } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -46,79 +47,124 @@ import {
 import { format } from 'date-fns';
 
 export default function CustomersPage() {
+  const [customers, setCustomers] = React.useState<Customer[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
-  const [forceUpdate, setForceUpdate] = React.useState(0);
   const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleCustomerAdded = (newCustomerData: Omit<Customer, 'id' | 'status' | 'paymentHistory' | 'outstandingBalance' | 'amountDue'>) => {
-    const newId = `cus_${Date.now()}`;
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+      const customersCollection = collection(db, "customers");
+      const customersSnapshot = await getDocs(customersCollection);
+      const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+      setCustomers(customersList);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+      toast({
+        title: "Gagal Memuat Data",
+        description: "Tidak dapat mengambil data pelanggan dari database.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const handleCustomerAdded = async (newCustomerData: Omit<Customer, 'id' | 'outstandingBalance'>) => {
     const amountDue = newCustomerData.packagePrice;
     
-    const customerToAdd: Customer = {
+    const customerToAdd = {
       ...newCustomerData,
-      id: newId,
-      status: amountDue > 0 ? 'belum lunas' : 'lunas',
-      paymentHistory: 'Pelanggan baru.',
       outstandingBalance: amountDue,
-      amountDue: amountDue,
     };
-    customers.unshift(customerToAdd);
 
-    // Automatically create the first invoice
-    if (amountDue > 0) {
-        const today = new Date();
-        const dueDate = new Date(today.getFullYear(), today.getMonth() + 1, newCustomerData.dueDateCode);
-        const newInvoice: Invoice = {
-            id: `INV-${Date.now()}`,
-            customerId: newId,
-            customerName: newCustomerData.name,
-            date: format(today, 'yyyy-MM-dd'),
-            dueDate: format(dueDate, 'yyyy-MM-dd'),
-            amount: amountDue,
-            status: 'belum lunas',
-        };
-        invoices.unshift(newInvoice);
+    try {
+        const docRef = await addDoc(collection(db, "customers"), customerToAdd);
+        
+        // Automatically create the first invoice
+        if (amountDue > 0) {
+            const today = new Date();
+            const dueDate = new Date(today.getFullYear(), today.getMonth() + 1, newCustomerData.dueDateCode);
+            const newInvoice: Omit<Invoice, 'id'> = {
+                customerId: docRef.id,
+                customerName: newCustomerData.name,
+                date: format(today, 'yyyy-MM-dd'),
+                dueDate: format(dueDate, 'yyyy-MM-dd'),
+                amount: amountDue,
+                status: 'belum lunas',
+            };
+            await addDoc(collection(db, "invoices"), newInvoice);
+        }
+        
+        toast({
+            title: "Pelanggan Ditambahkan",
+            description: `${newCustomerData.name} telah berhasil ditambahkan dan faktur pertama telah dibuat.`,
+        });
+
+        fetchCustomers(); // Refresh the list
+    } catch (error) {
+        console.error("Error adding customer: ", error);
+        toast({
+            title: "Gagal Menambahkan Pelanggan",
+            description: "Terjadi kesalahan saat menyimpan data pelanggan baru.",
+            variant: "destructive",
+        });
     }
-    
-    toast({
-        title: "Pelanggan Ditambahkan",
-        description: `${newCustomerData.name} telah berhasil ditambahkan dan faktur pertama telah dibuat.`,
-    });
-
-    setForceUpdate(prev => prev + 1);
   };
 
   const handleDeleteClick = (customer: Customer) => {
     setCustomerToDelete(customer);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!customerToDelete) return;
 
-    // Find and remove customer
-    const customerIndex = customers.findIndex(c => c.id === customerToDelete.id);
-    if (customerIndex > -1) {
-        customers.splice(customerIndex, 1);
+    try {
+        const batch = writeBatch(db);
+
+        // Delete customer document
+        const customerDocRef = doc(db, "customers", customerToDelete.id);
+        batch.delete(customerDocRef);
+
+        // Find and delete associated invoices
+        const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", customerToDelete.id));
+        const invoicesSnapshot = await getDocs(invoicesQuery);
+        invoicesSnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        // Find and delete associated payments
+        const paymentsQuery = query(collection(db, "payments"), where("customerId", "==", customerToDelete.id));
+        const paymentsSnapshot = await getDocs(paymentsQuery);
+        paymentsSnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+
+        toast({
+            title: "Pelanggan Dihapus",
+            description: `${customerToDelete.name} dan semua datanya telah berhasil dihapus.`,
+            variant: "destructive",
+        });
+
+        setCustomerToDelete(null);
+        fetchCustomers(); // Refresh list
+    } catch (error) {
+        console.error("Error deleting customer and associated data:", error);
+        toast({
+            title: "Gagal Menghapus",
+            description: "Terjadi kesalahan saat menghapus data pelanggan.",
+            variant: "destructive",
+        });
     }
-
-    // Find and remove associated invoices
-    let i = invoices.length;
-    while (i--) {
-        if (invoices[i].customerId === customerToDelete.id) {
-            invoices.splice(i, 1);
-        }
-    }
-
-    toast({
-        title: "Pelanggan Dihapus",
-        description: `${customerToDelete.name} dan semua datanya telah berhasil dihapus.`,
-        variant: "destructive",
-    });
-
-    setCustomerToDelete(null);
-    setForceUpdate(prev => prev + 1);
   };
 
 
@@ -140,6 +186,14 @@ export default function CustomersPage() {
   const handleRowClick = (customerId: string) => {
     router.push(`/customers/${customerId}`);
   };
+
+  if (loading) {
+    return (
+        <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-16 w-16 animate-spin" />
+        </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -235,10 +289,10 @@ export default function CustomersPage() {
                 </Card>
             ))
         ) : (
-            <Card>
+             <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
-                    <p className="text-lg font-medium">Grup Tidak Ditemukan</p>
-                    <p className="text-muted-foreground">Tidak ada pelanggan dalam grup yang dipilih.</p>
+                    <p className="text-lg font-medium">Tidak Ada Pelanggan</p>
+                    <p className="text-muted-foreground">Mulai dengan menambahkan pelanggan baru.</p>
                 </CardContent>
             </Card>
         )}

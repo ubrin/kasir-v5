@@ -15,11 +15,10 @@ import { Calendar } from '@/components/ui/calendar';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
@@ -63,7 +62,7 @@ const addCustomerSchema = z.object({
 type AddCustomerFormValues = z.infer<typeof addCustomerSchema>;
 
 interface AddCustomerDialogProps {
-  onCustomerAdded: (customer: Omit<Customer, 'id' | 'status' | 'paymentHistory' | 'outstandingBalance' | 'amountDue'>) => void;
+  onCustomerAdded: (customer: Omit<Customer, 'id' | 'outstandingBalance'>) => void;
 }
 
 export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
@@ -97,13 +96,13 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
             <PlusCircle className="mr-2 h-4 w-4" /> Tambah Pelanggan
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md p-0">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <DialogHeader className="p-6 pb-0">
               <DialogTitle>Tambah Pelanggan Baru</DialogTitle>
             </DialogHeader>
-            <ScrollArea className="h-96 w-full p-6 pt-2">
+            <ScrollArea className="h-[70vh] p-6">
                 <div className="space-y-4">
                     <FormField
                     control={form.control}
@@ -228,7 +227,7 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
                     />
                 </div>
             </ScrollArea>
-            <DialogFooter className="p-6 pt-0">
+            <DialogFooter className="p-6 pt-2 border-t">
               <Button type="submit">Simpan Pelanggan</Button>
             </DialogFooter>
           </form>

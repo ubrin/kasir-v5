@@ -1,44 +1,99 @@
 
 'use client';
-import { useState } from "react";
-import { customers, invoices } from "@/lib/data"
-import { notFound, useRouter } from "next/navigation"
+import { useState, useEffect } from "react";
+import { notFound, useRouter } from "next/navigation";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Customer, Invoice } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Save, X } from "lucide-react"
+import { ArrowLeft, Edit, Save, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { useToast } from "@/hooks/use-toast";
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const customer = customers.find((c) => c.id === params.id)
-  const customerInvoices = invoices.filter((invoice) => invoice.customerId === params.id);
+  const { toast } = useToast();
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const [isEditing, setIsEditing] = useState(false);
-  const [editableCustomer, setEditableCustomer] = useState(customer);
+  const [editableCustomer, setEditableCustomer] = useState<Customer | null>(null);
 
-  if (!customer) {
-    notFound()
-  }
+  useEffect(() => {
+    if (!params.id) return;
+
+    const fetchCustomerData = async () => {
+        setLoading(true);
+        try {
+            // Fetch customer details
+            const customerDocRef = doc(db, "customers", params.id);
+            const customerDocSnap = await getDoc(customerDocRef);
+
+            if (!customerDocSnap.exists()) {
+                notFound();
+                return;
+            }
+            const customerData = { id: customerDocSnap.id, ...customerDocSnap.data() } as Customer;
+            setCustomer(customerData);
+            setEditableCustomer(customerData);
+
+            // Fetch customer invoices
+            const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", params.id));
+            const invoicesSnapshot = await getDocs(invoicesQuery);
+            const invoicesList = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice)).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+            setCustomerInvoices(invoicesList);
+
+        } catch (error) {
+            console.error("Error fetching customer data:", error);
+            toast({
+                title: "Gagal memuat data",
+                description: "Tidak dapat mengambil data dari database.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchCustomerData();
+  }, [params.id, toast]);
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setEditableCustomer(prev => prev ? { ...prev, [id]: id === 'subscriptionMbps' || id === 'packagePrice' || id === 'dueDateCode' ? Number(value) : value } : null);
   };
 
-  const handleSave = () => {
-    // In a real app, you'd save this to a database
-    if (editableCustomer) {
-        const index = customers.findIndex(c => c.id === editableCustomer.id);
-        if (index !== -1) {
-            customers[index] = editableCustomer;
-        }
+  const handleSave = async () => {
+    if (!editableCustomer) return;
+    
+    try {
+        const customerDocRef = doc(db, "customers", editableCustomer.id);
+        // We only update the fields that are editable, preserving others like outstandingBalance
+        const { id, outstandingBalance, ...dataToUpdate } = editableCustomer;
+        await updateDoc(customerDocRef, dataToUpdate);
+        
+        setCustomer(editableCustomer); // Update the main state
+        toast({
+            title: "Data Disimpan",
+            description: "Perubahan data pelanggan telah berhasil disimpan."
+        });
+        setIsEditing(false);
+    } catch (error) {
+        console.error("Error updating customer:", error);
+        toast({
+            title: "Gagal Menyimpan",
+            description: "Terjadi kesalahan saat menyimpan perubahan.",
+            variant: "destructive"
+        });
     }
-    setIsEditing(false);
   };
 
   const handleCancel = () => {
@@ -65,6 +120,18 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
         return isOverdue ? 'Jatuh Tempo' : 'Belum Lunas';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-16 w-16 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!customer) {
+      return notFound();
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -96,27 +163,27 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="grid gap-2">
                         <Label htmlFor="name">Nama</Label>
-                        <Input id="name" value={editableCustomer?.name} onChange={handleInputChange} />
+                        <Input id="name" value={editableCustomer?.name || ''} onChange={handleInputChange} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="address">Alamat</Label>
-                        <Input id="address" value={editableCustomer?.address} onChange={handleInputChange} />
+                        <Input id="address" value={editableCustomer?.address || ''} onChange={handleInputChange} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="phone">No. WhatsApp</Label>
-                        <Input id="phone" value={editableCustomer?.phone} onChange={handleInputChange} />
+                        <Input id="phone" value={editableCustomer?.phone || ''} onChange={handleInputChange} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="subscriptionMbps">Paket (Mbps)</Label>
-                        <Input id="subscriptionMbps" type="number" value={editableCustomer?.subscriptionMbps} onChange={handleInputChange} />
+                        <Input id="subscriptionMbps" type="number" value={editableCustomer?.subscriptionMbps || 0} onChange={handleInputChange} />
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="packagePrice">Harga Paket (Rp)</Label>
-                        <Input id="packagePrice" type="number" value={editableCustomer?.packagePrice} onChange={handleInputChange} />
+                        <Input id="packagePrice" type="number" value={editableCustomer?.packagePrice || 0} onChange={handleInputChange} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="dueDateCode">Tanggal Jatuh Tempo</Label>
-                        <Input id="dueDateCode" type="number" value={editableCustomer?.dueDateCode} onChange={handleInputChange} />
+                        <Input id="dueDateCode" type="number" value={editableCustomer?.dueDateCode || 1} onChange={handleInputChange} />
                     </div>
                 </div>
             ) : (
@@ -149,7 +216,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     </div>
                     <div className="grid gap-1">
                         <p className="text-sm font-medium text-muted-foreground">Tanggal Pemasangan</p>
-                        <p>{editableCustomer?.installationDate ? format(new Date(editableCustomer.installationDate), "d MMMM yyyy", { locale: id }) : '-'}</p>
+                        <p>{editableCustomer?.installationDate ? format(parseISO(editableCustomer.installationDate), "d MMMM yyyy", { locale: id }) : '-'}</p>
                     </div>
                     <div className="grid gap-1">
                     <p className="text-sm font-medium text-muted-foreground">Paket</p>
@@ -157,7 +224,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     </div>
                     <div className="grid gap-1 col-span-full">
                     <p className="text-sm font-medium text-muted-foreground">Catatan</p>
-                    <p className="whitespace-pre-wrap">{editableCustomer?.paymentHistory}</p>
+                    <p className="whitespace-pre-wrap">{editableCustomer?.paymentHistory || '-'}</p>
                     </div>
                 </div>
             )}
@@ -181,7 +248,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             <TableBody>
               {customerInvoices.length > 0 ? customerInvoices.map((invoice) => (
                 <TableRow key={invoice.id}>
-                  <TableCell className="font-medium">{format(new Date(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
+                  <TableCell className="font-medium">{format(parseISO(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
                   <TableCell className="text-right">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-center">
                     <Badge variant="outline" className={getBadgeClasses(invoice.status, invoice.dueDate)}>

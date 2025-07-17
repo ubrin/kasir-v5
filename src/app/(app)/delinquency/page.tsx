@@ -3,6 +3,18 @@
 
 import * as React from "react";
 import {
+  collection,
+  query,
+  where,
+  getDocs,
+  writeBatch,
+  doc,
+  addDoc,
+  updateDoc,
+  increment,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import {
   Table,
   TableBody,
   TableCell,
@@ -11,7 +23,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { customers, invoices, payments } from "@/lib/data"
 import type { Customer, Invoice, Payment } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
@@ -22,11 +33,11 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select"
-import { differenceInDays, parseISO, getMonth, getYear, format } from "date-fns";
+import { differenceInDays, parseISO, format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { Button } from "@/components/ui/button";
-import { FileText, Receipt } from "lucide-react";
+import { FileText, Receipt, Loader2 } from "lucide-react";
 import {
     Accordion,
     AccordionContent,
@@ -48,53 +59,72 @@ export default function DelinquencyPage() {
     const { toast } = useToast();
     const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
     const [isClient, setIsClient] = React.useState(false);
-    const [forceUpdate, setForceUpdate] = React.useState(0);
+    const [delinquentCustomersList, setDelinquentCustomersList] = React.useState<DelinquentCustomer[]>([]);
+    const [loading, setLoading] = React.useState(true);
     
     React.useEffect(() => {
         setIsClient(true);
     }, []);
 
-    const today = new Date();
-    const showDelinquencyList = today.getDate() >= 1;
+    const fetchDelinquentData = React.useCallback(async () => {
+        setLoading(true);
+        try {
+            const customersSnapshot = await getDocs(collection(db, "customers"));
+            const allCustomers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
 
-    let delinquentCustomersList: DelinquentCustomer[] = [];
-
-    if (showDelinquencyList) {
-        const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas');
-        
-        const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoicesCount: number, dueDates: string[], invoices: Invoice[] }>>((acc, invoice) => {
-            const customer = customers.find((c) => c.id === invoice.customerId);
-            if (customer) {
-                if (!acc[customer.id]) {
-                    acc[customer.id] = {
-                        customer: customer,
-                        overdueAmount: 0,
-                        overdueInvoicesCount: 0,
-                        dueDates: [],
-                        invoices: [],
-                    };
-                }
-                acc[customer.id].overdueAmount += invoice.amount;
-                acc[customer.id].overdueInvoicesCount += 1;
-                acc[customer.id].dueDates.push(invoice.dueDate);
-                acc[customer.id].invoices.push(invoice);
-            }
-            return acc;
-        }, {});
-
-        delinquentCustomersList = Object.values(delinquentCustomersData).map(data => {
-            const sortedDueDates = data.dueDates.map(d => parseISO(d)).sort((a, b) => a.getTime() - b.getTime());
-            const nearestDueDate = sortedDueDates.length > 0 ? sortedDueDates[0].toISOString().split('T')[0] : '';
+            const invoicesQuery = query(collection(db, "invoices"), where("status", "==", "belum lunas"));
+            const overdueInvoicesSnapshot = await getDocs(invoicesQuery);
+            const overdueInvoices = overdueInvoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
             
-            return {
-                ...data.customer,
-                overdueAmount: data.overdueAmount,
-                overdueInvoicesCount: data.overdueInvoicesCount,
-                nearestDueDate: nearestDueDate,
-                invoices: data.invoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
-            }
-        });
-    }
+            const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoicesCount: number, dueDates: string[], invoices: Invoice[] }>>((acc, invoice) => {
+                const customer = allCustomers.find((c) => c.id === invoice.customerId);
+                if (customer) {
+                    if (!acc[customer.id]) {
+                        acc[customer.id] = {
+                            customer: customer,
+                            overdueAmount: 0,
+                            overdueInvoicesCount: 0,
+                            dueDates: [],
+                            invoices: [],
+                        };
+                    }
+                    acc[customer.id].overdueAmount += invoice.amount;
+                    acc[customer.id].overdueInvoicesCount += 1;
+                    acc[customer.id].dueDates.push(invoice.dueDate);
+                    acc[customer.id].invoices.push(invoice);
+                }
+                return acc;
+            }, {});
+
+            const delinquents = Object.values(delinquentCustomersData).map(data => {
+                const sortedDueDates = data.dueDates.map(d => parseISO(d)).sort((a, b) => a.getTime() - b.getTime());
+                const nearestDueDate = sortedDueDates.length > 0 ? sortedDueDates[0].toISOString().split('T')[0] : '';
+                
+                return {
+                    ...data.customer,
+                    overdueAmount: data.overdueAmount,
+                    overdueInvoicesCount: data.overdueInvoicesCount,
+                    nearestDueDate: nearestDueDate,
+                    invoices: data.invoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
+                }
+            });
+
+            setDelinquentCustomersList(delinquents);
+        } catch (error) {
+            console.error("Error fetching delinquent data:", error);
+            toast({
+                title: "Gagal memuat data",
+                description: "Terjadi kesalahan saat mengambil data tagihan.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
+
+    React.useEffect(() => {
+        fetchDelinquentData();
+    }, [fetchDelinquentData]);
 
     const groupedDelinquentCustomers = delinquentCustomersList.reduce((acc, customer) => {
         const code = customer.dueDateCode;
@@ -120,75 +150,85 @@ export default function DelinquencyPage() {
         router.push(`/invoice/${customerId}`);
     };
 
-    const handlePaymentSuccess = (customerId: string, customerName: string, paymentDetails: any) => {
-        const newPaymentId = `PAY-${Date.now()}`;
-        const newPayment: Payment = {
-            id: newPaymentId,
-            customerId: customerId,
-            customerName: customerName,
-            paymentDate: format(paymentDetails.paymentDate, 'yyyy-MM-dd'),
-            paidAmount: paymentDetails.paidAmount,
-            paymentMethod: paymentDetails.paymentMethod,
-            invoiceIds: paymentDetails.selectedInvoices,
-            totalBill: paymentDetails.billToPay,
-            discount: paymentDetails.discount,
-            totalPayment: paymentDetails.totalPayment,
-            changeAmount: paymentDetails.changeAmount,
-        };
-        payments.unshift(newPayment);
-
-        let amountPaid = paymentDetails.paidAmount;
-        const totalToPay = paymentDetails.totalPayment;
+    const handlePaymentSuccess = async (customerId: string, customerName: string, paymentDetails: any) => {
         
-        const selectedInvoicesToProcess = invoices
-            .filter(inv => paymentDetails.selectedInvoices.includes(inv.id))
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    
-        if (amountPaid >= totalToPay) {
-            selectedInvoicesToProcess.forEach(invoice => {
-                invoice.status = 'lunas';
-            });
-        } else {
-            for (const invoice of selectedInvoicesToProcess) {
-                if (amountPaid >= invoice.amount) {
-                    amountPaid -= invoice.amount;
-                    invoice.status = 'lunas';
-                } else {
-                    invoice.amount -= amountPaid;
-                    amountPaid = 0;
-                    break; 
+        try {
+            const batch = writeBatch(db);
+
+            // 1. Create a new payment document
+            const newPaymentRef = doc(collection(db, "payments"));
+            const newPayment: Omit<Payment, 'id'> = {
+                customerId: customerId,
+                customerName: customerName,
+                paymentDate: format(paymentDetails.paymentDate, 'yyyy-MM-dd'),
+                paidAmount: paymentDetails.paidAmount,
+                paymentMethod: paymentDetails.paymentMethod,
+                invoiceIds: paymentDetails.selectedInvoices,
+                totalBill: paymentDetails.billToPay,
+                discount: paymentDetails.discount,
+                totalPayment: paymentDetails.totalPayment,
+                changeAmount: paymentDetails.changeAmount,
+            };
+            batch.set(newPaymentRef, newPayment);
+
+            // 2. Update invoice statuses and amounts
+            let amountPaid = paymentDetails.paidAmount;
+            const totalToPay = paymentDetails.totalPayment;
+            
+            const selectedInvoicesToProcess = delinquentCustomersList
+                .find(c => c.id === customerId)?.invoices
+                .filter(inv => paymentDetails.selectedInvoices.includes(inv.id))
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) || [];
+        
+            if (amountPaid >= totalToPay) {
+                selectedInvoicesToProcess.forEach(invoice => {
+                    const invoiceRef = doc(db, "invoices", invoice.id);
+                    batch.update(invoiceRef, { status: 'lunas' });
+                });
+            } else {
+                 for (const invoice of selectedInvoicesToProcess) {
+                    const invoiceRef = doc(db, "invoices", invoice.id);
+                    if (amountPaid >= invoice.amount) {
+                        amountPaid -= invoice.amount;
+                        batch.update(invoiceRef, { status: 'lunas' });
+                    } else {
+                        batch.update(invoiceRef, { amount: invoice.amount - amountPaid });
+                        amountPaid = 0;
+                        break; 
+                    }
                 }
             }
+
+            // 3. Update customer's outstanding balance
+            const customerRef = doc(db, "customers", customerId);
+            batch.update(customerRef, {
+                outstandingBalance: increment(-paymentDetails.totalPayment)
+            });
+
+            // Commit all changes
+            await batch.commit();
+        
+            toast({
+                title: "Pembayaran Berhasil",
+                description: `Pembayaran untuk ${customerName} telah berhasil diproses.`,
+                action: (
+                    <Button asChild variant="secondary" size="sm">
+                        <Link href={`/receipt/${newPaymentRef.id}`}>
+                            <Receipt className="mr-2 h-4 w-4" /> Lihat Struk
+                        </Link>
+                    </Button>
+                ),
+            });
+    
+            fetchDelinquentData(); // Refresh data
+        } catch (error) {
+            console.error("Payment processing error:", error);
+            toast({
+                title: "Pembayaran Gagal",
+                description: "Terjadi kesalahan saat memproses pembayaran.",
+                variant: "destructive"
+            });
         }
-    
-        const customer = customers.find(c => c.id === customerId);
-        if (customer) {
-            const remainingArrears = invoices
-                .filter(i => i.customerId === customerId && i.status === 'belum lunas')
-                .reduce((sum, i) => sum + i.amount, 0);
-    
-            customer.amountDue = remainingArrears;
-            customer.outstandingBalance = remainingArrears;
-            if (remainingArrears === 0) {
-                customer.status = 'lunas';
-            } else {
-                customer.status = 'belum lunas';
-            }
-        }
-    
-        toast({
-            title: "Pembayaran Berhasil",
-            description: `Pembayaran untuk ${customerName} telah berhasil diproses.`,
-            action: (
-                <Button asChild variant="secondary" size="sm">
-                    <Link href={`/receipt/${newPaymentId}`}>
-                        <Receipt className="mr-2 h-4 w-4" /> Lihat Struk
-                    </Link>
-                </Button>
-            ),
-        });
-    
-        setForceUpdate(prev => prev + 1);
     }
 
     const formatDueDateCountdown = (dueDate: string) => {
@@ -203,6 +243,14 @@ export default function DelinquencyPage() {
         }
         return <Badge variant="outline" className="bg-blue-100 text-blue-800">{daysDiff + 1} hari lagi</Badge>
     }
+
+  if (loading) {
+    return (
+        <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-16 w-16 animate-spin" />
+        </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -312,12 +360,7 @@ export default function DelinquencyPage() {
         ) : (
              <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
-                    {isClient && !showDelinquencyList ? (
-                        <>
-                            <p className="text-lg font-medium">Daftar Tagihan Belum Tersedia</p>
-                            <p className="text-muted-foreground">Daftar tagihan akan muncul mulai tanggal 1 setiap bulan.</p>
-                        </>
-                    ) : selectedGroup === "all" && isClient ? (
+                    {selectedGroup === "all" && isClient ? (
                         <>
                             <p className="text-lg font-medium">Tidak ada tunggakan!</p>
                             <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!</p>
@@ -327,9 +370,7 @@ export default function DelinquencyPage() {
                             <p className="text-lg font-medium">Grup Tidak Ditemukan</p>
                             <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak dalam grup yang dipilih.</p>
                         </>
-                    ) : (
-                        <p className="text-lg font-medium">Memuat data...</p>
-                    )}
+                    ) : null}
                 </CardContent>
             </Card>
         )}
