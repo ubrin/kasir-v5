@@ -1,7 +1,8 @@
+
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -13,13 +14,22 @@ import {
 } from '@/components/ui/sidebar';
 import Image from 'next/image';
 import {Button} from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
+import * as React from 'react';
 
 
 const menuItems = [
   { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
   { href: '/customers', label: 'Pelanggan', icon: Users },
   { href: '/invoices', label: 'Faktur', icon: FileText },
-  { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
+  { 
+    label: 'Tagihan', 
+    icon: CreditCard,
+    subItems: [
+      { href: '/delinquency', label: 'Data Tagihan' },
+    ]
+  },
 ];
 
 export default function AppSidebar() {
@@ -30,22 +40,49 @@ export default function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2 justify-start">
             <Link href="/delinquency" className="flex items-center gap-2">
-                <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={40} height={40} />
-                <h1 className="text-lg font-semibold text-foreground hidden group-data-[state=expanded]:block">PT CYBERNETWORK CORP</h1>
+                <Image src="/logo.png" alt="APLIKASI KASIR COKK Logo" width={40} height={40} />
+                <h1 className="text-lg font-semibold text-foreground hidden group-data-[state=expanded]:block">APLIKASI KASIR COKK</h1>
             </Link>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={{children: item.label}}>
-                <Link href={item.href}>
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+          {menuItems.map((item, index) => (
+            item.subItems ? (
+              <Collapsible key={index}>
+                <CollapsibleTrigger className="w-full">
+                   <SidebarMenuButton className="w-full justify-between" variant="ghost" asChild={false} tooltip={{children: item.label}}>
+                      <div className="flex items-center gap-2">
+                        <item.icon className="h-5 w-5" />
+                        <span>{item.label}</span>
+                      </div>
+                      <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenu className="pl-7 pt-1">
+                    {item.subItems.map((subItem) => (
+                       <SidebarMenuItem key={subItem.href}>
+                         <SidebarMenuButton asChild isActive={pathname.startsWith(subItem.href)} size="sm">
+                            <Link href={subItem.href}>
+                              <span>{subItem.label}</span>
+                            </Link>
+                         </SidebarMenuButton>
+                       </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </CollapsibleContent>
+              </Collapsible>
+            ) : (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={{children: item.label}}>
+                  <Link href={item.href!}>
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
           ))}
         </SidebarMenu>
       </SidebarContent>
