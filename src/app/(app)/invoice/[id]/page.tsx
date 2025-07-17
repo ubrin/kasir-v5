@@ -13,6 +13,7 @@ import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Package, Printer, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
+import { Logo } from '@/components/ui/logo';
 
 export default function InvoicePage() {
     const params = useParams();
@@ -58,7 +59,7 @@ export default function InvoicePage() {
                     <div className="flex justify-between items-start">
                         <div>
                              <div className="flex items-center gap-3 mb-4">
-                                <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={48} height={48} className="h-12 w-12" />
+                                <Logo className="h-12 w-12" />
                                 <div>
                                     <h1 className="text-2xl font-bold text-primary">PT CYBERNETWORK CORP</h1>
                                     <p className="text-muted-foreground">Jl. Teknologi No. 1, Technopark, Indonesia</p>
