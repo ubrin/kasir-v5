@@ -122,10 +122,25 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   };
 
   React.useEffect(() => {
-    if (!open) {
+    if (open) {
+      const today = new Date();
+      const currentMonth = getMonth(today);
+      const currentYear = getYear(today);
+
+      const currentMonthInvoice = customer.invoices.find(invoice => {
+          const invoiceDate = parseISO(invoice.date);
+          return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
+      });
+
+      if (currentMonthInvoice) {
+        setValue('selectedInvoices', [currentMonthInvoice.id]);
+      } else {
+         setValue('selectedInvoices', []);
+      }
+    } else {
       reset();
     }
-  }, [open, reset]);
+  }, [open, reset, customer.invoices, setValue]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
