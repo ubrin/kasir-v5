@@ -131,16 +131,16 @@ export default function InvoicePage() {
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                     }
-                    .print\:hidden {
+                    .print\\:hidden {
                         display: none;
                     }
-                    .print\:shadow-none {
+                    .print\\:shadow-none {
                         box-shadow: none;
                     }
-                     .print\:border-none {
+                     .print\\:border-none {
                         border: none;
                     }
-                    .print\:bg-white {
+                    .print\\:bg-white {
                         background-color: white;
                     }
                 }
