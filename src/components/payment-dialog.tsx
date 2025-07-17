@@ -130,9 +130,9 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       </DialogTrigger>
       <DialogContent className="sm:max-w-[480px]" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
-          <DialogTitle>Proses Pembayaran</DialogTitle>
+          <DialogTitle>Pembayaran</DialogTitle>
           <DialogDescription>
-            Lengkapi detail pembayaran untuk {customer.name}.
+            {customer.name}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
