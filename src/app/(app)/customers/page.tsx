@@ -2,11 +2,11 @@
 'use client';
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
@@ -33,6 +33,7 @@ import {
 
 export default function CustomersPage() {
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
+  const router = useRouter();
 
   const groupedCustomers = customers.reduce((acc, customer) => {
     const code = customer.dueDateCode;
@@ -48,6 +49,10 @@ export default function CustomersPage() {
   const filteredGroupKeys = selectedGroup === "all" 
     ? groupKeys 
     : groupKeys.filter(key => key.toString() === selectedGroup);
+
+  const handleRowClick = (customerId: string) => {
+    router.push(`/customers/${customerId}`);
+  };
 
 
   return (
@@ -85,7 +90,6 @@ export default function CustomersPage() {
                         <TableRow>
                         <TableHead>Pelanggan</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead className="hidden md:table-cell">Tgl. Jatuh Tempo</TableHead>
                         <TableHead className="hidden md:table-cell">Alamat</TableHead>
                         <TableHead className="text-right">Jumlah Tagihan</TableHead>
                         <TableHead>
@@ -95,7 +99,11 @@ export default function CustomersPage() {
                     </TableHeader>
                     <TableBody>
                         {groupedCustomers[code].map((customer) => (
-                        <TableRow key={customer.id}>
+                        <TableRow 
+                            key={customer.id} 
+                            onClick={() => handleRowClick(customer.id)}
+                            className="cursor-pointer"
+                        >
                             <TableCell className="font-semibold">
                                 {customer.name}
                             </TableCell>
@@ -104,18 +112,22 @@ export default function CustomersPage() {
                                 {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
                             </Badge>
                             </TableCell>
-                            <TableCell className="hidden md:table-cell">Setiap tgl. {customer.dueDateCode}</TableCell>
                             <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
                             <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
                             <TableCell>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <Button 
+                                    aria-haspopup="true" 
+                                    size="icon" 
+                                    variant="ghost"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     <MoreHorizontal className="h-4 w-4" />
                                     <span className="sr-only">Buka menu</span>
                                 </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
+                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenuLabel>Aksi</DropdownMenuLabel>
                                 <DropdownMenuItem>Ubah</DropdownMenuItem>
                                 <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
