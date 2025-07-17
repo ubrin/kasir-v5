@@ -1,0 +1,15 @@
+# Konfigurasi untuk men-deploy aplikasi Next.js di Netlify
+# https://docs.netlify.com/integrations/frameworks/next-js/
+
+[build]
+  # Perintah untuk membangun aplikasi Next.js Anda
+  command = "next build"
+  
+  # Direktori output setelah proses build selesai
+  publish = ".next"
+
+[[plugins]]
+  # Plugin resmi Netlify untuk Next.js.
+  # Plugin ini secara otomatis mengonfigurasi fitur-fitur Next.js seperti
+  # server-side rendering, API routes, dan optimisasi gambar.
+  package = "@netlify/plugin-nextjs"
