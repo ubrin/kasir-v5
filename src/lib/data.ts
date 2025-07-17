@@ -8,7 +8,7 @@ export const customers: Customer[] = [
     address: 'Jl. Merdeka No. 1, Jakarta',
     status: 'belum lunas',
     amountDue: 22500000,
-    paymentHistory: 'Membayar tepat waktu selama 12 bulan terakhir.',
+    paymentHistory: 'Membayar tepat waktu selama 6 bulan terakhir.',
     installationDate: '2022-07-01',
     outstandingBalance: 22500000,
     subscriptionMbps: 100,
