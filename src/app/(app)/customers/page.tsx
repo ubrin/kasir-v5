@@ -63,7 +63,7 @@ export default function CustomersPage() {
                             </div>
                         </TableCell>
                         <TableCell>
-                        <Badge variant={customer.amountDue > 0 ? "default" : "secondary"} className={customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"}>
+                        <Badge variant={customer.amountDue > 0 ? "destructive" : "secondary"} className={customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"}>
                             {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
                         </Badge>
                         </TableCell>
