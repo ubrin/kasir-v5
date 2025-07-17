@@ -55,11 +55,11 @@ export default function DelinquencyPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Pelanggan Menunggak</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Tagihan Pelanggan</h1>
       </div>
       <Card>
           <CardHeader>
-              <CardTitle>Daftar Pelanggan Menunggak</CardTitle>
+              <CardTitle>Daftar Tagihan Pelanggan</CardTitle>
               <CardDescription>Pelanggan dengan satu atau lebih faktur yang telah jatuh tempo.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -67,7 +67,7 @@ export default function DelinquencyPage() {
               <TableHeader>
                   <TableRow>
                   <TableHead>Pelanggan</TableHead>
-                  <TableHead>Total Tunggakan</TableHead>
+                  <TableHead>Total Tagihan</TableHead>
                   <TableHead className="hidden md:table-cell">Faktur Jatuh Tempo</TableHead>
                   <TableHead className="hidden md:table-cell">Alamat</TableHead>
                   <TableHead>

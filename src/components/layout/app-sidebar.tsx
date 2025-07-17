@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -16,7 +16,7 @@ const menuItems = [
   { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
   { href: '/customers', label: 'Pelanggan', icon: Users },
   { href: '/invoices', label: 'Faktur', icon: FileText },
-  { href: '/delinquency', label: 'Tunggakan', icon: AlertTriangle },
+  { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
 ];
 
 export default function AppSidebar() {
