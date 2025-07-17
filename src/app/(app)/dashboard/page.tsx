@@ -145,7 +145,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Status Pembayaran Faktur (Bulan Ini)</CardTitle>
+            <CardTitle>chart</CardTitle>
             <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
           </CardHeader>
           <CardContent>
