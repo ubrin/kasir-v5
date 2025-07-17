@@ -1,5 +1,4 @@
 import Link from "next/link"
-import Image from "next/image"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -17,10 +16,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
-          <div className="flex justify-center mb-4">
-            <Image src="/logo.png" alt="APLIKASI KASIR COKK Logo" width={64} height={64} />
-          </div>
-          <CardTitle className="text-2xl text-center">APLIKASI KASIR COKK</CardTitle>
+          <CardTitle className="text-2xl text-center pt-6">APLIKASI KASIR COKK</CardTitle>
           <CardDescription className="text-center">
             jika anda merasa aplikasi ini sangat membantu berikan dukungan anda dengan mendonasikan sedikit kekayaan anda melalui nomor dana saya 0812-3949-2626 agar saya bisa bayar angsuran
           </CardDescription>
