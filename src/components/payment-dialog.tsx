@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CalendarIcon } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
-import { format } from 'date-fns';
+import { format, parseISO, getMonth, getYear } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 import { cn } from '@/lib/utils';
@@ -29,9 +29,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { Customer } from '@/lib/types';
+import type { Customer, Invoice } from '@/lib/types';
 
 const paymentSchema = z.object({
+  paymentType: z.enum(['current', 'all']),
   paymentMethod: z.enum(['cash', 'bri', 'dana'], {
     required_error: 'Pilih metode pembayaran.',
   }),
@@ -48,6 +49,7 @@ type PaymentFormValues = z.infer<typeof paymentSchema>;
 
 type DelinquentCustomer = Customer & {
   overdueAmount: number;
+  invoices: Invoice[];
 };
 
 interface PaymentDialogProps {
@@ -57,6 +59,7 @@ interface PaymentDialogProps {
 
 export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps) {
   const [open, setOpen] = React.useState(false);
+
   const {
     handleSubmit,
     control,
@@ -69,17 +72,38 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       paymentDate: new Date(),
       discount: 0,
       paymentMethod: 'cash',
+      paymentType: 'all',
     },
   });
 
+  const paymentType = watch('paymentType');
   const discount = watch('discount') || 0;
-  const totalPayment = Math.max(0, customer.overdueAmount - discount);
+
+  const { currentMonthBill, allArrears } = React.useMemo(() => {
+    const now = new Date();
+    const currentMonth = getMonth(now);
+    const currentYear = getYear(now);
+
+    const currentBill = customer.invoices
+      .filter(invoice => {
+        const invoiceDate = parseISO(invoice.date);
+        return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
+      })
+      .reduce((sum, invoice) => sum + invoice.amount, 0);
+
+    const arrears = customer.overdueAmount;
+    
+    return { currentMonthBill: currentBill, allArrears: arrears };
+  }, [customer.invoices, customer.overdueAmount]);
+
+  const billToPay = paymentType === 'current' ? currentMonthBill : allArrears;
+  const totalPayment = Math.max(0, billToPay - discount);
 
   const onSubmit = (data: PaymentFormValues) => {
     const paymentDetails = {
       ...data,
       totalPayment,
-      discount
+      discount,
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
     setOpen(false);
@@ -102,7 +126,33 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="grid gap-6 py-4">
-            {/* Payment Method */}
+            
+            <div className="grid gap-3">
+              <Label>Jenis Pembayaran</Label>
+              <Controller
+                name="paymentType"
+                control={control}
+                render={({ field }) => (
+                  <RadioGroup
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="all" id="all" />
+                      <Label htmlFor="all">Semua Tunggakan</Label>
+                    </div>
+                    {currentMonthBill > 0 && (
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="current" id="current" />
+                        <Label htmlFor="current">Tagihan Bulan Ini</Label>
+                      </div>
+                    )}
+                  </RadioGroup>
+                )}
+              />
+            </div>
+
             <div className="grid gap-3">
               <Label>Metode Pembayaran</Label>
               <Controller
@@ -132,7 +182,6 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
               {errors.paymentMethod && <p className="text-sm text-destructive">{errors.paymentMethod.message}</p>}
             </div>
 
-            {/* Payment Date */}
             <div className="grid gap-3">
               <Label htmlFor="paymentDate">Tanggal Pembayaran</Label>
                <Controller
@@ -166,11 +215,10 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
               {errors.paymentDate && <p className="text-sm text-destructive">{errors.paymentDate.message}</p>}
             </div>
 
-            {/* Amounts */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                     <Label>Total Tagihan</Label>
-                    <p className="font-semibold text-lg">Rp{customer.overdueAmount.toLocaleString('id-ID')}</p>
+                    <p className="font-semibold text-lg">Rp{billToPay.toLocaleString('id-ID')}</p>
                 </div>
                  <div className="grid gap-2">
                     <Label htmlFor="discount">Diskon (Rp)</Label>

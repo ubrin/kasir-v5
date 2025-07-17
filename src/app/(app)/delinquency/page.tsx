@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { customers, invoices } from "@/lib/data"
-import type { Customer } from "@/lib/types"
+import type { Customer, Invoice } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
 import {
@@ -22,15 +22,16 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select"
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInDays, parseISO, getMonth, getYear } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 
 
 type DelinquentCustomer = Customer & {
     overdueAmount: number;
-    overdueInvoices: number;
+    overdueInvoicesCount: number;
     nearestDueDate: string;
+    invoices: Invoice[];
 };
 
 export default function DelinquencyPage() {
@@ -52,20 +53,22 @@ export default function DelinquencyPage() {
     if (showDelinquencyList) {
         const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas');
         
-        const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number, dueDates: string[] }>>((acc, invoice) => {
+        const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoicesCount: number, dueDates: string[], invoices: Invoice[] }>>((acc, invoice) => {
             const customer = customers.find((c) => c.id === invoice.customerId);
             if (customer) {
                 if (!acc[customer.id]) {
                     acc[customer.id] = {
                         customer: customer,
                         overdueAmount: 0,
-                        overdueInvoices: 0,
+                        overdueInvoicesCount: 0,
                         dueDates: [],
+                        invoices: [],
                     };
                 }
                 acc[customer.id].overdueAmount += invoice.amount;
-                acc[customer.id].overdueInvoices += 1;
+                acc[customer.id].overdueInvoicesCount += 1;
                 acc[customer.id].dueDates.push(invoice.dueDate);
+                acc[customer.id].invoices.push(invoice);
             }
             return acc;
         }, {});
@@ -77,8 +80,9 @@ export default function DelinquencyPage() {
             return {
                 ...data.customer,
                 overdueAmount: data.overdueAmount,
-                overdueInvoices: data.overdueInvoices,
+                overdueInvoicesCount: data.overdueInvoicesCount,
                 nearestDueDate: nearestDueDate,
+                invoices: data.invoices,
             }
         });
     }
@@ -103,21 +107,35 @@ export default function DelinquencyPage() {
     };
 
     const handlePaymentSuccess = (customerId: string, customerName: string, paymentDetails: any) => {
-        // Mark all 'belum lunas' invoices for this customer as 'lunas'
+        const now = new Date();
+        const currentMonth = getMonth(now);
+        const currentYear = getYear(now);
+
         invoices.forEach(invoice => {
             if (invoice.customerId === customerId && invoice.status === 'belum lunas') {
-                invoice.status = 'lunas';
+                if (paymentDetails.paymentType === 'all') {
+                    invoice.status = 'lunas';
+                } else if (paymentDetails.paymentType === 'current') {
+                    const invoiceDate = parseISO(invoice.date);
+                    if (getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear) {
+                        invoice.status = 'lunas';
+                    }
+                }
             }
         });
 
         // Update the customer's balance
         const customer = customers.find(c => c.id === customerId);
         if (customer) {
-            customer.amountDue = 0;
-            customer.outstandingBalance = 0;
-            customer.status = 'lunas';
-            // You can optionally save paymentDetails to the customer's record
-            // For example: customer.paymentHistory += `\nPaid ${paymentDetails.total} via ${paymentDetails.method} on ${paymentDetails.date}. Discount: ${paymentDetails.discount}`;
+            const remainingArrears = invoices
+                .filter(i => i.customerId === customerId && i.status === 'belum lunas')
+                .reduce((sum, i) => sum + i.amount, 0);
+
+            customer.amountDue = remainingArrears;
+            customer.outstandingBalance = remainingArrears;
+            if (remainingArrears === 0) {
+                customer.status = 'lunas';
+            }
         }
 
         toast({
@@ -125,7 +143,6 @@ export default function DelinquencyPage() {
             description: `Pembayaran untuk ${customerName} telah berhasil diproses.`,
         });
 
-        // Force a re-render to update the list
         setForceUpdate(prev => prev + 1);
     }
 
