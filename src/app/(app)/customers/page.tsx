@@ -68,7 +68,7 @@ export default function CustomersPage() {
                         </Badge>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">{customer.company}</TableCell>
-                        <TableCell className="text-right">${customer.amountDue.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
                         <TableCell>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

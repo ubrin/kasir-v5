@@ -39,7 +39,7 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">Rp{totalRevenue.toLocaleString('id-ID')}</div>
             <p className="text-xs text-muted-foreground">
               +20.1% dari bulan lalu
             </p>
@@ -65,7 +65,7 @@ export default function DashboardPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${outstandingPayments.toLocaleString()}</div>
+            <div className="text-2xl font-bold">Rp{outstandingPayments.toLocaleString('id-ID')}</div>
             <p className="text-xs text-muted-foreground">
               +19% dari bulan lalu
             </p>
@@ -107,13 +107,14 @@ export default function DashboardPage() {
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(value) => `$${value / 1000}K`}
+                    tickFormatter={(value) => `Rp${new Intl.NumberFormat('id-ID', { notation: "compact", compactDisplay: "short" }).format(value)}`}
                     />
                     <Tooltip
                         contentStyle={{
                             background: "hsl(var(--card))",
                             borderColor: "hsl(var(--border))",
                         }}
+                        formatter={(value: number) => [`Rp${value.toLocaleString('id-ID')}`, 'Pendapatan']}
                     />
                     <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -138,7 +139,7 @@ export default function DashboardPage() {
                                     {invoice.customerEmail}
                                 </div>
                             </TableCell>
-                            <TableCell className="text-right font-medium">${invoice.amount.toLocaleString()}</TableCell>
+                            <TableCell className="text-right font-medium">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

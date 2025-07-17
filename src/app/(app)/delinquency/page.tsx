@@ -93,7 +93,7 @@ export default function DelinquencyPage() {
                             </div>
                         </TableCell>
                         <TableCell className="text-right text-destructive font-bold">
-                            ${customer.overdueAmount.toLocaleString()}
+                            Rp{customer.overdueAmount.toLocaleString('id-ID')}
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-center">
                             <Badge variant="destructive">{customer.overdueInvoices}</Badge>

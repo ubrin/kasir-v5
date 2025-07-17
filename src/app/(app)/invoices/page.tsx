@@ -94,7 +94,7 @@ export default function InvoicesPage() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell">{invoice.date}</TableCell>
                         <TableCell className="hidden md:table-cell">{invoice.dueDate}</TableCell>
-                        <TableCell className="text-right">${invoice.amount.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
                         <TableCell>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
