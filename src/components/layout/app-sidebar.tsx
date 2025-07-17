@@ -27,7 +27,7 @@ export default function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2 justify-center">
             <Button variant="ghost" size="icon" className="text-primary-foreground bg-primary rounded-full" asChild>
-                <Link href="/dashboard">
+                <Link href="/delinquency">
                     <Package className="h-6 w-6" />
                 </Link>
             </Button>
