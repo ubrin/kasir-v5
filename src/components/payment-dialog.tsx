@@ -52,6 +52,10 @@ const paymentSchema = z.object({
     (a) => (a ? parseInt(String(a), 10) : 0),
     z.number().min(0).optional()
   ),
+  paidAmount: z.preprocess(
+    (a) => (a ? parseInt(String(a), 10) : 0),
+    z.number().min(0)
+  ),
 });
 
 type PaymentFormValues = z.infer<typeof paymentSchema>;
@@ -82,11 +86,13 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       discount: 0,
       paymentMethod: 'cash',
       selectedInvoices: [],
+      paidAmount: 0,
     },
   });
 
   const selectedInvoices = watch('selectedInvoices') || [];
   const discount = watch('discount') || 0;
+  const paidAmount = watch('paidAmount') || 0;
 
   const billToPay = React.useMemo(() => {
     return customer.invoices
@@ -95,11 +101,13 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   }, [customer.invoices, selectedInvoices]);
 
   const totalPayment = Math.max(0, billToPay - discount);
+  const changeAmount = Math.max(0, paidAmount - totalPayment);
 
   const onSubmit = (data: PaymentFormValues) => {
     const paymentDetails = {
       ...data,
       totalPayment,
+      changeAmount,
       discount,
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
@@ -136,7 +144,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                 name="selectedInvoices"
                 control={control}
                 render={({ field }) => (
-                  <div className="space-y-2 rounded-md border p-3">
+                  <div className="space-y-2 rounded-md border p-3 max-h-48 overflow-y-auto">
                     {customer.invoices.map((invoice) => (
                       <div key={invoice.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -227,7 +235,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
               />
               {errors.paymentDate && <p className="text-sm text-destructive">{errors.paymentDate.message}</p>}
             </div>
-
+            
             <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                     <Label>Total Tagihan</Label>
@@ -248,6 +256,26 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                             />
                         )}
                     />
+                </div>
+                 <div className="grid gap-2">
+                    <Label htmlFor="paidAmount">Jumlah Dibayar (Rp)</Label>
+                    <Controller
+                        name="paidAmount"
+                        control={control}
+                        render={({ field }) => (
+                            <Input
+                            {...field}
+                            id="paidAmount"
+                            type="number"
+                            placeholder="0"
+                            onChange={e => field.onChange(e.target.value)}
+                            />
+                        )}
+                    />
+                </div>
+                 <div className="grid gap-2">
+                    <Label>Kembalian</Label>
+                    <p className="font-semibold text-lg">Rp{changeAmount.toLocaleString('id-ID')}</p>
                 </div>
             </div>
 
