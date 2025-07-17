@@ -82,6 +82,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               <p className="text-sm font-medium text-muted-foreground">Usia Akun</p>
               <p>{customer.accountAgeMonths} bulan</p>
             </div>
+            <div className="grid gap-1">
+              <p className="text-sm font-medium text-muted-foreground">Langganan (Mbps)</p>
+              <p>{customer.subscriptionMbps} Mbps</p>
+            </div>
             <div className="grid gap-1 col-span-full">
               <p className="text-sm font-medium text-muted-foreground">Catatan</p>
               <p className="whitespace-pre-wrap">{customer.paymentHistory}</p>

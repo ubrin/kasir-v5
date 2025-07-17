@@ -11,6 +11,7 @@ export const customers: Customer[] = [
     paymentHistory: 'Membayar tepat waktu selama 12 bulan terakhir.',
     accountAgeMonths: 24,
     outstandingBalance: 22500000,
+    subscriptionMbps: 100,
   },
   {
     id: 'cus_2',
@@ -22,6 +23,7 @@ export const customers: Customer[] = [
     paymentHistory: 'Satu pembayaran terlambat 3 bulan yang lalu. Selebihnya bayar tepat waktu.',
     accountAgeMonths: 18,
     outstandingBalance: 3750000,
+    subscriptionMbps: 50,
   },
   {
     id: 'cus_3',
@@ -33,6 +35,7 @@ export const customers: Customer[] = [
     paymentHistory: 'Akun ditutup. Semua pembayaran sudah dilunasi.',
     accountAgeMonths: 36,
     outstandingBalance: 0,
+    subscriptionMbps: 20,
   },
   {
     id: 'cus_4',
@@ -44,6 +47,7 @@ export const customers: Customer[] = [
     paymentHistory: 'Sering terlambat membayar selama 6 bulan terakhir. Beberapa pengingat telah dikirim.',
     accountAgeMonths: 15,
     outstandingBalance: 78000000,
+    subscriptionMbps: 200,
   },
   {
     id: 'cus_5',
@@ -55,6 +59,7 @@ export const customers: Customer[] = [
     paymentHistory: 'Pelanggan baru, tagihan pertama belum jatuh tempo.',
     accountAgeMonths: 1,
     outstandingBalance: 0,
+    subscriptionMbps: 75,
   },
 ];
 

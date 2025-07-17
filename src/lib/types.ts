@@ -8,6 +8,7 @@ export type Customer = {
   paymentHistory: string;
   accountAgeMonths: number;
   outstandingBalance: number;
+  subscriptionMbps: number;
 };
 
 export type Invoice = {
