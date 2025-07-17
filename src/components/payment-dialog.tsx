@@ -1,0 +1,209 @@
+
+'use client';
+
+import * as React from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CalendarIcon } from 'lucide-react';
+import { useForm, Controller } from 'react-hook-form';
+import { z } from 'zod';
+import { format, id } from 'date-fns';
+
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import type { Customer } from '@/lib/types';
+
+const paymentSchema = z.object({
+  paymentMethod: z.enum(['cash', 'bri', 'dana'], {
+    required_error: 'Pilih metode pembayaran.',
+  }),
+  paymentDate: z.date({
+    required_error: 'Tanggal pembayaran harus diisi.',
+  }),
+  discount: z.preprocess(
+    (a) => (a ? parseInt(String(a), 10) : 0),
+    z.number().min(0).optional()
+  ),
+});
+
+type PaymentFormValues = z.infer<typeof paymentSchema>;
+
+type DelinquentCustomer = Customer & {
+  overdueAmount: number;
+};
+
+interface PaymentDialogProps {
+  customer: DelinquentCustomer;
+  onPaymentSuccess: (customerId: string, customerName: string, paymentDetails: any) => void;
+}
+
+export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps) {
+  const [open, setOpen] = React.useState(false);
+  const {
+    handleSubmit,
+    control,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: {
+      paymentDate: new Date(),
+      discount: 0,
+      paymentMethod: 'cash',
+    },
+  });
+
+  const discount = watch('discount') || 0;
+  const totalPayment = Math.max(0, customer.overdueAmount - discount);
+
+  const onSubmit = (data: PaymentFormValues) => {
+    const paymentDetails = {
+      ...data,
+      totalPayment,
+      discount
+    };
+    onPaymentSuccess(customer.id, customer.name, paymentDetails);
+    setOpen(false);
+    reset();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" onClick={(e) => e.stopPropagation()}>
+          Bayar
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[480px]" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>Proses Pembayaran</DialogTitle>
+          <DialogDescription>
+            Lengkapi detail pembayaran untuk {customer.name}.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="grid gap-6 py-4">
+            {/* Payment Method */}
+            <div className="grid gap-3">
+              <Label>Metode Pembayaran</Label>
+              <Controller
+                name="paymentMethod"
+                control={control}
+                render={({ field }) => (
+                  <RadioGroup
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="cash" id="cash" />
+                      <Label htmlFor="cash">Cash</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="bri" id="bri" />
+                      <Label htmlFor="bri">BRI</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="dana" id="dana" />
+                      <Label htmlFor="dana">DANA</Label>
+                    </div>
+                  </RadioGroup>
+                )}
+              />
+              {errors.paymentMethod && <p className="text-sm text-destructive">{errors.paymentMethod.message}</p>}
+            </div>
+
+            {/* Payment Date */}
+            <div className="grid gap-3">
+              <Label htmlFor="paymentDate">Tanggal Pembayaran</Label>
+               <Controller
+                name="paymentDate"
+                control={control}
+                render={({ field }) => (
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            variant={'outline'}
+                            className={cn(
+                            'w-full justify-start text-left font-normal',
+                            !field.value && 'text-muted-foreground'
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, 'PPP', { locale: id }) : <span>Pilih tanggal</span>}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                        <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                        />
+                        </PopoverContent>
+                    </Popover>
+                )}
+              />
+              {errors.paymentDate && <p className="text-sm text-destructive">{errors.paymentDate.message}</p>}
+            </div>
+
+            {/* Amounts */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label>Total Tagihan</Label>
+                    <p className="font-semibold text-lg">Rp{customer.overdueAmount.toLocaleString('id-ID')}</p>
+                </div>
+                 <div className="grid gap-2">
+                    <Label htmlFor="discount">Diskon (Rp)</Label>
+                    <Controller
+                        name="discount"
+                        control={control}
+                        render={({ field }) => (
+                            <Input
+                            {...field}
+                            id="discount"
+                            type="number"
+                            placeholder="0"
+                            onChange={e => field.onChange(e.target.value)}
+                            />
+                        )}
+                    />
+                </div>
+            </div>
+
+            <div className="mt-4 rounded-lg border bg-secondary/50 p-4">
+                <div className="flex justify-between items-center">
+                    <span className="text-lg font-medium text-secondary-foreground">Total Pembayaran</span>
+                    <span className="text-xl font-bold text-primary">
+                        Rp{totalPayment.toLocaleString('id-ID')}
+                    </span>
+                </div>
+            </div>
+            
+          </div>
+          <DialogFooter>
+            <Button type="submit">Konfirmasi Pembayaran</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

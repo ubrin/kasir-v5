@@ -11,7 +11,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { customers, invoices } from "@/lib/data"
 import type { Customer } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,6 +24,7 @@ import {
   } from "@/components/ui/select"
 import { differenceInDays, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { PaymentDialog } from "@/components/payment-dialog";
 
 
 type DelinquentCustomer = Customer & {
@@ -102,7 +102,7 @@ export default function DelinquencyPage() {
         router.push(`/customers/${customerId}`);
     };
 
-    const handlePayment = (customerId: string, customerName: string) => {
+    const handlePaymentSuccess = (customerId: string, customerName: string, paymentDetails: any) => {
         // Mark all 'belum lunas' invoices for this customer as 'lunas'
         invoices.forEach(invoice => {
             if (invoice.customerId === customerId && invoice.status === 'belum lunas') {
@@ -116,6 +116,8 @@ export default function DelinquencyPage() {
             customer.amountDue = 0;
             customer.outstandingBalance = 0;
             customer.status = 'lunas';
+            // You can optionally save paymentDetails to the customer's record
+            // For example: customer.paymentHistory += `\nPaid ${paymentDetails.total} via ${paymentDetails.method} on ${paymentDetails.date}. Discount: ${paymentDetails.discount}`;
         }
 
         toast({
@@ -194,15 +196,10 @@ export default function DelinquencyPage() {
                                         Rp{customer.overdueAmount.toLocaleString('id-ID')}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button 
-                                            size="sm" 
-                                            onClick={(e) => { 
-                                                e.stopPropagation(); 
-                                                handlePayment(customer.id, customer.name);
-                                            }}
-                                        >
-                                            Bayar
-                                        </Button>
+                                        <PaymentDialog
+                                            customer={customer}
+                                            onPaymentSuccess={handlePaymentSuccess}
+                                        />
                                     </TableCell>
                                 </TableRow>
                             ))}
