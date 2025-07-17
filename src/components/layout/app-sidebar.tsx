@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3 } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -20,8 +20,14 @@ import * as React from 'react';
 
 
 const menuItems = [
-  { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
-  { href: '/payment-report', label: 'Laporan', icon: BarChart3 },
+   {
+    label: 'Home',
+    icon: Home,
+    subItems: [
+      { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
+      { href: '/payment-report', label: 'Laporan', icon: BarChart3 },
+    ]
+  },
   { href: '/customers', label: 'Pelanggan', icon: Users },
   { href: '/dashboard', label: 'Keuangan', icon: LayoutDashboard },
 ];
