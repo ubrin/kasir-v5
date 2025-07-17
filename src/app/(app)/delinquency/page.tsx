@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button"
 import { MoreHorizontal } from "lucide-react"
 import { customers, invoices } from "@/lib/data"
 import type { Customer, Invoice } from "@/lib/types"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 type DelinquentCustomer = Customer & {
@@ -80,16 +79,8 @@ export default function DelinquencyPage() {
                   {delinquentCustomers.length > 0 ? (
                     delinquentCustomers.map((customer) => (
                     <TableRow key={customer.id} className="bg-destructive/5 hover:bg-destructive/10">
-                        <TableCell className="font-medium">
-                            <div className="flex items-center gap-3">
-                                <Avatar className="hidden h-9 w-9 sm:flex">
-                                    <AvatarImage src={customer.avatar} alt="Avatar" />
-                                    <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div className="grid gap-0.5">
-                                    <p className="font-semibold">{customer.name}</p>
-                                </div>
-                            </div>
+                        <TableCell className="font-semibold">
+                            {customer.name}
                         </TableCell>
                         <TableCell className="text-right text-destructive font-bold">
                             Rp{customer.overdueAmount.toLocaleString('id-ID')}

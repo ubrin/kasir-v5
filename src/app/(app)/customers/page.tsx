@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button"
 import { MoreHorizontal, PlusCircle } from "lucide-react"
 import { customers } from "@/lib/data"
 import type { Customer } from "@/lib/types"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
     Select,
@@ -99,16 +98,8 @@ export default function CustomersPage() {
                         {groupedCustomers[code].map((customer) => (
                         <TableRow key={customer.id}>
                             <TableCell className="font-medium">{customer.dueDateCode}</TableCell>
-                            <TableCell className="font-medium">
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="hidden h-9 w-9 sm:flex">
-                                        <AvatarImage src={customer.avatar} alt="Avatar" />
-                                        <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="grid gap-0.5">
-                                        <p className="font-semibold">{customer.name}</p>
-                                    </div>
-                                </div>
+                            <TableCell className="font-semibold">
+                                {customer.name}
                             </TableCell>
                             <TableCell>
                             <Badge variant={customer.amountDue > 0 ? "destructive" : "secondary"} className={customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"}>

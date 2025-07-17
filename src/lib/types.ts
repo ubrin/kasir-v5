@@ -2,7 +2,6 @@ export type Customer = {
   id: string;
   name: string;
   dueDateCode: number;
-  avatar: string;
   address: string;
   status: 'lunas' | 'belum lunas';
   amountDue: number;
