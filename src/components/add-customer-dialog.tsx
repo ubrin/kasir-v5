@@ -103,13 +103,13 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Tambah Pelanggan Baru</DialogTitle>
-        </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <ScrollArea className="max-h-[65vh] w-full pr-6">
-                <div className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Tambah Pelanggan Baru</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="h-96 w-full p-1 pr-6">
+                <div className="space-y-4 pr-1">
                     <FormField
                     control={form.control}
                     name="name"
@@ -218,7 +218,7 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
                             )}
                         />
                     </div>
-                    <FormField
+                     <FormField
                         control={form.control}
                         name="packagePrice"
                         render={({ field }) => (
@@ -246,7 +246,7 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
                     />
                 </div>
             </ScrollArea>
-            <DialogFooter className="pt-6">
+            <DialogFooter>
               <Button type="submit">Simpan Pelanggan</Button>
             </DialogFooter>
           </form>
