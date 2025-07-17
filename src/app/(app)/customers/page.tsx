@@ -83,7 +83,6 @@ export default function CustomersPage() {
                     <Table>
                     <TableHeader>
                         <TableRow>
-                        <TableHead>Kode</TableHead>
                         <TableHead>Pelanggan</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="hidden md:table-cell">Tgl. Jatuh Tempo</TableHead>
@@ -97,7 +96,6 @@ export default function CustomersPage() {
                     <TableBody>
                         {groupedCustomers[code].map((customer) => (
                         <TableRow key={customer.id}>
-                            <TableCell className="font-medium">{customer.dueDateCode}</TableCell>
                             <TableCell className="font-semibold">
                                 {customer.name}
                             </TableCell>
