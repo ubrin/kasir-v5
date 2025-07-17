@@ -1,3 +1,7 @@
+
+'use client';
+
+import * as React from "react";
 import {
   Table,
   TableBody,
@@ -20,8 +24,17 @@ import { customers } from "@/lib/data"
 import type { Customer } from "@/lib/types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from "@/components/ui/select"
 
 export default function CustomersPage() {
+  const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
+
   const groupedCustomers = customers.reduce((acc, customer) => {
     const code = customer.dueDateCode;
     if (!acc[code]) {
@@ -31,19 +44,38 @@ export default function CustomersPage() {
     return acc;
   }, {} as Record<number, Customer[]>);
 
-  const sortedGroupKeys = Object.keys(groupedCustomers).map(Number).sort((a, b) => a - b);
+  const groupKeys = Object.keys(groupedCustomers).map(Number).sort((a, b) => a - b);
+  
+  const filteredGroupKeys = selectedGroup === "all" 
+    ? groupKeys 
+    : groupKeys.filter(key => key.toString() === selectedGroup);
 
 
   return (
     <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold tracking-tight">Pelanggan</h1>
+            <div className="flex items-center gap-4">
+                <h1 className="text-3xl font-bold tracking-tight">Pelanggan</h1>
+                <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Pilih grup" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Grup</SelectItem>
+                        {groupKeys.map(key => (
+                            <SelectItem key={key} value={key.toString()}>
+                                Grup Tanggal {key}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
             <Button>
                 <PlusCircle className="mr-2 h-4 w-4" /> Tambah Pelanggan
             </Button>
         </div>
 
-        {sortedGroupKeys.map((code) => (
+        {filteredGroupKeys.map((code) => (
             <Card key={code}>
                 <CardHeader>
                     <CardTitle>Grup Jatuh Tempo: Tanggal {code}</CardTitle>
