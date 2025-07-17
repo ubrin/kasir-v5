@@ -18,9 +18,9 @@ export default function LoginPage() {
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
           <div className="flex justify-center mb-4">
-            <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={64} height={64} />
+            <Image src="/logo.png" alt="APLIKASI KASIR COKK Logo" width={64} height={64} />
           </div>
-          <CardTitle className="text-2xl text-center">PT CYBERNETWORK CORP</CardTitle>
+          <CardTitle className="text-2xl text-center">APLIKASI KASIR COKK</CardTitle>
           <CardDescription className="text-center">
             Masukkan email Anda di bawah ini untuk masuk ke akun Anda
           </CardDescription>
