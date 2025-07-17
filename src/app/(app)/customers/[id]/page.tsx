@@ -111,7 +111,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                         <Input id="subscriptionMbps" type="number" value={editableCustomer?.subscriptionMbps} onChange={handleInputChange} />
                     </div>
                      <div className="grid gap-2">
-                        <Label htmlFor="amountDue">Jumlah Tagihan (Rp)</Label>
+                        <Label htmlFor="amountDue">Harga (Rp)</Label>
                         <Input id="amountDue" type="number" value={editableCustomer?.amountDue} onChange={handleInputChange} />
                     </div>
                     <div className="grid gap-2">
@@ -123,8 +123,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="grid gap-1">
                     <p className="text-sm font-medium text-muted-foreground">Status</p>
-                    <Badge variant={editableCustomer?.amountDue ?? 0 > 0 ? "destructive" : "secondary"} className={`${editableCustomer?.amountDue ?? 0 > 0 ? "" : "bg-green-100 text-green-800"} w-fit`}>
-                        {editableCustomer?.amountDue ?? 0 > 0 ? "Belum Lunas" : "Lunas"}
+                    <Badge variant={editableCustomer?.outstandingBalance ?? 0 > 0 ? "destructive" : "secondary"} className={`${editableCustomer?.outstandingBalance ?? 0 > 0 ? "" : "bg-green-100 text-green-800"} w-fit`}>
+                        {editableCustomer?.outstandingBalance ?? 0 > 0 ? "Belum Lunas" : "Lunas"}
                     </Badge>
                     </div>
                     <div className="grid gap-1">
@@ -140,7 +140,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <p>Setiap tanggal {editableCustomer?.dueDateCode}</p>
                     </div>
                     <div className="grid gap-1">
-                    <p className="text-sm font-medium text-muted-foreground">Jumlah Tagihan</p>
+                    <p className="text-sm font-medium text-muted-foreground">Harga</p>
                     <p>Rp{editableCustomer?.amountDue.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="grid gap-1">
@@ -203,3 +203,5 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   )
 }
+
+    
