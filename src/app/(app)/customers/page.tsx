@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { MoreHorizontal } from "lucide-react"
-import { customers } from "@/lib/data"
+import { customers, invoices } from "@/lib/data"
 import type { Customer } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -33,10 +33,21 @@ import {
   } from "@/components/ui/select"
 import { AddCustomerDialog } from "@/components/add-customer-dialog";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function CustomersPage() {
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
   const [forceUpdate, setForceUpdate] = React.useState(0);
+  const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -60,6 +71,38 @@ export default function CustomersPage() {
     setForceUpdate(prev => prev + 1);
   };
 
+  const handleDeleteClick = (customer: Customer) => {
+    setCustomerToDelete(customer);
+  };
+
+  const confirmDelete = () => {
+    if (!customerToDelete) return;
+
+    // Find and remove customer
+    const customerIndex = customers.findIndex(c => c.id === customerToDelete.id);
+    if (customerIndex > -1) {
+        customers.splice(customerIndex, 1);
+    }
+
+    // Find and remove associated invoices
+    let i = invoices.length;
+    while (i--) {
+        if (invoices[i].customerId === customerToDelete.id) {
+            invoices.splice(i, 1);
+        }
+    }
+
+    toast({
+        title: "Pelanggan Dihapus",
+        description: `${customerToDelete.name} dan semua datanya telah berhasil dihapus.`,
+        variant: "destructive",
+    });
+
+    setCustomerToDelete(null);
+    setForceUpdate(prev => prev + 1);
+  };
+
+
   const groupedCustomers = customers.reduce((acc, customer) => {
     const code = customer.dueDateCode;
     if (!acc[code]) {
@@ -78,14 +121,6 @@ export default function CustomersPage() {
   const handleRowClick = (customerId: string) => {
     router.push(`/customers/${customerId}`);
   };
-
-  const isOverdue = (dueDateCode: number, amountDue: number) => {
-    if (amountDue <= 0) return false;
-    const today = new Date();
-    const currentDay = today.getDate();
-    return currentDay > dueDateCode;
-  };
-
 
   return (
     <div className="flex flex-col gap-8">
@@ -130,9 +165,7 @@ export default function CustomersPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {groupedCustomers[code].map((customer) => {
-                                const overdue = isOverdue(customer.dueDateCode, customer.amountDue);
-                                return (
+                            {groupedCustomers[code].map((customer) => (
                                 <TableRow 
                                     key={customer.id} 
                                     onClick={() => handleRowClick(customer.id)}
@@ -164,14 +197,19 @@ export default function CustomersPage() {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                         <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                        <DropdownMenuItem>Ubah</DropdownMenuItem>
-                                        <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
-                                        <DropdownMenuItem className="text-red-500">Hapus</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>Ubah</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/invoice/${customer.id}`)}>Lihat Faktur</DropdownMenuItem>
+                                        <DropdownMenuItem 
+                                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                            onClick={() => handleDeleteClick(customer)}
+                                        >
+                                            Hapus
+                                        </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
-                            )})}
+                            ))}
                         </TableBody>
                         </Table>
                     </CardContent>
@@ -185,6 +223,27 @@ export default function CustomersPage() {
                 </CardContent>
             </Card>
         )}
+
+        <AlertDialog open={!!customerToDelete} onOpenChange={(isOpen) => !isOpen && setCustomerToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Anda yakin ingin menghapus pelanggan?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data pelanggan <span className="font-bold">{customerToDelete?.name}</span> secara permanen beserta semua riwayat fakturnya.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>Batal</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={confirmDelete}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    Ya, Hapus
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
     </div>
   )
 }
