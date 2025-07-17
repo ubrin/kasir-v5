@@ -1,3 +1,4 @@
+
 'use client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
@@ -13,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { differenceInMonths } from "date-fns"
+import { differenceInMonths, getMonth, getYear, parseISO } from "date-fns"
 
 const chartConfig = {
   revenue: {
@@ -30,11 +31,22 @@ export default function DashboardPage() {
     const newCustomers = customers.filter(c => differenceInMonths(new Date(), new Date(c.installationDate)) <= 1).length;
     const delinquentAccounts = invoices.filter(i => i.status === 'belum lunas' && new Date(i.dueDate) < new Date()).length;
 
-    const paidInvoices = invoices.filter(i => i.status === 'lunas').length;
-    const unpaidInvoices = invoices.filter(i => i.status === 'belum lunas').length;
+    // Filter invoices for the current month and year for the pie chart
+    const today = new Date();
+    const currentMonth = getMonth(today);
+    const currentYear = getYear(today);
+
+    const currentMonthInvoices = invoices.filter(invoice => {
+        const invoiceDate = parseISO(invoice.date);
+        return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
+    });
+
+    const paidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'lunas').length;
+    const unpaidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'belum lunas').length;
+    
     const pieData = [
-      { name: 'Lunas', value: paidInvoices },
-      { name: 'Belum Lunas', value: unpaidInvoices },
+      { name: 'Lunas', value: paidInvoicesCurrentMonth },
+      { name: 'Belum Lunas', value: unpaidInvoicesCurrentMonth },
     ];
 
   return (
@@ -133,8 +145,8 @@ export default function DashboardPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Status Pembayaran Faktur</CardTitle>
-            <CardDescription>Visualisasi faktur yang sudah dan belum dibayar.</CardDescription>
+            <CardTitle>Status Pembayaran Faktur (Bulan Ini)</CardTitle>
+            <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={350}>
