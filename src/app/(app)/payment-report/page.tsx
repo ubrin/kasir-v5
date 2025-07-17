@@ -16,12 +16,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-  } from "@/components/ui/select"
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion"
+
 
 type GroupedPayments = {
   [date: string]: {
@@ -38,8 +38,6 @@ export default function PaymentReportPage() {
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
-
-  const [selectedDate, setSelectedDate] = React.useState<string | undefined>();
 
   const filteredPayments = payments.filter(payment => {
     if (!date?.from) return true;
@@ -62,18 +60,6 @@ export default function PaymentReportPage() {
 
   const sortedDates = Object.keys(groupedPayments).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
   
-  React.useEffect(() => {
-    if (sortedDates.length > 0 && !selectedDate) {
-      setSelectedDate(sortedDates[0]);
-    } else if (sortedDates.length > 0 && selectedDate && !sortedDates.includes(selectedDate)) {
-      setSelectedDate(sortedDates[0]);
-    }
-     else if (sortedDates.length === 0) {
-        setSelectedDate(undefined);
-    }
-  }, [sortedDates, selectedDate]);
-
-
   const grandTotal = sortedDates.reduce(
     (acc, date) => {
       acc.cash += groupedPayments[date].cash;
@@ -92,8 +78,6 @@ export default function PaymentReportPage() {
         case 'dana': return <Badge className="bg-sky-500 text-white hover:bg-sky-600">DANA</Badge>;
     }
   }
-
-  const selectedDateData = selectedDate ? groupedPayments[selectedDate] : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -172,54 +156,57 @@ export default function PaymentReportPage() {
         </CardContent>
       </Card>
       
-      {sortedDates.length > 0 && selectedDate && selectedDateData ? (
-        <>
-            <div className="flex justify-end">
-                <Select value={selectedDate} onValueChange={setSelectedDate}>
-                    <SelectTrigger className="w-[280px]">
-                        <SelectValue placeholder="Pilih tanggal laporan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {sortedDates.map(dateStr => (
-                             <SelectItem key={dateStr} value={dateStr}>
-                                {format(parseISO(dateStr), 'eeee, d MMMM yyyy', { locale: id })}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>{format(parseISO(selectedDate), 'eeee, d MMMM yyyy', { locale: id })}</CardTitle>
-                    <div className="flex gap-4 text-sm text-muted-foreground pt-2">
-                        <span>Cash: <span className="font-semibold text-foreground">Rp{selectedDateData.cash.toLocaleString('id-ID')}</span></span>
-                        <span>BRI: <span className="font-semibold text-foreground">Rp{selectedDateData.bri.toLocaleString('id-ID')}</span></span>
-                        <span>DANA: <span className="font-semibold text-foreground">Rp{selectedDateData.dana.toLocaleString('id-ID')}</span></span>
-                        <span className="font-bold">Total: <span className="text-primary">Rp{selectedDateData.total.toLocaleString('id-ID')}</span></span>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Pelanggan</TableHead>
-                        <TableHead>Metode Bayar</TableHead>
-                        <TableHead className="text-right">Jumlah Dibayar</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {selectedDateData.details.map(payment => (
-                        <TableRow key={payment.id}>
-                            <TableCell className="font-medium">{payment.customerName}</TableCell>
-                            <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
-                            <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
-                        </TableRow>
-                        ))}
-                    </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </>
+      {sortedDates.length > 0 ? (
+        <Card>
+            <CardHeader>
+                <CardTitle>Rincian Harian</CardTitle>
+                <CardDescription>Klik pada tanggal untuk melihat rincian transaksi.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Accordion type="multiple" className="w-full">
+                    {sortedDates.map(dateStr => {
+                        const dateData = groupedPayments[dateStr];
+                        return (
+                             <AccordionItem value={dateStr} key={dateStr}>
+                                <AccordionTrigger className="hover:no-underline">
+                                    <div className="flex justify-between w-full items-center pr-4">
+                                        <div className="flex flex-col items-start">
+                                            <span className="font-semibold text-base">{format(parseISO(dateStr), 'eeee, d MMMM yyyy', { locale: id })}</span>
+                                            <div className="flex gap-4 text-sm text-muted-foreground pt-1">
+                                                <span>Cash: <span className="font-medium text-foreground">Rp{dateData.cash.toLocaleString('id-ID')}</span></span>
+                                                <span>BRI: <span className="font-medium text-foreground">Rp{dateData.bri.toLocaleString('id-ID')}</span></span>
+                                                <span>DANA: <span className="font-medium text-foreground">Rp{dateData.dana.toLocaleString('id-ID')}</span></span>
+                                            </div>
+                                        </div>
+                                        <span className="font-bold text-lg text-primary">Total: Rp{dateData.total.toLocaleString('id-ID')}</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                        <TableHead>Pelanggan</TableHead>
+                                        <TableHead>Metode Bayar</TableHead>
+                                        <TableHead className="text-right">Jumlah Dibayar</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {dateData.details.map(payment => (
+                                        <TableRow key={payment.id}>
+                                            <TableCell className="font-medium">{payment.customerName}</TableCell>
+                                            <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
+                                            <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
+                                        </TableRow>
+                                        ))}
+                                    </TableBody>
+                                    </Table>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )
+                    })}
+                </Accordion>
+            </CardContent>
+        </Card>
       ) : (
         <Card>
             <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
@@ -231,5 +218,3 @@ export default function PaymentReportPage() {
     </div>
   );
 }
-
-    
