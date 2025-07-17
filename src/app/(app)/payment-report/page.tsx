@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Receipt } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion"
+import Link from 'next/link';
 
 
 type GroupedPayments = {
@@ -153,6 +154,7 @@ export default function PaymentReportPage() {
                                         <TableHead>Pelanggan</TableHead>
                                         <TableHead>Metode Bayar</TableHead>
                                         <TableHead className="text-right">Jumlah Dibayar</TableHead>
+                                        <TableHead className="text-right">Aksi</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -161,6 +163,13 @@ export default function PaymentReportPage() {
                                             <TableCell className="font-medium">{payment.customerName}</TableCell>
                                             <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
                                             <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button asChild variant="outline" size="sm">
+                                                    <Link href={`/receipt/${payment.id}`}>
+                                                        <Receipt className="mr-2 h-4 w-4" /> Lihat Struk
+                                                    </Link>
+                                                </Button>
+                                            </TableCell>
                                         </TableRow>
                                         ))}
                                     </TableBody>
