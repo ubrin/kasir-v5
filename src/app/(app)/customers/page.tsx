@@ -79,7 +79,6 @@ export default function CustomersPage() {
             <Card key={code}>
                 <CardHeader>
                     <CardTitle>Grup Jatuh Tempo: Tanggal {code}</CardTitle>
-                    <CardDescription>Daftar pelanggan dengan tanggal jatuh tempo setiap tanggal {code}.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
