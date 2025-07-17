@@ -74,7 +74,7 @@ export default function DelinquencyPage() {
                             <TableHead>Alamat</TableHead>
                             <TableHead className="text-center">Faktur Jatuh Tempo</TableHead>
                             <TableHead className="text-right">Total Tagihan</TableHead>
-                            <TableHead>
+                            <TableHead className="text-right">
                                 <span className="sr-only">Aksi</span>
                             </TableHead>
                         </TableRow>
@@ -95,26 +95,29 @@ export default function DelinquencyPage() {
                                 <TableCell className="text-right font-bold text-destructive">
                                     Rp{customer.overdueAmount.toLocaleString('id-ID')}
                                 </TableCell>
-                                <TableCell>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                        <Button 
-                                            aria-haspopup="true" 
-                                            size="icon" 
-                                            variant="ghost"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <MoreHorizontal className="h-4 w-4" />
-                                            <span className="sr-only">Buka menu</span>
-                                        </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                            <DropdownMenuItem>Kirim Pengingat</DropdownMenuItem>
-                                            <DropdownMenuItem>Lihat Detail Pelanggan</DropdownMenuItem>
-                                            <DropdownMenuItem>Hubungi Pelanggan</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                        <Button size="sm" onClick={(e) => e.stopPropagation()}>Bayar</Button>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                            <Button 
+                                                aria-haspopup="true" 
+                                                size="icon" 
+                                                variant="ghost"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <MoreHorizontal className="h-4 w-4" />
+                                                <span className="sr-only">Buka menu</span>
+                                            </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                                <DropdownMenuItem>Kirim Pengingat</DropdownMenuItem>
+                                                <DropdownMenuItem>Lihat Detail Pelanggan</DropdownMenuItem>
+                                                <DropdownMenuItem>Hubungi Pelanggan</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))
