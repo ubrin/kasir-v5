@@ -23,7 +23,7 @@ import { MoreHorizontal, PlusCircle } from "lucide-react"
 import { customers } from "@/lib/data"
 import type { Customer } from "@/lib/types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
     Select,
     SelectContent,
@@ -78,7 +78,7 @@ export default function CustomersPage() {
         {filteredGroupKeys.map((code) => (
             <Card key={code}>
                 <CardHeader>
-                    <CardTitle>Grup Jatuh Tempo: Tanggal {code}</CardTitle>
+                    <CardTitle>Tanggal {code}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
