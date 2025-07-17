@@ -128,10 +128,10 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
         const currentMonth = getMonth(today);
         const currentYear = getYear(today);
 
-        // Cari faktur bulan ini dari semua faktur pelanggan yang belum lunas
+        // Find invoice for the current month among the customer's unpaid invoices
         const currentMonthInvoice = customer.invoices.find(invoice => {
             const invoiceDate = parseISO(invoice.date);
-            return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear && invoice.status === 'belum lunas';
+            return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
         });
 
         if (currentMonthInvoice) {
