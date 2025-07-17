@@ -4,7 +4,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_1',
     name: 'Budi Santoso',
-    email: 'budi.santoso@example.com',
+    dueDateCode: 5,
     avatar: 'https://i.pravatar.cc/150?u=cus_1',
     company: 'Santoso Jaya',
     status: 'active',
@@ -17,7 +17,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_2',
     name: 'Citra Lestari',
-    email: 'citra.lestari@example.com',
+    dueDateCode: 10,
     avatar: 'https://i.pravatar.cc/150?u=cus_2',
     company: 'Lestari & Co.',
     status: 'active',
@@ -30,7 +30,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_3',
     name: 'Adi Nugroho',
-    email: 'adi.nugroho@example.com',
+    dueDateCode: 15,
     avatar: 'https://i.pravatar.cc/150?u=cus_3',
     company: 'Nugroho Enterprises',
     status: 'inactive',
@@ -43,7 +43,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_4',
     name: 'Dewi Anggraini',
-    email: 'dewi.anggraini@example.com',
+    dueDateCode: 20,
     avatar: 'https://i.pravatar.cc/150?u=cus_4',
     company: 'Anggraini Corp',
     status: 'active',
@@ -56,7 +56,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_5',
     name: 'Eko Prasetyo',
-    email: 'eko.prasetyo@example.com',
+    dueDateCode: 25,
     avatar: 'https://i.pravatar.cc/150?u=cus_5',
     company: 'Prasetyo Goods',
     status: 'active',
@@ -69,12 +69,12 @@ export const customers: Customer[] = [
 ];
 
 export const invoices: Invoice[] = [
-    { id: 'INV-001', customerId: 'cus_1', customerName: 'Budi Santoso', customerEmail: 'budi.santoso@example.com', date: '2024-06-01', dueDate: '2024-07-01', amount: 22500000, status: 'pending' },
-    { id: 'INV-002', customerId: 'cus_2', customerName: 'Citra Lestari', customerEmail: 'citra.lestari@example.com', date: '2024-06-05', dueDate: '2024-07-05', amount: 3750000, status: 'pending' },
-    { id: 'INV-003', customerId: 'cus_4', customerName: 'Dewi Anggraini', customerEmail: 'dewi.anggraini@example.com', date: '2024-05-15', dueDate: '2024-06-15', amount: 39000000, status: 'overdue' },
-    { id: 'INV-004', customerId: 'cus_4', customerName: 'Dewi Anggraini', customerEmail: 'dewi.anggraini@example.com', date: '2024-06-15', dueDate: '2024-07-15', amount: 39000000, status: 'pending' },
-    { id: 'INV-005', customerId: 'cus_1', customerName: 'Budi Santoso', customerEmail: 'budi.santoso@example.com', date: '2024-05-01', dueDate: '2024-06-01', amount: 22500000, status: 'paid' },
-    { id: 'INV-006', customerId: 'cus_2', customerName: 'Citra Lestari', customerEmail: 'citra.lestari@example.com', date: '2024-05-05', dueDate: '2024-06-05', amount: 3750000, status: 'paid' },
+    { id: 'INV-001', customerId: 'cus_1', customerName: 'Budi Santoso', date: '2024-06-01', dueDate: '2024-07-01', amount: 22500000, status: 'pending' },
+    { id: 'INV-002', customerId: 'cus_2', customerName: 'Citra Lestari', date: '2024-06-05', dueDate: '2024-07-05', amount: 3750000, status: 'pending' },
+    { id: 'INV-003', customerId: 'cus_4', customerName: 'Dewi Anggraini', date: '2024-05-15', dueDate: '2024-06-15', amount: 39000000, status: 'overdue' },
+    { id: 'INV-004', customerId: 'cus_4', customerName: 'Dewi Anggraini', date: '2024-06-15', dueDate: '2024-07-15', amount: 39000000, status: 'pending' },
+    { id: 'INV-005', customerId: 'cus_1', customerName: 'Budi Santoso', date: '2024-05-01', dueDate: '2024-06-01', amount: 22500000, status: 'paid' },
+    { id: 'INV-006', customerId: 'cus_2', customerName: 'Citra Lestari', date: '2024-05-05', dueDate: '2024-06-05', amount: 3750000, status: 'paid' },
 ];
 
 export const revenueData: RevenueData[] = [

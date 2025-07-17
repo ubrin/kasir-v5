@@ -40,6 +40,7 @@ export default function CustomersPage() {
                     <TableRow>
                     <TableHead>Pelanggan</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Tgl. Jatuh Tempo</TableHead>
                     <TableHead className="hidden md:table-cell">Perusahaan</TableHead>
                     <TableHead className="text-right">Jumlah Tagihan</TableHead>
                     <TableHead>
@@ -58,7 +59,6 @@ export default function CustomersPage() {
                                 </Avatar>
                                 <div className="grid gap-0.5">
                                     <p className="font-semibold">{customer.name}</p>
-                                    <p className="text-sm text-muted-foreground">{customer.email}</p>
                                 </div>
                             </div>
                         </TableCell>
@@ -67,6 +67,7 @@ export default function CustomersPage() {
                             {customer.status === "active" ? "Aktif" : "Tidak Aktif"}
                         </Badge>
                         </TableCell>
+                        <TableCell className="hidden md:table-cell">Setiap tgl. {customer.dueDateCode}</TableCell>
                         <TableCell className="hidden md:table-cell">{customer.company}</TableCell>
                         <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
                         <TableCell>

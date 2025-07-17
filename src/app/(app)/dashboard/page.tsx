@@ -135,9 +135,6 @@ export default function DashboardPage() {
                         <TableRow key={invoice.id}>
                             <TableCell>
                                 <div className="font-medium">{invoice.customerName}</div>
-                                <div className="hidden text-sm text-muted-foreground md:inline">
-                                    {invoice.customerEmail}
-                                </div>
                             </TableCell>
                             <TableCell className="text-right font-medium">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
                         </TableRow>

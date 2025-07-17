@@ -88,7 +88,6 @@ export default function DelinquencyPage() {
                                 </Avatar>
                                 <div className="grid gap-0.5">
                                     <p className="font-semibold">{customer.name}</p>
-                                    <p className="text-sm text-muted-foreground">{customer.email}</p>
                                 </div>
                             </div>
                         </TableCell>

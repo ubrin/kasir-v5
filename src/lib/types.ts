@@ -1,7 +1,7 @@
 export type Customer = {
   id: string;
   name: string;
-  email: string;
+  dueDateCode: number;
   avatar: string;
   company: string;
   status: 'active' | 'inactive';
@@ -16,7 +16,6 @@ export type Invoice = {
   id: string;
   customerId: string;
   customerName: string;
-  customerEmail: string;
   date: string;
   dueDate: string;
   amount: number;
