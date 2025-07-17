@@ -53,11 +53,7 @@ const addCustomerSchema = z.object({
   ),
   packagePrice: z.preprocess(
     (val) => Number(val),
-    z.number({invalid_type_error: "Harus berupa angka"}).min(0, "Jumlah tidak boleh negatif")
-  ),
-  amountDue: z.preprocess(
-    (val) => Number(val),
-    z.number({invalid_type_error: "Harus berupa angka"}).min(0, "Jumlah tidak boleh negatif")
+    z.number({invalid_type_error: "Harus berupa angka"}).min(0, "Harga paket tidak boleh negatif")
   ),
   installationDate: z.date({
     required_error: 'Tanggal pemasangan harus diisi.',
@@ -67,7 +63,7 @@ const addCustomerSchema = z.object({
 type AddCustomerFormValues = z.infer<typeof addCustomerSchema>;
 
 interface AddCustomerDialogProps {
-  onCustomerAdded: (customer: Omit<Customer, 'id' | 'status' | 'paymentHistory' | 'outstandingBalance'>) => void;
+  onCustomerAdded: (customer: Omit<Customer, 'id' | 'status' | 'paymentHistory' | 'outstandingBalance' | 'amountDue'>) => void;
 }
 
 export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
@@ -81,7 +77,6 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
       dueDateCode: 1,
       subscriptionMbps: 10,
       packagePrice: 0,
-      amountDue: 0,
       installationDate: new Date(),
     },
   });
@@ -104,12 +99,12 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <DialogHeader>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <DialogHeader className="p-6 pb-0">
               <DialogTitle>Tambah Pelanggan Baru</DialogTitle>
             </DialogHeader>
-            <ScrollArea className="h-96 w-full p-1 pr-6">
-                <div className="space-y-4 pr-1">
+            <ScrollArea className="h-96 w-full p-6 pt-2">
+                <div className="space-y-4">
                     <FormField
                     control={form.control}
                     name="name"
@@ -231,22 +226,9 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
                             </FormItem>
                         )}
                     />
-                    <FormField
-                        control={form.control}
-                        name="amountDue"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Tagihan Awal (Rp)</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="0" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
                 </div>
             </ScrollArea>
-            <DialogFooter>
+            <DialogFooter className="p-6 pt-0">
               <Button type="submit">Simpan Pelanggan</Button>
             </DialogFooter>
           </form>

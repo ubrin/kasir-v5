@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { MoreHorizontal } from "lucide-react"
 import { customers, invoices } from "@/lib/data"
-import type { Customer } from "@/lib/types"
+import type { Customer, Invoice } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
     Select,
@@ -43,6 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { format } from 'date-fns';
 
 export default function CustomersPage() {
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
@@ -51,21 +52,39 @@ export default function CustomersPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleCustomerAdded = (newCustomer: Omit<Customer, 'id' | 'status' | 'paymentHistory' | 'outstandingBalance'>) => {
+  const handleCustomerAdded = (newCustomerData: Omit<Customer, 'id' | 'status' | 'paymentHistory' | 'outstandingBalance' | 'amountDue'>) => {
     const newId = `cus_${Date.now()}`;
+    const amountDue = newCustomerData.packagePrice;
+    
     const customerToAdd: Customer = {
-      ...newCustomer,
+      ...newCustomerData,
       id: newId,
-      status: newCustomer.amountDue > 0 ? 'belum lunas' : 'lunas',
+      status: amountDue > 0 ? 'belum lunas' : 'lunas',
       paymentHistory: 'Pelanggan baru.',
-      outstandingBalance: newCustomer.amountDue,
-      installationDate: newCustomer.installationDate,
+      outstandingBalance: amountDue,
+      amountDue: amountDue,
     };
     customers.unshift(customerToAdd);
+
+    // Automatically create the first invoice
+    if (amountDue > 0) {
+        const today = new Date();
+        const dueDate = new Date(today.getFullYear(), today.getMonth() + 1, newCustomerData.dueDateCode);
+        const newInvoice: Invoice = {
+            id: `INV-${Date.now()}`,
+            customerId: newId,
+            customerName: newCustomerData.name,
+            date: format(today, 'yyyy-MM-dd'),
+            dueDate: format(dueDate, 'yyyy-MM-dd'),
+            amount: amountDue,
+            status: 'belum lunas',
+        };
+        invoices.unshift(newInvoice);
+    }
     
     toast({
         title: "Pelanggan Ditambahkan",
-        description: `${newCustomer.name} telah berhasil ditambahkan ke daftar pelanggan.`,
+        description: `${newCustomerData.name} telah berhasil ditambahkan dan faktur pertama telah dibuat.`,
     });
 
     setForceUpdate(prev => prev + 1);
