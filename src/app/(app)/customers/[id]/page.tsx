@@ -55,10 +55,6 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               <p>Rp{customer.outstandingBalance.toLocaleString('id-ID')}</p>
             </div>
              <div className="grid gap-1">
-              <p className="text-sm font-medium text-muted-foreground">Rata-rata Tagihan Bulanan</p>
-              <p>Rp{customer.averageMonthlyBill.toLocaleString('id-ID')}</p>
-            </div>
-             <div className="grid gap-1">
               <p className="text-sm font-medium text-muted-foreground">Usia Akun</p>
               <p>{customer.accountAgeMonths} bulan</p>
             </div>

@@ -10,7 +10,6 @@ export const customers: Customer[] = [
     amountDue: 22500000,
     paymentHistory: 'Membayar tepat waktu selama 12 bulan terakhir.',
     accountAgeMonths: 24,
-    averageMonthlyBill: 11250000,
     outstandingBalance: 22500000,
   },
   {
@@ -22,7 +21,6 @@ export const customers: Customer[] = [
     amountDue: 3750000,
     paymentHistory: 'Satu pembayaran terlambat 3 bulan yang lalu. Selebihnya bayar tepat waktu.',
     accountAgeMonths: 18,
-    averageMonthlyBill: 3750000,
     outstandingBalance: 3750000,
   },
   {
@@ -34,7 +32,6 @@ export const customers: Customer[] = [
     amountDue: 0,
     paymentHistory: 'Akun ditutup. Semua pembayaran sudah dilunasi.',
     accountAgeMonths: 36,
-    averageMonthlyBill: 7500000,
     outstandingBalance: 0,
   },
   {
@@ -46,7 +43,6 @@ export const customers: Customer[] = [
     amountDue: 78000000,
     paymentHistory: 'Sering terlambat membayar selama 6 bulan terakhir. Beberapa pengingat telah dikirim.',
     accountAgeMonths: 15,
-    averageMonthlyBill: 30000000,
     outstandingBalance: 78000000,
   },
   {
@@ -58,7 +54,6 @@ export const customers: Customer[] = [
     amountDue: 0,
     paymentHistory: 'Pelanggan baru, tagihan pertama belum jatuh tempo.',
     accountAgeMonths: 1,
-    averageMonthlyBill: 15000000,
     outstandingBalance: 0,
   },
 ];

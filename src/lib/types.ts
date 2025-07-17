@@ -7,7 +7,6 @@ export type Customer = {
   amountDue: number;
   paymentHistory: string;
   accountAgeMonths: number;
-  averageMonthlyBill: number;
   outstandingBalance: number;
 };
 
