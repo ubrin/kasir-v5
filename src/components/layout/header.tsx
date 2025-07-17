@@ -1,6 +1,7 @@
+
 'use client';
 import Link from 'next/link';
-import { Search, Bell, User } from 'lucide-react';
+import { Search, Bell, User, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,8 +13,33 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Header() {
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: 'Logout Berhasil',
+        description: 'Anda telah berhasil keluar.',
+      });
+      router.push('/');
+    } catch (error) {
+       toast({
+        title: 'Logout Gagal',
+        description: 'Terjadi kesalahan saat mencoba keluar.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
         <div className="flex items-center gap-2">
@@ -53,8 +79,9 @@ export default function Header() {
           <DropdownMenuItem>Pengaturan</DropdownMenuItem>
           <DropdownMenuItem>Dukungan</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/">Keluar</Link>
+          <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+             <LogOut className="mr-2 h-4 w-4" />
+            Keluar
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

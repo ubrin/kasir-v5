@@ -1,7 +1,7 @@
 
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home } from 'lucide-react';
 import {
   Sidebar,
@@ -17,6 +17,9 @@ import {Button} from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import * as React from 'react';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 
 const menuItems = [
@@ -35,6 +38,25 @@ const menuItems = [
 
 export default function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: 'Logout Berhasil',
+        description: 'Anda telah berhasil keluar.',
+      });
+      router.push('/');
+    } catch (error) {
+       toast({
+        title: 'Logout Gagal',
+        description: 'Terjadi kesalahan saat mencoba keluar.',
+        variant: 'destructive'
+      });
+    }
+  };
 
   return (
     <Sidebar className="dark:bg-background border-r dark:border-slate-800">
@@ -97,11 +119,9 @@ export default function AppSidebar() {
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={{children: 'Keluar'}}>
-                    <Link href="/">
-                      <LogOut className="h-5 w-5" />
-                      <span>Keluar</span>
-                    </Link>
+                <SidebarMenuButton onClick={handleLogout} tooltip={{children: 'Keluar'}}>
+                    <LogOut className="h-5 w-5" />
+                    <span>Keluar</span>
                 </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

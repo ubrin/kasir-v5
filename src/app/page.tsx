@@ -1,4 +1,11 @@
+
+'use client';
 import Link from "next/link"
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/context/auth-context";
 
 import { Button } from "@/components/ui/button"
 import {
@@ -10,8 +17,59 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+
 
 export default function LoginPage() {
+    const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
+    const { toast } = useToast();
+    const [email, setEmail] = React.useState("");
+    const [password, setPassword] = React.useState("");
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState("");
+
+    React.useEffect(() => {
+        if (!authLoading && user) {
+        router.push("/home");
+        }
+    }, [user, authLoading, router]);
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError("");
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            toast({
+                title: "Login Berhasil",
+                description: "Anda akan diarahkan ke halaman utama.",
+            });
+            router.push("/home");
+        } catch (err: any) {
+             const errorMessage = err.code === 'auth/invalid-credential' 
+                ? 'Email atau kata sandi salah.'
+                : 'Terjadi kesalahan. Silakan coba lagi.';
+            setError(errorMessage);
+            toast({
+                title: "Login Gagal",
+                description: errorMessage,
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (authLoading || (!authLoading && user)) {
+        return (
+             <div className="flex min-h-screen items-center justify-center bg-background p-4">
+                <Loader2 className="h-16 w-16 animate-spin" />
+            </div>
+        )
+    }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="mx-auto max-w-sm w-full">
@@ -22,7 +80,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
+          <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -30,6 +88,9 @@ export default function LoginPage() {
                 type="email"
                 placeholder="m@example.com"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
               />
             </div>
             <div className="grid gap-2">
@@ -42,15 +103,23 @@ export default function LoginPage() {
                   Lupa kata sandi Anda?
                 </Link>
               </div>
-              <Input id="password" type="password" required />
+              <Input 
+                id="password" 
+                type="password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+              />
             </div>
-            <Button type="submit" className="w-full" asChild>
-              <Link href="/home">Masuk</Link>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Masuk'}
             </Button>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled={loading}>
               Masuk dengan Google
             </Button>
-          </div>
+          </form>
           <div className="mt-4 text-center text-sm">
             Belum punya akun?{" "}
             <Link href="/signup" className="underline">

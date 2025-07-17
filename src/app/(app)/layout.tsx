@@ -1,12 +1,45 @@
+
+'use client';
+
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 import AppSidebar from '@/components/layout/app-sidebar';
 import Header from '@/components/layout/header';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.push('/');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+     return (
+        <div className="flex min-h-screen w-full">
+            <div className="hidden md:flex flex-col gap-4 p-4 border-r">
+                <Skeleton className="h-10 w-48" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+            </div>
+            <div className="flex-1 p-6">
+                <Skeleton className="h-14 w-full mb-4" />
+                <Skeleton className="h-48 w-full" />
+            </div>
+        </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
