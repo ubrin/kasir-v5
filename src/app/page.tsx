@@ -49,7 +49,7 @@ export default function LoginPage() {
               <Input id="password" type="password" required />
             </div>
             <Button type="submit" className="w-full" asChild>
-              <Link href="/delinquency">Masuk</Link>
+              <Link href="/home">Masuk</Link>
             </Button>
             <Button variant="outline" className="w-full">
               Masuk dengan Google

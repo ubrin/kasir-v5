@@ -20,9 +20,10 @@ import * as React from 'react';
 
 
 const menuItems = [
-   {
-    label: 'Home',
-    icon: Home,
+  { href: '/home', label: 'Home', icon: Home },
+  {
+    label: 'Transaksi',
+    icon: Package,
     subItems: [
       { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
       { href: '/payment-report', label: 'Laporan', icon: BarChart3 },
@@ -39,7 +40,7 @@ export default function AppSidebar() {
     <Sidebar className="dark:bg-background border-r dark:border-slate-800">
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2 justify-start">
-            <Link href="/delinquency" className="flex items-center gap-2">
+            <Link href="/home" className="flex items-center gap-2">
                 <Image src="/logo.png" alt="APLIKASI KASIR COKK Logo" width={40} height={40} />
                 <h1 className="text-lg font-semibold text-foreground hidden group-data-[state=expanded]:block">APLIKASI KASIR COKK</h1>
             </Link>
@@ -49,7 +50,7 @@ export default function AppSidebar() {
         <SidebarMenu>
           {menuItems.map((item, index) => (
             item.subItems ? (
-              <Collapsible key={index} defaultOpen={item.subItems.some(sub => sub.href && pathname.startsWith(sub.href))}>
+              <Collapsible key={index} defaultOpen={false}>
                 <CollapsibleTrigger className="w-full">
                    <SidebarMenuButton className="w-full justify-between" variant="ghost" asChild={false} tooltip={{children: item.label}}>
                       <div className="flex items-center gap-2">
@@ -76,7 +77,7 @@ export default function AppSidebar() {
               </Collapsible>
             ) : (
               <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith(item.href!)} tooltip={{children: item.label}}>
+                <SidebarMenuButton asChild isActive={pathname === item.href!} tooltip={{children: item.label}}>
                   <Link href={item.href!}>
                     <item.icon className="h-5 w-5" />
                     <span>{item.label}</span>

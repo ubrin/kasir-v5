@@ -51,7 +51,7 @@ export default function SignupPage() {
               <Input id="password" type="password" />
             </div>
             <Button type="submit" className="w-full" asChild>
-                <Link href="/delinquency">Buat akun</Link>
+                <Link href="/home">Buat akun</Link>
             </Button>
           </div>
           <div className="mt-4 text-center text-sm">
