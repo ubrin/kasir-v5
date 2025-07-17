@@ -27,7 +27,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setEditableCustomer(prev => prev ? { ...prev, [id]: id === 'subscriptionMbps' || id === 'amountDue' || id === 'dueDateCode' ? Number(value) : value } : null);
+    setEditableCustomer(prev => prev ? { ...prev, [id]: id === 'subscriptionMbps' || id === 'packagePrice' || id === 'dueDateCode' ? Number(value) : value } : null);
   };
 
   const handleSave = () => {
@@ -111,8 +111,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                         <Input id="subscriptionMbps" type="number" value={editableCustomer?.subscriptionMbps} onChange={handleInputChange} />
                     </div>
                      <div className="grid gap-2">
-                        <Label htmlFor="amountDue">Harga Paket (Rp)</Label>
-                        <Input id="amountDue" type="number" value={editableCustomer?.amountDue} onChange={handleInputChange} />
+                        <Label htmlFor="packagePrice">Harga Paket (Rp)</Label>
+                        <Input id="packagePrice" type="number" value={editableCustomer?.packagePrice} onChange={handleInputChange} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="dueDateCode">Tanggal Jatuh Tempo</Label>
@@ -141,7 +141,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     </div>
                     <div className="grid gap-1">
                     <p className="text-sm font-medium text-muted-foreground">Harga Paket</p>
-                    <p>Rp{editableCustomer?.amountDue.toLocaleString('id-ID')}</p>
+                    <p>Rp{editableCustomer?.packagePrice.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="grid gap-1">
                     <p className="text-sm font-medium text-muted-foreground">Total Tunggakan</p>

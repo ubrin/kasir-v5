@@ -142,13 +142,13 @@ export default function CustomersPage() {
                                         {customer.name}
                                     </TableCell>
                                     <TableCell>
-                                    <Badge variant={customer.amountDue > 0 ? "destructive" : "secondary"} className={`${customer.amountDue > 0 ? "" : "bg-green-100 text-green-800"}`}>
-                                        {customer.amountDue > 0 ? "Belum Lunas" : "Lunas"}
+                                    <Badge variant={customer.outstandingBalance > 0 ? "destructive" : "secondary"} className={`${customer.outstandingBalance > 0 ? "" : "bg-green-100 text-green-800"}`}>
+                                        {customer.outstandingBalance > 0 ? "Belum Lunas" : "Lunas"}
                                     </Badge>
                                     </TableCell>
                                     <TableCell className="hidden md:table-cell">{customer.subscriptionMbps} Mbps</TableCell>
                                     <TableCell className="hidden sm:table-cell">{customer.address}</TableCell>
-                                    <TableCell className="text-right">Rp{customer.amountDue.toLocaleString('id-ID')}</TableCell>
+                                    <TableCell className="text-right">Rp{customer.packagePrice.toLocaleString('id-ID')}</TableCell>
                                     <TableCell>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>

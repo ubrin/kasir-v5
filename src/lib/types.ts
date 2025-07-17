@@ -1,3 +1,4 @@
+
 export type Customer = {
   id: string;
   name: string;
@@ -10,6 +11,7 @@ export type Customer = {
   installationDate: string;
   outstandingBalance: number;
   subscriptionMbps: number;
+  packagePrice: number;
 };
 
 export type Invoice = {

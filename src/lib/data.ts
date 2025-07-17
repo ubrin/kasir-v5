@@ -1,3 +1,4 @@
+
 import type { Customer, Invoice, RevenueData, Payment } from './types';
 
 export const customers: Customer[] = [
@@ -13,6 +14,7 @@ export const customers: Customer[] = [
     installationDate: '2022-07-01',
     outstandingBalance: 22500000,
     subscriptionMbps: 100,
+    packagePrice: 22500000,
   },
   {
     id: 'cus_2',
@@ -26,6 +28,7 @@ export const customers: Customer[] = [
     installationDate: '2023-01-15',
     outstandingBalance: 3750000,
     subscriptionMbps: 50,
+    packagePrice: 3750000,
   },
   {
     id: 'cus_3',
@@ -39,6 +42,7 @@ export const customers: Customer[] = [
     installationDate: '2021-07-20',
     outstandingBalance: 0,
     subscriptionMbps: 20,
+    packagePrice: 1500000,
   },
   {
     id: 'cus_4',
@@ -52,6 +56,7 @@ export const customers: Customer[] = [
     installationDate: '2023-04-10',
     outstandingBalance: 78000000,
     subscriptionMbps: 200,
+    packagePrice: 39000000,
   },
   {
     id: 'cus_5',
@@ -65,6 +70,7 @@ export const customers: Customer[] = [
     installationDate: '2024-06-01',
     outstandingBalance: 0,
     subscriptionMbps: 75,
+    packagePrice: 2500000,
   },
 ];
 

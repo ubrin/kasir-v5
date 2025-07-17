@@ -49,6 +49,10 @@ const addCustomerSchema = z.object({
     (val) => Number(val),
     z.number({invalid_type_error: "Harus berupa angka"}).min(1, "Kecepatan minimal 1 Mbps")
   ),
+  packagePrice: z.preprocess(
+    (val) => Number(val),
+    z.number({invalid_type_error: "Harus berupa angka"}).min(0, "Jumlah tidak boleh negatif")
+  ),
   amountDue: z.preprocess(
     (val) => Number(val),
     z.number({invalid_type_error: "Harus berupa angka"}).min(0, "Jumlah tidak boleh negatif")
@@ -74,6 +78,7 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
       phone: '',
       dueDateCode: 1,
       subscriptionMbps: 10,
+      packagePrice: 0,
       amountDue: 0,
       installationDate: new Date(),
     },
@@ -212,6 +217,19 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
                     )}
                 />
             </div>
+            <FormField
+                control={form.control}
+                name="packagePrice"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Harga Paket (Rp)</FormLabel>
+                    <FormControl>
+                        <Input type="number" placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
             <FormField
                 control={form.control}
                 name="amountDue"
