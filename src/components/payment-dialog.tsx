@@ -78,6 +78,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     control,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
@@ -102,6 +103,10 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
 
   const totalPayment = Math.max(0, billToPay - discount);
   const changeAmount = Math.max(0, paidAmount - totalPayment);
+
+  React.useEffect(() => {
+    setValue('paidAmount', totalPayment);
+  }, [totalPayment, setValue]);
 
   const onSubmit = (data: PaymentFormValues) => {
     const paymentDetails = {
