@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -20,7 +21,7 @@ import { Button } from "@/components/ui/button"
 import { MoreHorizontal } from "lucide-react"
 import { customers, invoices } from "@/lib/data"
 import type { Customer, Invoice } from "@/lib/types"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 
 type DelinquentCustomer = Customer & {
     overdueAmount: number;
@@ -54,42 +55,19 @@ export default function DelinquencyPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Tagihan Pelanggan</h1>
-      </div>
-      <Card>
-          <CardHeader>
-              <CardTitle>Daftar Tagihan Pelanggan</CardTitle>
-              <CardDescription>Pelanggan dengan satu atau lebih faktur yang telah jatuh tempo.</CardDescription>
-          </CardHeader>
-          <CardContent>
-              <Table>
-              <TableHeader>
-                  <TableRow>
-                  <TableHead>Pelanggan</TableHead>
-                  <TableHead>Total Tagihan</TableHead>
-                  <TableHead className="hidden md:table-cell">Faktur Jatuh Tempo</TableHead>
-                  <TableHead className="hidden md:table-cell">Alamat</TableHead>
-                  <TableHead>
-                      <span className="sr-only">Aksi</span>
-                  </TableHead>
-                  </TableRow>
-              </TableHeader>
-              <TableBody>
-                  {delinquentCustomers.length > 0 ? (
-                    delinquentCustomers.map((customer) => (
-                    <TableRow key={customer.id} className="bg-destructive/5 hover:bg-destructive/10">
-                        <TableCell className="font-semibold">
-                            {customer.name}
-                        </TableCell>
-                        <TableCell className="text-right text-destructive font-bold">
-                            Rp{customer.overdueAmount.toLocaleString('id-ID')}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell text-center">
-                            <Badge variant="destructive">{customer.overdueInvoices}</Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">{customer.address}</TableCell>
-                        <TableCell>
+        <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold tracking-tight">Tagihan Pelanggan</h1>
+            <p className="text-muted-foreground">Pelanggan dengan satu atau lebih faktur yang telah jatuh tempo.</p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {delinquentCustomers.length > 0 ? (
+            delinquentCustomers.map((customer) => (
+                <Card key={customer.id} className="flex flex-col bg-destructive/5">
+                    <CardHeader className="flex flex-row items-start justify-between">
+                        <div>
+                            <CardTitle>{customer.name}</CardTitle>
+                            <CardDescription>{customer.address}</CardDescription>
+                        </div>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -98,26 +76,36 @@ export default function DelinquencyPage() {
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                            <DropdownMenuItem>Kirim Pengingat</DropdownMenuItem>
-                            <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
-                            <DropdownMenuItem>Hubungi Pelanggan</DropdownMenuItem>
+                                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                <DropdownMenuItem>Kirim Pengingat</DropdownMenuItem>
+                                <DropdownMenuItem>Lihat Faktur</DropdownMenuItem>
+                                <DropdownMenuItem>Hubungi Pelanggan</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        </TableCell>
-                    </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                        <TableCell colSpan={5} className="text-center h-24">
-                            Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!
-                        </TableCell>
-                    </TableRow>
-                  )}
-              </TableBody>
-              </Table>
-          </CardContent>
-      </Card>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                        <div className="grid gap-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Total Tagihan</span>
+                                <span className="font-bold text-destructive">Rp{customer.overdueAmount.toLocaleString('id-ID')}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Faktur Jatuh Tempo</span>
+                                <Badge variant="destructive">{customer.overdueInvoices}</Badge>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))
+            ) : (
+                <Card className="col-span-full">
+                    <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
+                        <p className="text-lg font-medium">Tidak ada tunggakan!</p>
+                        <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!</p>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     </div>
   )
 }
