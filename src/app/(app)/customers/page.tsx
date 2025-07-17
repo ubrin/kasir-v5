@@ -38,6 +38,7 @@ export default function CustomersPage() {
                 <Table>
                 <TableHeader>
                     <TableRow>
+                    <TableHead>Kode</TableHead>
                     <TableHead>Pelanggan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Tgl. Jatuh Tempo</TableHead>
@@ -51,6 +52,7 @@ export default function CustomersPage() {
                 <TableBody>
                     {customers.map((customer) => (
                     <TableRow key={customer.id}>
+                        <TableCell className="font-medium">{customer.dueDateCode}</TableCell>
                         <TableCell className="font-medium">
                             <div className="flex items-center gap-3">
                                 <Avatar className="hidden h-9 w-9 sm:flex">
