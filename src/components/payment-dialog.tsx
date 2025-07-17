@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Info } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { format, parseISO, getMonth, getYear } from 'date-fns';
@@ -30,9 +30,18 @@ import {
 } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { Customer, Invoice } from '@/lib/types';
+import { Checkbox } from './ui/checkbox';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
 
 const paymentSchema = z.object({
-  paymentType: z.enum(['current', 'all']),
+  selectedInvoices: z.array(z.string()).nonempty({
+    message: 'Pilih setidaknya satu faktur untuk dibayar.',
+  }),
   paymentMethod: z.enum(['cash', 'bri', 'dana'], {
     required_error: 'Pilih metode pembayaran.',
   }),
@@ -72,31 +81,19 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       paymentDate: new Date(),
       discount: 0,
       paymentMethod: 'cash',
-      paymentType: 'all',
+      selectedInvoices: [],
     },
   });
 
-  const paymentType = watch('paymentType');
+  const selectedInvoices = watch('selectedInvoices') || [];
   const discount = watch('discount') || 0;
 
-  const { currentMonthBill, allArrears } = React.useMemo(() => {
-    const now = new Date();
-    const currentMonth = getMonth(now);
-    const currentYear = getYear(now);
-
-    const currentBill = customer.invoices
-      .filter(invoice => {
-        const invoiceDate = parseISO(invoice.date);
-        return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
-      })
+  const billToPay = React.useMemo(() => {
+    return customer.invoices
+      .filter(invoice => selectedInvoices.includes(invoice.id))
       .reduce((sum, invoice) => sum + invoice.amount, 0);
+  }, [customer.invoices, selectedInvoices]);
 
-    const arrears = customer.overdueAmount;
-    
-    return { currentMonthBill: currentBill, allArrears: arrears };
-  }, [customer.invoices, customer.overdueAmount]);
-
-  const billToPay = paymentType === 'current' ? currentMonthBill : allArrears;
   const totalPayment = Math.max(0, billToPay - discount);
 
   const onSubmit = (data: PaymentFormValues) => {
@@ -109,6 +106,12 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     setOpen(false);
     reset();
   };
+
+  React.useEffect(() => {
+    if (!open) {
+      reset();
+    }
+  }, [open, reset]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -128,29 +131,39 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
           <div className="grid gap-6 py-4">
             
             <div className="grid gap-3">
-              <Label>Jenis Pembayaran</Label>
+              <Label>Pilih Tagihan</Label>
               <Controller
-                name="paymentType"
+                name="selectedInvoices"
                 control={control}
                 render={({ field }) => (
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    className="flex gap-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="all" id="all" />
-                      <Label htmlFor="all">Semua Tunggakan</Label>
-                    </div>
-                    {currentMonthBill > 0 && (
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="current" id="current" />
-                        <Label htmlFor="current">Tagihan Bulan Ini</Label>
+                  <div className="space-y-2 rounded-md border p-3">
+                    {customer.invoices.map((invoice) => (
+                      <div key={invoice.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                           <Checkbox
+                            id={invoice.id}
+                            checked={field.value?.includes(invoice.id)}
+                            onCheckedChange={(checked) => {
+                              return checked
+                                ? field.onChange([...(field.value || []), invoice.id])
+                                : field.onChange(
+                                    (field.value || []).filter(
+                                      (value) => value !== invoice.id
+                                    )
+                                  );
+                            }}
+                          />
+                          <Label htmlFor={invoice.id} className="font-normal cursor-pointer">
+                           {format(parseISO(invoice.date), 'MMMM yyyy', { locale: id })}
+                          </Label>
+                        </div>
+                        <span className="text-sm font-medium">Rp{invoice.amount.toLocaleString('id-ID')}</span>
                       </div>
-                    )}
-                  </RadioGroup>
+                    ))}
+                  </div>
                 )}
               />
+               {errors.selectedInvoices && <p className="text-sm text-destructive">{errors.selectedInvoices.message}</p>}
             </div>
 
             <div className="grid gap-3">

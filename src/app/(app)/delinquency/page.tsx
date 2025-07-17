@@ -82,7 +82,7 @@ export default function DelinquencyPage() {
                 overdueAmount: data.overdueAmount,
                 overdueInvoicesCount: data.overdueInvoicesCount,
                 nearestDueDate: nearestDueDate,
-                invoices: data.invoices,
+                invoices: data.invoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
             }
         });
     }
@@ -107,20 +107,10 @@ export default function DelinquencyPage() {
     };
 
     const handlePaymentSuccess = (customerId: string, customerName: string, paymentDetails: any) => {
-        const now = new Date();
-        const currentMonth = getMonth(now);
-        const currentYear = getYear(now);
-
+        
         invoices.forEach(invoice => {
-            if (invoice.customerId === customerId && invoice.status === 'belum lunas') {
-                if (paymentDetails.paymentType === 'all') {
-                    invoice.status = 'lunas';
-                } else if (paymentDetails.paymentType === 'current') {
-                    const invoiceDate = parseISO(invoice.date);
-                    if (getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear) {
-                        invoice.status = 'lunas';
-                    }
-                }
+            if (paymentDetails.selectedInvoices.includes(invoice.id)) {
+                invoice.status = 'lunas';
             }
         });
 
