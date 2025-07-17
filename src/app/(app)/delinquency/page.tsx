@@ -66,6 +66,7 @@ export default function DelinquencyPage() {
                             <TableHead>Alamat</TableHead>
                             <TableHead className="text-center">Faktur Jatuh Tempo</TableHead>
                             <TableHead className="text-right">Total Tagihan</TableHead>
+                            <TableHead><span className="sr-only">Aksi</span></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -84,11 +85,14 @@ export default function DelinquencyPage() {
                                 <TableCell className="text-right font-bold text-destructive">
                                     Rp{customer.overdueAmount.toLocaleString('id-ID')}
                                 </TableCell>
+                                <TableCell className="text-right">
+                                    <Button size="sm" onClick={(e) => { e.stopPropagation(); /* Logika pembayaran */ }}>Bayar</Button>
+                                </TableCell>
                             </TableRow>
                         ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center h-48">
+                                <TableCell colSpan={5} className="text-center h-48">
                                     <p className="text-lg font-medium">Tidak ada tunggakan!</p>
                                     <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!</p>
                                 </TableCell>
