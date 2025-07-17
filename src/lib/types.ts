@@ -25,3 +25,13 @@ export type RevenueData = {
   month: string;
   revenue: number;
 };
+
+export type Payment = {
+  id: string;
+  customerId: string;
+  customerName: string;
+  paymentDate: Date;
+  paidAmount: number;
+  paymentMethod: 'cash' | 'bri' | 'dana';
+  invoiceIds: string[];
+};

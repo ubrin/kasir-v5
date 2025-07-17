@@ -11,8 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { customers, invoices } from "@/lib/data"
-import type { Customer, Invoice } from "@/lib/types"
+import { customers, invoices, payments } from "@/lib/data"
+import type { Customer, Invoice, Payment } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
 import {
@@ -114,6 +114,17 @@ export default function DelinquencyPage() {
     };
 
     const handlePaymentSuccess = (customerId: string, customerName: string, paymentDetails: any) => {
+        const newPayment: Payment = {
+            id: `PAY-${Date.now()}`,
+            customerId: customerId,
+            customerName: customerName,
+            paymentDate: paymentDetails.paymentDate,
+            paidAmount: paymentDetails.paidAmount,
+            paymentMethod: paymentDetails.paymentMethod,
+            invoiceIds: paymentDetails.selectedInvoices,
+        };
+        payments.push(newPayment);
+
         let amountPaid = paymentDetails.paidAmount;
         const totalToPay = paymentDetails.totalPayment;
         

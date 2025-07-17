@@ -1,4 +1,4 @@
-import type { Customer, Invoice, RevenueData } from './types';
+import type { Customer, Invoice, RevenueData, Payment } from './types';
 
 export const customers: Customer[] = [
   {
@@ -80,3 +80,5 @@ export const revenueData: RevenueData[] = [
     { month: 'Mei', revenue: 90000000 },
     { month: 'Jun', revenue: 82500000 },
 ];
+
+export const payments: Payment[] = [];

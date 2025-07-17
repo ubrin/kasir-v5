@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3 } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -28,6 +28,7 @@ const menuItems = [
     icon: CreditCard,
     subItems: [
       { href: '/delinquency', label: 'Data Tagihan' },
+      { href: '/payment-report', label: 'Laporan Pembayaran', icon: BarChart3 },
     ]
   },
 ];
@@ -49,7 +50,7 @@ export default function AppSidebar() {
         <SidebarMenu>
           {menuItems.map((item, index) => (
             item.subItems ? (
-              <Collapsible key={index}>
+              <Collapsible key={index} defaultOpen={item.subItems.some(sub => sub.href && pathname.startsWith(sub.href))}>
                 <CollapsibleTrigger className="w-full">
                    <SidebarMenuButton className="w-full justify-between" variant="ghost" asChild={false} tooltip={{children: item.label}}>
                       <div className="flex items-center gap-2">
@@ -63,8 +64,9 @@ export default function AppSidebar() {
                   <SidebarMenu className="pl-7 pt-1">
                     {item.subItems.map((subItem) => (
                        <SidebarMenuItem key={subItem.href}>
-                         <SidebarMenuButton asChild isActive={pathname.startsWith(subItem.href)} size="sm">
-                            <Link href={subItem.href}>
+                         <SidebarMenuButton asChild isActive={pathname.startsWith(subItem.href!)} size="sm">
+                            <Link href={subItem.href!}>
+                              {subItem.icon && <subItem.icon className="h-4 w-4" />}
                               <span>{subItem.label}</span>
                             </Link>
                          </SidebarMenuButton>
