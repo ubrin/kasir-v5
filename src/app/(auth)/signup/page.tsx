@@ -68,6 +68,9 @@ export default function SignupPage() {
                     case 'auth/invalid-email':
                         errorMessage = 'Format email tidak valid.';
                         break;
+                    case 'auth/configuration-not-found':
+                        errorMessage = 'Konfigurasi Autentikasi tidak ditemukan. Pastikan metode login Email/Password sudah diaktifkan di Firebase Console.';
+                        break;
                     case 'permission-denied':
                         errorMessage = 'Gagal menyimpan data pengguna. Periksa aturan keamanan Firestore Anda.';
                         break;
@@ -91,12 +94,9 @@ export default function SignupPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
-          <div className="flex justify-center mb-4">
-             <Image src="/logo.png" alt="APP GANTENG Logo" width={64} height={64} />
-          </div>
           <CardTitle className="text-2xl text-center">Daftar ke APP GANTENG</CardTitle>
           <CardDescription className="text-center">
-            Masukkan informasi Anda untuk membuat akun
+            Masukkan informasi Anda untuk membuat akun baru.
           </CardDescription>
         </CardHeader>
         <CardContent>

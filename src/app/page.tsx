@@ -76,7 +76,7 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl text-center pt-6">APP GANTENG</CardTitle>
           <CardDescription className="text-center">
-            jika anda merasa aplikasi ini sangat membantu berikan dukungan anda dengan mendonasikan sedikit kekayaan anda melalui nomor dana saya 0812-3949-2626 agar saya bisa bayar angsuran
+            Selamat datang! Pastikan Anda telah mengisi file .env dan mengaktifkan metode login Email/Password di Firebase Console.
           </CardDescription>
         </CardHeader>
         <CardContent>
