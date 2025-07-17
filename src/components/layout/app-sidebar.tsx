@@ -21,16 +21,10 @@ import * as React from 'react';
 
 const menuItems = [
   { href: '/dashboard', label: 'Dasbor', icon: LayoutDashboard },
+  { href: '/delinquency', label: 'Tagihan', icon: CreditCard },
   { href: '/customers', label: 'Pelanggan', icon: Users },
   { href: '/invoices', label: 'Faktur', icon: FileText },
-  { 
-    label: 'Tagihan', 
-    icon: CreditCard,
-    subItems: [
-      { href: '/delinquency', label: 'Data Tagihan' },
-      { href: '/payment-report', label: 'Laporan Pembayaran', icon: BarChart3 },
-    ]
-  },
+  { href: '/payment-report', label: 'Laporan', icon: BarChart3 },
 ];
 
 export default function AppSidebar() {
