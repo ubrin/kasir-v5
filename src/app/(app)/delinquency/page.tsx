@@ -34,7 +34,8 @@ export default function DelinquencyPage() {
     const router = useRouter();
     const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
 
-    const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas' && new Date(invoice.dueDate) < new Date());
+    // Menampilkan semua faktur yang statusnya 'belum lunas'
+    const overdueInvoices = invoices.filter((invoice) => invoice.status === 'belum lunas');
     
     const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoices: number }>>((acc, invoice) => {
         const customer = customers.find((c) => c.id === invoice.customerId);
