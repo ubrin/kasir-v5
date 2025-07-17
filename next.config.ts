@@ -27,6 +27,10 @@ const nextConfig: NextConfig = {
     // Menambahkan domains untuk mengatasi masalah gambar lokal
     domains: ['localhost'],
   },
+  experimental: {
+    // Menambahkan origin cloud workstation untuk menghilangkan peringatan CORS di lingkungan dev
+    allowedDevOrigins: ["*.cloudworkstations.dev"],
+  },
 };
 
 export default withPWA(nextConfig);
