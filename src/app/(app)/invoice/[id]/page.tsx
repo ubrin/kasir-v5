@@ -102,7 +102,7 @@ export default function InvoicePage() {
                                     <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={48} height={48} />
                                     <div>
                                         <h1 className="text-2xl font-bold text-primary">PT CYBERNETWORK CORP</h1>
-                                        <p className="text-muted-foreground">Jl. Teknologi No. 1, Technopark, Indonesia</p>
+                                        <p className="text-muted-foreground">suport by navaz</p>
                                     </div>
                                 </div>
                             </div>
