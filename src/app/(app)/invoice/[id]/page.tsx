@@ -82,7 +82,7 @@ export default function InvoicePage() {
                              <p className="font-semibold text-muted-foreground">Tanggal Invoice:</p>
                              <p>{format(new Date(), "d MMMM yyyy", { locale: id })}</p>
                              <p className="font-semibold text-muted-foreground mt-2">Jatuh Tempo:</p>
-                             <p>{customer.dueDateCode} setiap bulan</p>
+                             <p>Tanggal {customer.dueDateCode} setiap bulan</p>
                         </div>
                      </div>
                 </CardHeader>
