@@ -27,8 +27,8 @@ const nextConfig: NextConfig = {
     // Menambahkan domains untuk mengatasi masalah gambar lokal
     domains: ['localhost'],
   },
+  // Menambahkan origin cloud workstation untuk menghilangkan peringatan CORS di lingkungan dev
   experimental: {
-    // Menambahkan origin cloud workstation untuk menghilangkan peringatan CORS di lingkungan dev
     allowedDevOrigins: ["*.cloudworkstations.dev"],
   },
 };
