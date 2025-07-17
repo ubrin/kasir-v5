@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 import { customers } from "@/lib/data"
 import type { Customer } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,10 +31,34 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select"
+import { AddCustomerDialog } from "@/components/add-customer-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CustomersPage() {
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
+  const [forceUpdate, setForceUpdate] = React.useState(0);
   const router = useRouter();
+  const { toast } = useToast();
+
+  const handleCustomerAdded = (newCustomer: Omit<Customer, 'id' | 'status' | 'paymentHistory' | 'outstandingBalance'>) => {
+    const newId = `cus_${Date.now()}`;
+    const customerToAdd: Customer = {
+      ...newCustomer,
+      id: newId,
+      status: newCustomer.amountDue > 0 ? 'belum lunas' : 'lunas',
+      paymentHistory: 'Pelanggan baru.',
+      outstandingBalance: newCustomer.amountDue,
+      installationDate: newCustomer.installationDate,
+    };
+    customers.unshift(customerToAdd);
+    
+    toast({
+        title: "Pelanggan Ditambahkan",
+        description: `${newCustomer.name} telah berhasil ditambahkan ke daftar pelanggan.`,
+    });
+
+    setForceUpdate(prev => prev + 1);
+  };
 
   const groupedCustomers = customers.reduce((acc, customer) => {
     const code = customer.dueDateCode;
@@ -75,9 +99,7 @@ export default function CustomersPage() {
                     </SelectContent>
                 </Select>
             </div>
-            <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Pelanggan
-            </Button>
+            <AddCustomerDialog onCustomerAdded={handleCustomerAdded} />
         </div>
 
         {filteredGroupKeys.length > 0 ? (
