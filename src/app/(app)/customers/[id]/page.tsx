@@ -111,7 +111,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                         <Input id="subscriptionMbps" type="number" value={editableCustomer?.subscriptionMbps} onChange={handleInputChange} />
                     </div>
                      <div className="grid gap-2">
-                        <Label htmlFor="amountDue">Harga (Rp)</Label>
+                        <Label htmlFor="amountDue">Harga Paket (Rp)</Label>
                         <Input id="amountDue" type="number" value={editableCustomer?.amountDue} onChange={handleInputChange} />
                     </div>
                     <div className="grid gap-2">
@@ -140,7 +140,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <p>Setiap tanggal {editableCustomer?.dueDateCode}</p>
                     </div>
                     <div className="grid gap-1">
-                    <p className="text-sm font-medium text-muted-foreground">Harga</p>
+                    <p className="text-sm font-medium text-muted-foreground">Harga Paket</p>
                     <p>Rp{editableCustomer?.amountDue.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="grid gap-1">
@@ -203,5 +203,3 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   )
 }
-
-    
