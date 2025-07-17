@@ -10,15 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal } from "lucide-react"
 import { customers, invoices } from "@/lib/data"
 import type { Customer } from "@/lib/types"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -74,9 +66,6 @@ export default function DelinquencyPage() {
                             <TableHead>Alamat</TableHead>
                             <TableHead className="text-center">Faktur Jatuh Tempo</TableHead>
                             <TableHead className="text-right">Total Tagihan</TableHead>
-                            <TableHead className="text-right">
-                                <span className="sr-only">Aksi</span>
-                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -95,35 +84,11 @@ export default function DelinquencyPage() {
                                 <TableCell className="text-right font-bold text-destructive">
                                     Rp{customer.overdueAmount.toLocaleString('id-ID')}
                                 </TableCell>
-                                <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        <Button size="sm" onClick={(e) => e.stopPropagation()}>Bayar</Button>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                            <Button 
-                                                aria-haspopup="true" 
-                                                size="icon" 
-                                                variant="ghost"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                <MoreHorizontal className="h-4 w-4" />
-                                                <span className="sr-only">Buka menu</span>
-                                            </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                                <DropdownMenuItem>Kirim Pengingat</DropdownMenuItem>
-                                                <DropdownMenuItem>Lihat Detail Pelanggan</DropdownMenuItem>
-                                                <DropdownMenuItem>Hubungi Pelanggan</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </TableCell>
                             </TableRow>
                         ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center h-48">
+                                <TableCell colSpan={4} className="text-center h-48">
                                     <p className="text-lg font-medium">Tidak ada tunggakan!</p>
                                     <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!</p>
                                 </TableCell>
