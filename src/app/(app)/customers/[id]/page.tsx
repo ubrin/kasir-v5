@@ -103,6 +103,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                         <Input id="address" value={editableCustomer?.address} onChange={handleInputChange} />
                     </div>
                     <div className="grid gap-2">
+                        <Label htmlFor="phone">No. WhatsApp</Label>
+                        <Input id="phone" value={editableCustomer?.phone} onChange={handleInputChange} />
+                    </div>
+                    <div className="grid gap-2">
                         <Label htmlFor="subscriptionMbps">Paket (Mbps)</Label>
                         <Input id="subscriptionMbps" type="number" value={editableCustomer?.subscriptionMbps} onChange={handleInputChange} />
                     </div>
@@ -126,6 +130,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <div className="grid gap-1">
                     <p className="text-sm font-medium text-muted-foreground">Alamat</p>
                     <p>{editableCustomer?.address}</p>
+                    </div>
+                     <div className="grid gap-1">
+                        <p className="text-sm font-medium text-muted-foreground">No. WhatsApp</p>
+                        <p>{editableCustomer?.phone || '-'}</p>
                     </div>
                     <div className="grid gap-1">
                     <p className="text-sm font-medium text-muted-foreground">Tanggal Jatuh Tempo</p>

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, ArrowLeft, Printer } from 'lucide-react';
+import { Download, ArrowLeft, Send } from 'lucide-react';
 import Image from 'next/image';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -63,9 +63,32 @@ export default function ReceiptPage() {
         });
     };
 
-    const handlePrint = () => {
-        window.print();
-    }
+    const handleSendWhatsApp = () => {
+        if (!customer.phone) {
+            alert('Nomor WhatsApp pelanggan tidak ditemukan.');
+            return;
+        }
+
+        const paidMonths = paidInvoices.map(inv => format(parseISO(inv.date), "MMMM yyyy", { locale: id })).join(', ');
+
+        const message = `
+Terima kasih atas pembayarannya, ${customer.name}.
+Berikut adalah rincian pembayaran Anda:
+
+No. Struk: ${payment.id}
+Tanggal: ${format(parseISO(payment.paymentDate), "dd/MM/yyyy HH:mm", { locale: id })}
+Pembayaran untuk: ${paidMonths}
+
+Total Bayar: Rp${payment.totalPayment.toLocaleString('id-ID')}
+Metode: ${payment.paymentMethod.charAt(0).toUpperCase() + payment.paymentMethod.slice(1)}
+
+Terima kasih telah menggunakan layanan kami.
+- PT CYBERNETWORK CORP -
+        `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
+
+        const whatsappUrl = `https://wa.me/${customer.phone}?text=${message}`;
+        window.open(whatsappUrl, '_blank');
+    };
     
     if (!isClient) {
         return null;
@@ -79,13 +102,13 @@ export default function ReceiptPage() {
                     Kembali
                 </Button>
                 <div className="flex gap-2">
-                    <Button onClick={handlePrint}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Cetak Struk
-                    </Button>
                     <Button onClick={handleDownloadPdf} variant="outline">
                         <Download className="mr-2 h-4 w-4" />
                         Unduh PDF
+                    </Button>
+                    <Button onClick={handleSendWhatsApp}>
+                        <Send className="mr-2 h-4 w-4" />
+                        Kirim Struk
                     </Button>
                 </div>
             </div>
@@ -102,33 +125,33 @@ export default function ReceiptPage() {
                     <CardContent className="p-4 text-xs">
                         <div className="grid grid-cols-3 gap-1 mb-2">
                            <div className="col-span-1">No Struk</div>
-                           <div className="col-span-2">: {payment.id}</div>
+                           <div className="col-span-2">: ${payment.id}</div>
                            <div className="col-span-1">Tanggal</div>
-                           <div className="col-span-2">: {format(parseISO(payment.paymentDate), "dd/MM/yyyy HH:mm", { locale: id })}</div>
+                           <div className="col-span-2">: ${format(parseISO(payment.paymentDate), "dd/MM/yyyy HH:mm", { locale: id })}</div>
                            <div className="col-span-1">Pelanggan</div>
-                           <div className="col-span-2">: {payment.customerName}</div>
+                           <div className="col-span-2">: ${payment.customerName}</div>
                         </div>
                         <p className="text-xs">--------------------------------</p>
                         <p className="text-center font-semibold my-1">RINCIAN PEMBAYARAN</p>
                         {paidInvoices.map(invoice => (
                              <div className="grid grid-cols-3 gap-1" key={invoice.id}>
-                                <div className="col-span-2">Tagihan {format(parseISO(invoice.date), "MMMM yyyy")}</div>
-                                <div className="col-span-1 text-right">Rp{invoice.amount.toLocaleString('id-ID')}</div>
+                                <div className="col-span-2">Tagihan ${format(parseISO(invoice.date), "MMMM yyyy")}</div>
+                                <div className="col-span-1 text-right">Rp${invoice.amount.toLocaleString('id-ID')}</div>
                             </div>
                         ))}
                          <p className="text-xs">--------------------------------</p>
                         <div className="grid grid-cols-3 gap-1 mt-2">
                             <div className="col-span-2 font-semibold">Total Tagihan</div>
-                            <div className="col-span-1 text-right">Rp{payment.totalBill.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right">Rp${payment.totalBill.toLocaleString('id-ID')}</div>
                             <div className="col-span-2 font-semibold">Diskon</div>
-                            <div className="col-span-1 text-right">Rp{payment.discount.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right">Rp${payment.discount.toLocaleString('id-ID')}</div>
                             <div className="col-span-2 font-semibold">Total Bayar</div>
-                            <div className="col-span-1 text-right">Rp{payment.totalPayment.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right">Rp${payment.totalPayment.toLocaleString('id-ID')}</div>
                              <p className="col-span-3 text-xs">--------------------------------</p>
                             <div className="col-span-2 font-semibold">Jumlah Dibayar</div>
-                            <div className="col-span-1 text-right font-bold">Rp{payment.paidAmount.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right font-bold">Rp${payment.paidAmount.toLocaleString('id-ID')}</div>
                              <div className="col-span-2 font-semibold">Kembalian</div>
-                            <div className="col-span-1 text-right font-bold">Rp{payment.changeAmount.toLocaleString('id-ID')}</div>
+                            <div className="col-span-1 text-right font-bold">Rp${payment.changeAmount.toLocaleString('id-ID')}</div>
                         </div>
 
                     </CardContent>

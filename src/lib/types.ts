@@ -1,6 +1,7 @@
 export type Customer = {
   id: string;
   name: string;
+  phone?: string; // Tambahkan nomor telepon
   dueDateCode: number;
   address: string;
   status: 'lunas' | 'belum lunas';

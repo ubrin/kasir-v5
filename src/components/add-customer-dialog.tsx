@@ -40,6 +40,7 @@ import type { Customer } from '@/lib/types';
 const addCustomerSchema = z.object({
   name: z.string().min(1, { message: "Nama harus diisi." }),
   address: z.string().min(1, { message: "Alamat harus diisi." }),
+  phone: z.string().optional(),
   dueDateCode: z.preprocess(
     (val) => Number(val),
     z.number({invalid_type_error: "Harus berupa angka"}).min(1, "Tanggal minimal 1").max(31, "Tanggal maksimal 31")
@@ -70,6 +71,7 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
     defaultValues: {
       name: '',
       address: '',
+      phone: '',
       dueDateCode: 1,
       subscriptionMbps: 10,
       amountDue: 0,
@@ -123,6 +125,19 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
                   <FormLabel>Alamat</FormLabel>
                   <FormControl>
                     <Input placeholder="cth. Jl. Merdeka No. 1" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>No. WhatsApp</FormLabel>
+                  <FormControl>
+                    <Input placeholder="cth. 6281234567890" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

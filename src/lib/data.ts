@@ -4,6 +4,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_1',
     name: 'Budi Santoso',
+    phone: '6281234567890',
     dueDateCode: 5,
     address: 'Jl. Merdeka No. 1, Jakarta',
     status: 'belum lunas',
@@ -16,6 +17,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_2',
     name: 'Citra Lestari',
+    phone: '6281234567891',
     dueDateCode: 10,
     address: 'Jl. Sudirman Kav. 5, Bandung',
     status: 'belum lunas',
@@ -28,6 +30,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_3',
     name: 'Adi Nugroho',
+    phone: '6281234567892',
     dueDateCode: 15,
     address: 'Jl. Gajah Mada No. 10, Surabaya',
     status: 'lunas',
@@ -40,6 +43,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_4',
     name: 'Dewi Anggraini',
+    phone: '6281234567893',
     dueDateCode: 20,
     address: 'Jl. Thamrin No. 8, Medan',
     status: 'belum lunas',
@@ -52,6 +56,7 @@ export const customers: Customer[] = [
   {
     id: 'cus_5',
     name: 'Eko Prasetyo',
+    phone: '6281234567894',
     dueDateCode: 25,
     address: 'Jl. Pahlawan No. 2, Semarang',
     status: 'lunas',
