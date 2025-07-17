@@ -55,7 +55,6 @@ export default function DelinquencyPage() {
     <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-bold tracking-tight">Tagihan Pelanggan</h1>
-            <p className="text-muted-foreground">Pelanggan dengan satu atau lebih faktur yang telah jatuh tempo.</p>
         </div>
         <Card>
             <CardContent className="p-0">
