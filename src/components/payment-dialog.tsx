@@ -52,7 +52,7 @@ const paymentSchema = z.object({
   }),
   discount: z.preprocess(
     (a) => (a ? parseInt(String(a), 10) : 0),
-    z.number().min(0).optional()
+    z.number().min(0, "Diskon tidak boleh negatif").max(100, "Diskon maksimal 100%").optional()
   ),
   paidAmount: z.preprocess(
     (a) => (a ? parseInt(String(a), 10) : 0),
@@ -94,7 +94,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   });
 
   const selectedInvoices = watch('selectedInvoices') || [];
-  const discount = watch('discount') || 0;
+  const discountPercent = watch('discount') || 0;
   const paidAmount = watch('paidAmount') || 0;
 
   const billToPay = React.useMemo(() => {
@@ -103,7 +103,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       .reduce((sum, invoice) => sum + invoice.amount, 0);
   }, [customer.invoices, selectedInvoices]);
 
-  const totalPayment = Math.max(0, billToPay - discount);
+  const discountAmount = Math.floor(billToPay * (discountPercent / 100));
+  const totalPayment = Math.max(0, billToPay - discountAmount);
   const paymentDifference = paidAmount - totalPayment;
 
   React.useEffect(() => {
@@ -117,7 +118,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       totalPayment,
       changeAmount: Math.max(0, paymentDifference),
       shortageAmount: Math.max(0, -paymentDifference),
-      discount,
+      // We save the calculated amount, not the percentage
+      discount: discountAmount,
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
     setOpen(false);
@@ -163,8 +165,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                 {customer.name}
             </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-[70vh]">
-                <div className="grid gap-6 p-6">
+            <ScrollArea className="max-h-[70vh] p-6 pt-0">
+                <div className="grid gap-6 py-6">
                 
                 <div className="grid gap-3">
                     <Label>Pilih Tagihan</Label>
@@ -172,7 +174,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                     name="selectedInvoices"
                     control={control}
                     render={({ field }) => (
-                        <div className="space-y-2 rounded-md border p-3 overflow-y-auto">
+                        <div className="space-y-2 rounded-md border p-3">
                         {customer.invoices.map((invoice) => (
                             <div key={invoice.id} className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -270,7 +272,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         <p className="font-semibold text-lg">Rp{billToPay.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="discount">Diskon (Rp)</Label>
+                        <Label htmlFor="discount">Diskon (%)</Label>
                         <Controller
                             name="discount"
                             control={control}
@@ -284,6 +286,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                                 />
                             )}
                         />
+                         {errors.discount && <p className="text-sm text-destructive">{errors.discount.message}</p>}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="paidAmount">Jumlah Dibayar (Rp)</Label>
@@ -328,3 +331,5 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     </Dialog>
   );
 }
+
+    
