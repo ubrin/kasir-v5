@@ -37,6 +37,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
+import { invoices } from '@/lib/data';
 
 const paymentSchema = z.object({
   selectedInvoices: z.array(z.string()).nonempty({
@@ -123,24 +124,25 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
 
   React.useEffect(() => {
     if (open) {
-      const today = new Date();
-      const currentMonth = getMonth(today);
-      const currentYear = getYear(today);
+        const today = new Date();
+        const currentMonth = getMonth(today);
+        const currentYear = getYear(today);
 
-      const currentMonthInvoice = customer.invoices.find(invoice => {
-          const invoiceDate = parseISO(invoice.date);
-          return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
-      });
+        // Cari faktur bulan ini dari semua faktur pelanggan yang belum lunas
+        const currentMonthInvoice = customer.invoices.find(invoice => {
+            const invoiceDate = parseISO(invoice.date);
+            return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear && invoice.status === 'belum lunas';
+        });
 
-      if (currentMonthInvoice) {
-        setValue('selectedInvoices', [currentMonthInvoice.id]);
-      } else {
-         setValue('selectedInvoices', []);
-      }
+        if (currentMonthInvoice) {
+            setValue('selectedInvoices', [currentMonthInvoice.id]);
+        } else {
+            setValue('selectedInvoices', []);
+        }
     } else {
-      reset();
+        reset();
     }
-  }, [open, reset, customer.invoices, setValue]);
+}, [open, customer.invoices, setValue, reset]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -296,8 +298,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                 </div>
                  <div className="grid gap-2">
                     <Label>{paymentDifference < 0 ? 'Kekurangan' : 'Kembalian'}</Label>
-                    <p className={cn("font-semibold text-lg", paymentDifference < 0 && "text-destructive")}>
-                        Rp{paymentDifference.toLocaleString('id-ID')}
+                     <p className={cn("font-semibold text-lg", paymentDifference < 0 && "text-destructive")}>
+                        Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}
                     </p>
                 </div>
             </div>
