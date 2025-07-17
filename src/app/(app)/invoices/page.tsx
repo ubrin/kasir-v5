@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { MoreHorizontal, PlusCircle } from "lucide-react"
-import { invoices } from "@/lib/data"
+import { invoices, customers } from "@/lib/data"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const getBadgeVariant = (status: 'lunas' | 'belum lunas') => {
@@ -48,6 +48,14 @@ const getBadgeClasses = (status: 'lunas' | 'belum lunas', dueDate: string) => {
 
 
 export default function InvoicesPage() {
+  const invoicesWithCustomerData = invoices.map(invoice => {
+    const customer = customers.find(c => c.id === invoice.customerId);
+    return {
+      ...invoice,
+      dueDateCode: customer?.dueDateCode,
+    };
+  });
+
   return (
     <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
@@ -67,6 +75,7 @@ export default function InvoicesPage() {
                     <TableRow>
                     <TableHead>ID Faktur</TableHead>
                     <TableHead>Pelanggan</TableHead>
+                    <TableHead>Kode</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Tanggal</TableHead>
                     <TableHead className="hidden md:table-cell">Tanggal Jatuh Tempo</TableHead>
@@ -77,10 +86,11 @@ export default function InvoicesPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {invoices.map((invoice) => (
+                    {invoicesWithCustomerData.map((invoice) => (
                     <TableRow key={invoice.id}>
                         <TableCell className="font-medium">{invoice.id}</TableCell>
                         <TableCell>{invoice.customerName}</TableCell>
+                        <TableCell>{invoice.dueDateCode}</TableCell>
                         <TableCell>
                             <Badge variant={'outline'} className={getBadgeClasses(invoice.status, invoice.dueDate)}>
                                 {translateStatus(invoice.status, invoice.dueDate)}
