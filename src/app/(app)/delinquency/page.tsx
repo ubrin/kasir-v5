@@ -27,6 +27,12 @@ import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion"
 
 
 type DelinquentCustomer = Customer & {
@@ -207,56 +213,58 @@ export default function DelinquencyPage() {
         </div>
         
         {isClient && filteredGroupKeys.length > 0 ? (
-            filteredGroupKeys.map((code) => (
-                <Card key={code}>
-                    <CardHeader>
-                        <CardTitle>Tanggal {code}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Pelanggan</TableHead>
-                                <TableHead>Alamat</TableHead>
-                                <TableHead className="text-center">Jatuh Tempo</TableHead>
-                                <TableHead className="text-right">Total Tagihan</TableHead>
-                                <TableHead className="text-right">Aksi</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {groupedDelinquentCustomers[code].map((customer) => (
-                                <TableRow 
-                                    key={customer.id} 
-                                    onClick={() => handleRowClick(customer.id)}
-                                    className="cursor-pointer"
-                                >
-                                    <TableCell className="font-semibold">{customer.name}</TableCell>
-                                    <TableCell>{customer.address}</TableCell>
-                                    <TableCell className="text-center">
-                                       {formatDueDateCountdown(customer.nearestDueDate)}
-                                    </TableCell>
-                                    <TableCell className="text-right font-bold text-destructive">
-                                        Rp{customer.overdueAmount.toLocaleString('id-ID')}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                             <Button variant="outline" size="icon" onClick={(e) => handleInvoiceClick(e, customer.id)}>
-                                                <FileText className="h-4 w-4" />
-                                                <span className="sr-only">Buat Invoice</span>
-                                            </Button>
-                                            <PaymentDialog
-                                                customer={customer}
-                                                onPaymentSuccess={handlePaymentSuccess}
-                                            />
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            ))
+            <Accordion type="multiple" className="w-full space-y-4" defaultValue={filteredGroupKeys.map(String)}>
+                {filteredGroupKeys.map((code) => (
+                    <AccordionItem value={String(code)} key={code} className="border rounded-lg overflow-hidden">
+                        <AccordionTrigger className="bg-muted/50 hover:bg-muted px-6 py-4">
+                             <CardTitle>Tanggal {code}</CardTitle>
+                        </AccordionTrigger>
+                        <AccordionContent className="p-0">
+                             <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Pelanggan</TableHead>
+                                        <TableHead>Alamat</TableHead>
+                                        <TableHead className="text-center">Jatuh Tempo</TableHead>
+                                        <TableHead className="text-right">Total Tagihan</TableHead>
+                                        <TableHead className="text-right">Aksi</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {groupedDelinquentCustomers[code].map((customer) => (
+                                        <TableRow 
+                                            key={customer.id} 
+                                            onClick={() => handleRowClick(customer.id)}
+                                            className="cursor-pointer"
+                                        >
+                                            <TableCell className="font-semibold">{customer.name}</TableCell>
+                                            <TableCell>{customer.address}</TableCell>
+                                            <TableCell className="text-center">
+                                            {formatDueDateCountdown(customer.nearestDueDate)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-bold text-destructive">
+                                                Rp{customer.overdueAmount.toLocaleString('id-ID')}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <Button variant="outline" size="icon" onClick={(e) => handleInvoiceClick(e, customer.id)}>
+                                                        <FileText className="h-4 w-4" />
+                                                        <span className="sr-only">Buat Invoice</span>
+                                                    </Button>
+                                                    <PaymentDialog
+                                                        customer={customer}
+                                                        onPaymentSuccess={handlePaymentSuccess}
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                                </Table>
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
         ) : (
              <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
