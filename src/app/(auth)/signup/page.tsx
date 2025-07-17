@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -10,8 +11,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import Image from "next/image"
-import { Logo } from "@/components/ui/logo"
 
 export default function SignupPage() {
   return (
@@ -19,7 +18,7 @@ export default function SignupPage() {
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
           <div className="flex justify-center mb-4">
-            <Logo className="h-16 w-16" />
+             <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={64} height={64} />
           </div>
           <CardTitle className="text-2xl text-center">Daftar ke PT CYBERNETWORK CORP</CardTitle>
           <CardDescription className="text-center">

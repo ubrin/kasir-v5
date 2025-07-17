@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/sidebar';
 import Image from 'next/image';
 import {Button} from '@/components/ui/button';
-import { Logo } from '../ui/logo';
 
 
 const menuItems = [
@@ -31,7 +30,7 @@ export default function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2 justify-start">
             <Link href="/delinquency" className="flex items-center gap-2">
-                <Logo className="h-10 w-10" />
+                <Image src="/logo.png" alt="PT CYBERNETWORK CORP Logo" width={40} height={40} />
                 <h1 className="text-lg font-semibold text-foreground hidden group-data-[state=expanded]:block">PT CYBERNETWORK CORP</h1>
             </Link>
         </div>
