@@ -1,21 +1,27 @@
 
 'use client'
+import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
-import { DollarSign, Users, CreditCard, Activity, MoreHorizontal, Wallet } from "lucide-react"
+import { DollarSign, Users, CreditCard, Activity, Archive, AlertTriangle } from "lucide-react"
 import { revenueData, customers, invoices, payments } from "@/lib/data"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { differenceInMonths, getMonth, getYear, parseISO, startOfMonth, endOfMonth, isFuture, isWithinInterval, addDays, formatDistanceToNowStrict } from "date-fns"
-import { id } from 'date-fns/locale';
+import { differenceInMonths, getMonth, getYear, parseISO, startOfMonth, endOfMonth } from "date-fns"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast";
+
 
 const chartConfig = {
   revenue: {
@@ -27,6 +33,9 @@ const chartConfig = {
 const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
 
 export default function DashboardPage() {
+    const { toast } = useToast();
+    const [forceUpdate, setForceUpdate] = React.useState(0);
+
     const totalRevenue = invoices.filter(i => i.status === 'lunas').reduce((acc, i) => acc + i.amount, 0);
     const outstandingPayments = invoices.filter(i => i.status === 'belum lunas').reduce((acc, i) => acc + i.amount, 0);
     const newCustomers = customers.filter(c => differenceInMonths(new Date(), new Date(c.installationDate)) <= 1).length;
@@ -67,11 +76,60 @@ export default function DashboardPage() {
       },
       { cash: 0, bri: 0, dana: 0, total: 0 }
     );
+    
+    const handleArchivePaidInvoices = () => {
+        const paidInvoiceIds = invoices.filter(inv => inv.status === 'lunas').map(inv => inv.id);
+        
+        if (paidInvoiceIds.length === 0) {
+            toast({
+                title: "Tidak Ada Data untuk Diarsipkan",
+                description: "Semua faktur lunas sudah diarsipkan.",
+                variant: "default",
+            });
+            return;
+        }
+
+        // Remove paid invoices from the main invoices array
+        const originalLength = invoices.length;
+        invoices.splice(0, invoices.length, ...invoices.filter(inv => inv.status !== 'lunas'));
+
+        toast({
+            title: "Pengarsipan Berhasil",
+            description: `${originalLength - invoices.length} faktur yang sudah lunas telah diarsipkan.`,
+        });
+
+        // Trigger a re-render
+        setForceUpdate(prev => prev + 1);
+    }
 
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-3xl font-bold tracking-tight">Dasbor</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Dasbor</h1>
+         <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline">
+                <Archive className="mr-2 h-4 w-4" />
+                Arsipkan Faktur Lunas
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Anda yakin ingin mengarsipkan?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tindakan ini akan menghapus semua data faktur dengan status "Lunas" dari daftar aktif. Tindakan ini tidak dapat dibatalkan. Data pelanggan dan faktur yang menunggak tidak akan terpengaruh.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={handleArchivePaidInvoices} className="bg-destructive hover:bg-destructive/90">
+                Ya, Arsipkan Sekarang
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -247,7 +305,5 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    
 
     
