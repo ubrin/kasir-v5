@@ -23,6 +23,12 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select"
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion"
 
 
 type DelinquentCustomer = Customer & {
@@ -99,47 +105,53 @@ export default function DelinquencyPage() {
         </div>
         
         {filteredGroupKeys.length > 0 ? (
-            filteredGroupKeys.map((code) => (
-                <Card key={code}>
-                    <CardHeader>
-                        <CardTitle>Grup Tanggal {code}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Pelanggan</TableHead>
-                                    <TableHead>Alamat</TableHead>
-                                    <TableHead className="text-center">Faktur Jatuh Tempo</TableHead>
-                                    <TableHead className="text-right">Total Tagihan</TableHead>
-                                    <TableHead><span className="sr-only">Aksi</span></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {groupedDelinquentCustomers[code].map((customer) => (
-                                    <TableRow 
-                                        key={customer.id} 
-                                        onClick={() => handleRowClick(customer.id)}
-                                        className="cursor-pointer"
-                                    >
-                                        <TableCell className="font-semibold">{customer.name}</TableCell>
-                                        <TableCell>{customer.address}</TableCell>
-                                        <TableCell className="text-center">
-                                            <Badge variant="destructive">{customer.overdueInvoices}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right font-bold text-destructive">
-                                            Rp{customer.overdueAmount.toLocaleString('id-ID')}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button size="sm" onClick={(e) => { e.stopPropagation(); /* Logika pembayaran */ }}>Bayar</Button>
-                                        </TableCell>
+            <Accordion type="multiple" className="w-full space-y-4">
+            {filteredGroupKeys.map((code) => (
+                <AccordionItem value={`item-${code}`} key={code} className="border-none">
+                     <Card>
+                        <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
+                            Grup Tanggal {code}
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <div className="p-0 pt-0 border-t">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Pelanggan</TableHead>
+                                        <TableHead>Alamat</TableHead>
+                                        <TableHead className="text-center">Faktur Jatuh Tempo</TableHead>
+                                        <TableHead className="text-right">Total Tagihan</TableHead>
+                                        <TableHead><span className="sr-only">Aksi</span></TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            ))
+                                </TableHeader>
+                                <TableBody>
+                                    {groupedDelinquentCustomers[code].map((customer) => (
+                                        <TableRow 
+                                            key={customer.id} 
+                                            onClick={() => handleRowClick(customer.id)}
+                                            className="cursor-pointer"
+                                        >
+                                            <TableCell className="font-semibold">{customer.name}</TableCell>
+                                            <TableCell>{customer.address}</TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge variant="destructive">{customer.overdueInvoices}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right font-bold text-destructive">
+                                                Rp{customer.overdueAmount.toLocaleString('id-ID')}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button size="sm" onClick={(e) => { e.stopPropagation(); /* Logika pembayaran */ }}>Bayar</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            </div>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+            ))}
+            </Accordion>
         ) : (
              <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
