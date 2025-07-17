@@ -111,7 +111,7 @@ export default function DelinquencyPage() {
                             <TableRow>
                                 <TableHead>Pelanggan</TableHead>
                                 <TableHead>Alamat</TableHead>
-                                <TableHead className="text-center">Faktur Jatuh Tempo</TableHead>
+                                <TableHead className="text-center">Jatuh Tempo</TableHead>
                                 <TableHead className="text-right">Total Tagihan</TableHead>
                                 <TableHead><span className="sr-only">Aksi</span></TableHead>
                             </TableRow>
