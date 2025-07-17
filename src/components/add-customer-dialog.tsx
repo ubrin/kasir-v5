@@ -105,9 +105,6 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Tambah Pelanggan Baru</DialogTitle>
-          <DialogDescription>
-            Isi detail di bawah ini untuk menambahkan pelanggan baru ke sistem.
-          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
