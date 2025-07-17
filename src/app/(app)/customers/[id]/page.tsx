@@ -27,7 +27,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setEditableCustomer(prev => prev ? { ...prev, [id]: id === 'subscriptionMbps' || id === 'amountDue' ? Number(value) : value } : null);
+    setEditableCustomer(prev => prev ? { ...prev, [id]: id === 'subscriptionMbps' || id === 'amountDue' || id === 'dueDateCode' ? Number(value) : value } : null);
   };
 
   const handleSave = () => {
@@ -109,6 +109,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                      <div className="grid gap-2">
                         <Label htmlFor="amountDue">Jumlah Tagihan (Rp)</Label>
                         <Input id="amountDue" type="number" value={editableCustomer?.amountDue} onChange={handleInputChange} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="dueDateCode">Tanggal Jatuh Tempo</Label>
+                        <Input id="dueDateCode" type="number" value={editableCustomer?.dueDateCode} onChange={handleInputChange} />
                     </div>
                 </div>
             ) : (
