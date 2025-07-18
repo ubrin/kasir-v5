@@ -51,8 +51,8 @@ const paymentSchema = z.object({
     required_error: 'Tanggal pembayaran harus diisi.',
   }),
   discount: z.preprocess(
-    (a) => (a ? parseInt(String(a), 10) : 0),
-    z.number().min(0, "Diskon tidak boleh negatif").optional()
+    (a) => (a ? parseFloat(String(a)) : 0),
+    z.number().min(0, "Diskon tidak boleh negatif").max(100, "Diskon maksimal 100%").optional()
   ),
   paidAmount: z.preprocess(
     (a) => (a ? parseInt(String(a), 10) : 0),
@@ -94,7 +94,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   });
 
   const selectedInvoices = watch('selectedInvoices') || [];
-  const discountAmount = watch('discount') || 0;
+  const discountPercentage = watch('discount') || 0;
   const paidAmount = watch('paidAmount') || 0;
 
   const billToPay = React.useMemo(() => {
@@ -102,12 +102,16 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       .filter(invoice => selectedInvoices.includes(invoice.id))
       .reduce((sum, invoice) => sum + invoice.amount, 0);
   }, [customer.invoices, selectedInvoices]);
+  
+  const discountAmount = React.useMemo(() => {
+    return (billToPay * discountPercentage) / 100;
+  }, [billToPay, discountPercentage]);
 
   const totalPayment = Math.max(0, billToPay - discountAmount);
   const paymentDifference = paidAmount - totalPayment;
 
   React.useEffect(() => {
-    setValue('paidAmount', totalPayment);
+    setValue('paidAmount', Math.round(totalPayment));
   }, [totalPayment, setValue]);
 
   const onSubmit = (data: PaymentFormValues) => {
@@ -117,7 +121,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       totalPayment,
       changeAmount: Math.max(0, paymentDifference),
       shortageAmount: Math.max(0, -paymentDifference),
-      discount: data.discount || 0,
+      discount: discountAmount, // Send the calculated amount, not percentage
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
     setOpen(false);
@@ -256,7 +260,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         <p className="font-semibold text-lg">Rp{billToPay.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="discount">Diskon (Rp)</Label>
+                        <Label htmlFor="discount">Diskon (%)</Label>
                         <Controller
                             name="discount"
                             control={control}
@@ -289,7 +293,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         />
                     </div>
                     <div className="grid gap-2">
-                        <Label>{paymentDifference < 0 ? 'Kekurangan' : 'Saldo'}</Label>
+                        <Label>Saldo</Label>
                         <p className={cn("font-semibold text-lg", paymentDifference < 0 ? "text-destructive" : "text-green-600")}>
                             Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}
                         </p>
