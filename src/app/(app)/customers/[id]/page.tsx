@@ -244,7 +244,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="creditBalance">Saldo (Rp)</Label>
-                        <Input id="creditBalance" type="number" value={editableCustomer?.creditBalance || 0} onChange={handleInputChange} />
+                        <Input id="creditBalance" type="number" value={editableCustomer?.creditBalance || ''} onChange={handleInputChange} />
                     </div>
                 </div>
             ) : (
