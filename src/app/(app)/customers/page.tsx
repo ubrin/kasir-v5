@@ -78,7 +78,7 @@ export default function CustomersPage() {
     fetchCustomers();
   }, [fetchCustomers]);
 
-  const handleCustomerAdded = async (newCustomerData: Omit<Customer, 'id' | 'outstandingBalance'>) => {
+  const handleCustomerAdded = async (newCustomerData: Omit<Customer, 'id' | 'outstandingBalance' | 'paymentHistory'>) => {
     const amountDue = newCustomerData.packagePrice;
     
     const customerToAdd = {
