@@ -209,8 +209,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="grid gap-1">
                         <p className="text-sm font-medium text-muted-foreground">Status</p>
-                        <Badge variant={editableCustomer?.outstandingBalance ?? 0 > 0 ? "destructive" : "secondary"} className={`${editableCustomer?.outstandingBalance ?? 0 > 0 ? "" : "bg-green-100 text-green-800"} w-fit`}>
-                            {editableCustomer?.outstandingBalance ?? 0 > 0 ? "Belum Lunas" : "Lunas"}
+                        <Badge variant={(editableCustomer?.outstandingBalance ?? 0) > 0 ? "destructive" : "secondary"} className={`${(editableCustomer?.outstandingBalance ?? 0) > 0 ? "" : "bg-green-100 text-green-800"} w-fit`}>
+                            {(editableCustomer?.outstandingBalance ?? 0) > 0 ? "Belum Lunas" : "Lunas"}
                         </Badge>
                     </div>
                     {(editableCustomer?.outstandingBalance ?? 0) > 0 ? (
