@@ -78,13 +78,26 @@ export default function DashboardPage() {
                 totalArrears,
                 newCustomers,
             });
+            
+            const paidInvoicesStats = thisMonthInvoices
+                .filter(i => i.status === 'lunas')
+                .reduce((acc, inv) => {
+                    acc.count++;
+                    acc.amount += inv.amount;
+                    return acc;
+                }, { count: 0, amount: 0 });
 
-            const paidInvoicesCurrentMonth = thisMonthInvoices.filter(i => i.status === 'lunas').length;
-            const unpaidInvoicesCurrentMonth = thisMonthInvoices.filter(i => i.status === 'belum lunas').length;
+            const unpaidInvoicesStats = thisMonthInvoices
+                .filter(i => i.status === 'belum lunas')
+                .reduce((acc, inv) => {
+                    acc.count++;
+                    acc.amount += inv.amount;
+                    return acc;
+                }, { count: 0, amount: 0 });
             
             setPieData([
-                { name: 'Lunas', value: paidInvoicesCurrentMonth },
-                { name: 'Belum Lunas', value: unpaidInvoicesCurrentMonth },
+                { name: 'Lunas', value: paidInvoicesStats.amount, count: paidInvoicesStats.count },
+                { name: 'Belum Lunas', value: unpaidInvoicesStats.amount, count: unpaidInvoicesStats.count },
             ]);
 
             const monthlyPayments = payments.filter(payment => {
@@ -303,11 +316,14 @@ export default function DashboardPage() {
              <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
                     <Tooltip
-                    contentStyle={{
-                        background: "hsl(var(--card))",
-                        borderColor: "hsl(var(--border))",
-                    }}
-                    formatter={(value: number, name: string) => [`${value} Faktur`, name]}
+                        contentStyle={{
+                            background: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                        }}
+                        formatter={(value: number, name: string, props: any) => [
+                          `Rp${value.toLocaleString('id-ID')}`, 
+                          `${name} (${props.payload.count} Faktur)`
+                        ]}
                     />
                     <Pie
                     data={pieData}
