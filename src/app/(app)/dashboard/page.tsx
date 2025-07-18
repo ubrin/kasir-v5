@@ -34,8 +34,6 @@ export default function DashboardPage() {
         totalOmset: 0,
         totalArrears: 0,
         newCustomers: 0,
-        thisMonthTotalBill: 0,
-        thisMonthInvoiceCount: 0,
     });
     const [monthlyRevenueData, setMonthlyRevenueData] = React.useState<any[]>([]);
     const [pieData, setPieData] = React.useState<any[]>([]);
@@ -54,28 +52,21 @@ export default function DashboardPage() {
             const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
             const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
             
-            // --- New Stats Logic ---
             const today = new Date();
             const currentMonth = getMonth(today);
             const currentYear = getYear(today);
             const startOfCurrentMonth = startOfMonth(today);
             const endOfCurrentMonth = endOfMonth(today);
 
-            // 1. Total Omset (MRR)
             const totalOmset = customers.reduce((acc, c) => acc + c.packagePrice, 0);
 
-            // 2. New Customers
             const newCustomers = customers.filter(c => c.installationDate && differenceInMonths(new Date(), parseISO(c.installationDate)) < 1).length;
 
-            // 3. Tagihan Bulan Ini
             const thisMonthInvoices = invoices.filter(invoice => {
                 const invoiceDate = parseISO(invoice.date);
                 return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
             });
-            const thisMonthTotalBill = thisMonthInvoices.reduce((acc, inv) => acc + inv.amount, 0);
-            const thisMonthInvoiceCount = thisMonthInvoices.length;
 
-            // 4. Total Tunggakan (Arrears from previous months)
             const oldUnpaidInvoices = invoices.filter(invoice => {
                 const invoiceDate = parseISO(invoice.date);
                 return invoice.status === 'belum lunas' && invoiceDate < startOfCurrentMonth;
@@ -86,11 +77,8 @@ export default function DashboardPage() {
                 totalOmset,
                 totalArrears,
                 newCustomers,
-                thisMonthTotalBill,
-                thisMonthInvoiceCount,
             });
 
-            // 5. Pie Chart Data (Current Month)
             const paidInvoicesCurrentMonth = thisMonthInvoices.filter(i => i.status === 'lunas').length;
             const unpaidInvoicesCurrentMonth = thisMonthInvoices.filter(i => i.status === 'belum lunas').length;
             
@@ -99,7 +87,6 @@ export default function DashboardPage() {
                 { name: 'Belum Lunas', value: unpaidInvoicesCurrentMonth },
             ]);
 
-            // 6. Payment Summary (Current Month)
             const monthlyPayments = payments.filter(payment => {
               const paymentDate = parseISO(payment.paymentDate);
               return paymentDate >= startOfCurrentMonth && paymentDate <= endOfCurrentMonth;
@@ -107,7 +94,7 @@ export default function DashboardPage() {
 
             const summary = monthlyPayments.reduce(
               (acc, payment) => {
-                const method = payment.paymentMethod || 'cash'; // Fallback for old data
+                const method = payment.paymentMethod || 'cash';
                 acc[method] = (acc[method] || 0) + payment.totalPayment;
                 acc.total += payment.totalPayment;
                 return acc;
@@ -116,7 +103,6 @@ export default function DashboardPage() {
             );
             setPaymentSummary(summary);
 
-            // 7. Revenue Chart Data (Last 6 months)
             const revenueDataByMonth: { [key: string]: number } = {};
             for (let i = 5; i >= 0; i--) {
                 const date = subMonths(new Date(), i);
@@ -222,7 +208,7 @@ export default function DashboardPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Link href="/customers">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -254,20 +240,6 @@ export default function DashboardPage() {
               </p>
             </CardContent>
           </Card>
-        </Link>
-        <Link href="/delinquency">
-            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Tagihan Bulan Ini</CardTitle>
-                    <Files className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">Rp{stats.thisMonthTotalBill.toLocaleString('id-ID')}</div>
-                    <p className="text-xs text-muted-foreground">
-                        dari {stats.thisMonthInvoiceCount} faktur diterbitkan
-                    </p>
-                </CardContent>
-            </Card>
         </Link>
         <Link href="/delinquency">
             <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
@@ -324,47 +296,11 @@ export default function DashboardPage() {
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Pembayaran Bulan Ini</CardTitle>
-            <CardDescription>Ringkasan pembayaran yang diterima bulan ini berdasarkan metode.</CardDescription>
+            <CardTitle>Status Pembayaran Faktur (Bulan Ini)</CardTitle>
+            <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
           </CardHeader>
-          <CardContent>
-              <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Metode Pembayaran</TableHead>
-                        <TableHead className="text-right">Total Diterima</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow>
-                        <TableCell className="font-medium">Cash</TableCell>
-                        <TableCell className="text-right">Rp{paymentSummary.cash.toLocaleString('id-ID')}</TableCell>
-                    </TableRow>
-                     <TableRow>
-                        <TableCell className="font-medium">BRI</TableCell>
-                        <TableCell className="text-right">Rp{paymentSummary.bri.toLocaleString('id-ID')}</TableCell>
-                    </TableRow>
-                     <TableRow>
-                        <TableCell className="font-medium">DANA</TableCell>
-                        <TableCell className="text-right">Rp{paymentSummary.dana.toLocaleString('id-ID')}</TableCell>
-                    </TableRow>
-                </TableBody>
-                <TableRow className="bg-muted/50 font-bold text-base">
-                    <TableCell>TOTAL</TableCell>
-                    <TableCell className="text-right">Rp{paymentSummary.total.toLocaleString('id-ID')}</TableCell>
-                </TableRow>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="grid gap-4 md:grid-cols-1">
-        <Card>
-            <CardHeader>
-                <CardTitle>Status Pembayaran Faktur (Bulan Ini)</CardTitle>
-                <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
+          <CardContent className="flex justify-center items-center">
+             <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
                     <Tooltip
                     contentStyle={{
@@ -400,9 +336,11 @@ export default function DashboardPage() {
                     <Legend iconType="circle" />
                 </PieChart>
                 </ResponsiveContainer>
-            </CardContent>
+          </CardContent>
         </Card>
       </div>
     </div>
   )
 }
+
+    
