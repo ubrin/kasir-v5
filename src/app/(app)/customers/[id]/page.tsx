@@ -230,10 +230,6 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <p>Rp{editableCustomer?.packagePrice.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="grid gap-1">
-                    <p className="text-sm font-medium text-muted-foreground">Total Tunggakan</p>
-                    <p>Rp{editableCustomer?.outstandingBalance.toLocaleString('id-ID')}</p>
-                    </div>
-                    <div className="grid gap-1">
                         <p className="text-sm font-medium text-muted-foreground">Tanggal Pemasangan</p>
                         <p>{editableCustomer?.installationDate ? format(parseISO(editableCustomer.installationDate), "d MMMM yyyy", { locale: id }) : '-'}</p>
                     </div>
