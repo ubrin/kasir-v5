@@ -81,8 +81,8 @@ export default function AppSidebar() {
           {menuItems.filter(item => hasAccess(item.roles)).map((item, index) => (
             item.subItems ? (
               <Collapsible key={index} defaultOpen={false}>
-                <CollapsibleTrigger className="w-full">
-                   <SidebarMenuButton className="w-full justify-between" variant="ghost" asChild={false} tooltip={{children: item.label}}>
+                <CollapsibleTrigger asChild className="w-full">
+                   <SidebarMenuButton className="w-full justify-between" variant="ghost" tooltip={{children: item.label}}>
                       <div className="flex items-center gap-2">
                         <item.icon className="h-5 w-5" />
                         <span>{item.label}</span>
