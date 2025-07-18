@@ -264,20 +264,26 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <TableHead className="text-right">Total Tagihan</TableHead>
                 <TableHead className="text-right">Diskon</TableHead>
                 <TableHead className="text-right">Jumlah Dibayar</TableHead>
+                <TableHead className="text-right">Kekurangan</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customerPayments.length > 0 ? customerPayments.map((payment) => (
+              {customerPayments.length > 0 ? customerPayments.map((payment) => {
+                const shortfall = (payment.totalBill - payment.discount) - payment.paidAmount;
+                return (
                 <TableRow key={payment.id}>
                   <TableCell className="font-medium">{format(parseISO(payment.paymentDate), "d MMMM yyyy", { locale: id })}</TableCell>
                   <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
                   <TableCell className="text-right">Rp{payment.totalBill.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-right text-green-600">Rp{payment.discount.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-right font-semibold">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
+                  <TableCell className={`text-right font-semibold ${shortfall > 0 ? 'text-destructive' : ''}`}>
+                    Rp{Math.max(0, shortfall).toLocaleString('id-ID')}
+                  </TableCell>
                 </TableRow>
-              )) : (
+              )}) : (
                 <TableRow>
-                    <TableCell colSpan={5} className="text-center h-24">
+                    <TableCell colSpan={6} className="text-center h-24">
                         Belum ada riwayat pembayaran.
                     </TableCell>
                 </TableRow>
