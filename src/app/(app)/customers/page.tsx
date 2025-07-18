@@ -79,22 +79,22 @@ export default function CustomersPage() {
   }, [fetchCustomers]);
 
   const handleCustomerAdded = async (newCustomerData: Omit<Customer, 'id' | 'outstandingBalance' | 'paymentHistory'>) => {
-    const amountDue = newCustomerData.packagePrice;
-    
-    const customerToAdd = {
-      ...newCustomerData,
-      outstandingBalance: amountDue,
-      paymentHistory: `Didaftarkan pada ${format(new Date(), 'dd/MM/yyyy')}`
-    };
-
     try {
+        // 1. Prepare customer data
+        const customerToAdd = {
+          ...newCustomerData,
+          outstandingBalance: newCustomerData.packagePrice,
+          paymentHistory: `Didaftarkan pada ${format(new Date(), 'dd/MM/yyyy')}`
+        };
+
+        // 2. Add customer document to Firestore
         const docRef = await addDoc(collection(db, "customers"), customerToAdd);
         
-        // Automatically create the first invoice
-        if (amountDue > 0) {
+        // 3. If there's a package price, create the first invoice
+        if (newCustomerData.packagePrice > 0) {
             const today = new Date();
             const dueDate = new Date(today.getFullYear(), today.getMonth(), newCustomerData.dueDateCode);
-            // If the due date for this month has already passed, set it for next month
+            
             if (dueDate < today) {
                 dueDate.setMonth(dueDate.getMonth() + 1);
             }
@@ -104,7 +104,7 @@ export default function CustomersPage() {
                 customerName: newCustomerData.name,
                 date: format(today, 'yyyy-MM-dd'),
                 dueDate: format(dueDate, 'yyyy-MM-dd'),
-                amount: amountDue,
+                amount: newCustomerData.packagePrice,
                 status: 'belum lunas',
             };
             await addDoc(collection(db, "invoices"), newInvoice);
