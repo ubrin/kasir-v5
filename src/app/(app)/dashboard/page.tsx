@@ -10,7 +10,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContaine
 import { DollarSign, Users, CreditCard, Activity, Archive, Loader2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { differenceInMonths, getMonth, getYear, parseISO, startOfMonth, endOfMonth, subMonths } from "date-fns"
+import { differenceInMonths, parseISO, startOfMonth, endOfMonth, subMonths } from "date-fns"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,33 +42,40 @@ export default function DashboardPage() {
     const fetchData = React.useCallback(async () => {
         setLoading(true);
         try {
-            const customersSnapshot = await getDocs(collection(db, "customers"));
-            const invoicesSnapshot = await getDocs(collection(db, "invoices"));
-            const paymentsSnapshot = await getDocs(collection(db, "payments"));
+            // Fetch all data in parallel for efficiency
+            const [customersSnapshot, invoicesSnapshot, paymentsSnapshot] = await Promise.all([
+                getDocs(collection(db, "customers")),
+                getDocs(collection(db, "invoices")),
+                getDocs(collection(db, "payments"))
+            ]);
 
             const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
             const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
             const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 
-            // Calculate Stats
+            // --- Process Data Only After All Fetches Succeed ---
+
+            // 1. Calculate Core Stats
             const totalRevenue = payments.reduce((acc, p) => acc + p.totalPayment, 0);
             const outstandingPayments = customers.reduce((acc, c) => acc + c.outstandingBalance, 0);
             const newCustomers = customers.filter(c => c.installationDate && differenceInMonths(new Date(), parseISO(c.installationDate)) < 1).length;
             
-            const delinquentQuery = query(collection(db, "invoices"), where("status", "==", "belum lunas"), where("dueDate", "<", new Date().toISOString().split('T')[0]));
-            const delinquentSnapshot = await getDocs(delinquentQuery);
-            const delinquentAccounts = delinquentSnapshot.size;
-            
+            const delinquentInvoices = invoices.filter(i => 
+                i.status === 'belum lunas' && parseISO(i.dueDate) < new Date()
+            );
+            const delinquentAccounts = new Set(delinquentInvoices.map(i => i.customerId)).size;
+
             setStats({ totalRevenue, outstandingPayments, newCustomers, delinquentAccounts });
 
-            // Pie Chart Data (Current Month)
+            // 2. Pie Chart Data (Current Month)
             const today = new Date();
-            const startOfCurrentMonthISO = startOfMonth(today).toISOString().split('T')[0];
-            const endOfCurrentMonthISO = endOfMonth(today).toISOString().split('T')[0];
+            const startOfCurrentMonth = startOfMonth(today);
+            const endOfCurrentMonth = endOfMonth(today);
 
-            const currentMonthInvoicesQuery = query(collection(db, "invoices"), where("date", ">=", startOfCurrentMonthISO), where("date", "<=", endOfCurrentMonthISO));
-            const currentMonthInvoicesSnapshot = await getDocs(currentMonthInvoicesQuery);
-            const currentMonthInvoices = currentMonthInvoicesSnapshot.docs.map(doc => doc.data() as Invoice);
+            const currentMonthInvoices = invoices.filter(invoice => {
+                const invoiceDate = parseISO(invoice.date);
+                return invoiceDate >= startOfCurrentMonth && invoiceDate <= endOfCurrentMonth;
+            });
 
             const paidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'lunas').length;
             const unpaidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'belum lunas').length;
@@ -78,13 +85,12 @@ export default function DashboardPage() {
                 { name: 'Belum Lunas', value: unpaidInvoicesCurrentMonth },
             ]);
 
-            // Payment Summary (Current Month)
-            const startOfCurrentMonth = startOfMonth(today);
-            const endOfCurrentMonth = endOfMonth(today);
+            // 3. Payment Summary (Current Month)
             const monthlyPayments = payments.filter(payment => {
               const paymentDate = parseISO(payment.paymentDate);
               return paymentDate >= startOfCurrentMonth && paymentDate <= endOfCurrentMonth;
             });
+
             const summary = monthlyPayments.reduce(
               (acc, payment) => {
                 acc[payment.paymentMethod] = (acc[payment.paymentMethod] || 0) + payment.totalPayment;
@@ -95,24 +101,24 @@ export default function DashboardPage() {
             );
             setPaymentSummary(summary);
 
-            // Revenue Chart Data (Last 6 months)
+            // 4. Revenue Chart Data (Last 6 months)
             const revenueDataByMonth: { [key: string]: number } = {};
             for (let i = 5; i >= 0; i--) {
                 const date = subMonths(new Date(), i);
                 const monthName = date.toLocaleString('id-ID', { month: 'short' });
                 revenueDataByMonth[monthName] = 0;
             }
+
             payments.forEach(p => {
                 const paymentDate = parseISO(p.paymentDate);
-                 if (differenceInMonths(new Date(), paymentDate) < 6) {
+                if (differenceInMonths(new Date(), paymentDate) < 6) {
                     const monthName = paymentDate.toLocaleString('id-ID', { month: 'short' });
                     if (revenueDataByMonth.hasOwnProperty(monthName)) {
                         revenueDataByMonth[monthName] += p.totalPayment;
                     }
                 }
             });
-             setMonthlyRevenueData(Object.keys(revenueDataByMonth).map(month => ({ month, revenue: revenueDataByMonth[month] })));
-
+            setMonthlyRevenueData(Object.keys(revenueDataByMonth).map(month => ({ month, revenue: revenueDataByMonth[month] })));
 
         } catch (error) {
             console.error("Failed to fetch dashboard data:", error);
@@ -250,7 +256,7 @@ export default function DashboardPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{stats.delinquentAccounts}</div>
+            <div className="text-2xl font-bold">{stats.delinquentAccounts}</div>
             <p className="text-xs text-muted-foreground">
               Total pelanggan jatuh tempo
             </p>
@@ -356,7 +362,7 @@ export default function DashboardPage() {
                         const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
                         const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
                         const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-                        if (!percent) return null;
+                        if (!percent || percent < 0.01) return null; // Hide label if value is too small
                         return (
                         <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central">
                             {`${(percent * 100).toFixed(0)}%`}
@@ -377,3 +383,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
