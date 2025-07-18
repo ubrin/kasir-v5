@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { format } from 'date-fns';
+import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths } from 'date-fns';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = React.useState<Customer[]>([]);
@@ -91,42 +91,55 @@ export default function CustomersPage() {
 
   const handleCustomerAdded = async (newCustomerData: Omit<Customer, 'id' | 'outstandingBalance' | 'paymentHistory'>) => {
     try {
-        // 1. Prepare customer data
-        const customerToAdd = {
-          ...newCustomerData,
-          outstandingBalance: newCustomerData.packagePrice,
-          paymentHistory: `Didaftarkan pada ${format(new Date(), 'dd/MM/yyyy')}`
+        const batch = writeBatch(db);
+        const customerRef = doc(collection(db, "customers"));
+
+        const installationDate = parseISO(newCustomerData.installationDate);
+        const today = new Date();
+        const startOfInstallationMonth = startOfMonth(installationDate);
+        const startOfCurrentMonth = startOfMonth(today);
+        
+        let totalInvoices = 0;
+        if (startOfInstallationMonth <= startOfCurrentMonth) {
+            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, startOfInstallationMonth) + 1;
+        }
+
+        const totalOutstanding = totalInvoices * newCustomerData.packagePrice;
+
+        const customerToAdd: Omit<Customer, 'id'> = {
+            ...newCustomerData,
+            outstandingBalance: totalOutstanding,
+            paymentHistory: `Didaftarkan pada ${format(new Date(), 'dd/MM/yyyy')}`
         };
 
-        // 2. Add customer document to Firestore
-        const docRef = await addDoc(collection(db, "customers"), customerToAdd);
-        
-        // 3. If there's a package price, create the first invoice
-        if (newCustomerData.packagePrice > 0) {
-            const today = new Date();
-            const dueDate = new Date(today.getFullYear(), today.getMonth(), newCustomerData.dueDateCode);
-            
-            if (dueDate < today) {
-                dueDate.setMonth(dueDate.getMonth() + 1);
-            }
+        batch.set(customerRef, customerToAdd);
 
-            const newInvoice: Omit<Invoice, 'id'> = {
-                customerId: docRef.id,
-                customerName: newCustomerData.name,
-                date: format(today, 'yyyy-MM-dd'),
-                dueDate: format(dueDate, 'yyyy-MM-dd'),
-                amount: newCustomerData.packagePrice,
-                status: 'belum lunas',
-            };
-            await addDoc(collection(db, "invoices"), newInvoice);
+        if (newCustomerData.packagePrice > 0 && totalInvoices > 0) {
+            for (let i = 0; i < totalInvoices; i++) {
+                const invoiceMonthDate = addMonths(startOfInstallationMonth, i);
+                const invoiceDueDate = new Date(invoiceMonthDate.getFullYear(), invoiceMonthDate.getMonth(), newCustomerData.dueDateCode);
+
+                const newInvoice: Omit<Invoice, 'id'> = {
+                    customerId: customerRef.id,
+                    customerName: newCustomerData.name,
+                    date: format(invoiceMonthDate, 'yyyy-MM-dd'),
+                    dueDate: format(invoiceDueDate, 'yyyy-MM-dd'),
+                    amount: newCustomerData.packagePrice,
+                    status: 'belum lunas',
+                };
+                const invoiceRef = doc(collection(db, "invoices"));
+                batch.set(invoiceRef, newInvoice);
+            }
         }
         
+        await batch.commit();
+
         toast({
             title: "Pelanggan Ditambahkan",
-            description: `${newCustomerData.name} telah berhasil ditambahkan dan faktur pertama telah dibuat.`,
+            description: `${newCustomerData.name} telah berhasil ditambahkan dan ${totalInvoices} faktur telah dibuat.`,
         });
 
-        fetchCustomers(); // Refresh the list
+        fetchCustomers();
     } catch (error) {
         console.error("Error adding customer: ", error);
         toast({
@@ -136,6 +149,7 @@ export default function CustomersPage() {
         });
     }
   };
+
 
   const handleDeleteClick = (customer: Customer) => {
     setCustomerToDelete(customer);

@@ -5,7 +5,7 @@ import * as React from 'react';
 import Papa from 'papaparse';
 import { db } from '@/lib/firebase';
 import { writeBatch, collection, doc } from 'firebase/firestore';
-import { format, parse } from 'date-fns';
+import { format, parse, differenceInCalendarMonths, addMonths, startOfMonth, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -100,22 +100,33 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
 
         const packagePrice = Number(lowerCaseRow.harga) || 0;
         
-        let installationDateStr = format(new Date(), 'yyyy-MM-dd');
+        let installationDate = new Date();
         if (lowerCaseRow.installationdate) {
             try {
                 // Handle different date formats, default to dd/MM/yyyy
                 const parsedDate = parse(lowerCaseRow.installationdate, 'dd/MM/yyyy', new Date());
                 if (!isNaN(parsedDate.getTime())) {
-                    installationDateStr = format(parsedDate, 'yyyy-MM-dd');
+                    installationDate = parsedDate;
                 } else {
-                    // Try parsing as yyyy-MM-dd
-                    const parsedDate2 = parse(lowerCaseRow.installationdate, 'yyyy-MM-dd', new Date());
-                     if (!isNaN(parsedDate2.getTime())) {
-                        installationDateStr = format(parsedDate2, 'yyyy-MM-dd');
+                    const parsedDateISO = parseISO(lowerCaseRow.installationdate);
+                     if (!isNaN(parsedDateISO.getTime())) {
+                        installationDate = parsedDateISO;
                     }
                 }
             } catch (e) { /* Defaults to today */ }
         }
+        const installationDateStr = format(installationDate, 'yyyy-MM-dd');
+
+        const today = new Date();
+        const startOfInstallationMonth = startOfMonth(installationDate);
+        const startOfCurrentMonth = startOfMonth(today);
+        
+        let totalInvoices = 0;
+        if (startOfInstallationMonth <= startOfCurrentMonth) {
+            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, startOfInstallationMonth) + 1;
+        }
+
+        const totalOutstanding = totalInvoices * packagePrice;
 
         const newCustomer: Omit<Customer, 'id'> = {
           name: lowerCaseRow.nama || 'N/A',
@@ -125,28 +136,28 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
           subscriptionMbps: Number(lowerCaseRow.paket) || 0,
           dueDateCode: Number(lowerCaseRow.kode) || 1,
           packagePrice: packagePrice,
-          outstandingBalance: packagePrice,
+          outstandingBalance: totalOutstanding,
           paymentHistory: `Diimpor pada ${format(new Date(), 'dd/MM/yyyy')}`
         };
         const customerRef = doc(collection(db, 'customers'));
         batch.set(customerRef, newCustomer);
 
-        if (packagePrice > 0) {
-          const today = new Date();
-          const dueDate = new Date(today.getFullYear(), today.getMonth(), newCustomer.dueDateCode);
-           if (dueDate < today) {
-                dueDate.setMonth(dueDate.getMonth() + 1);
+        if (packagePrice > 0 && totalInvoices > 0) {
+            for (let i = 0; i < totalInvoices; i++) {
+                const invoiceMonthDate = addMonths(startOfInstallationMonth, i);
+                const invoiceDueDate = new Date(invoiceMonthDate.getFullYear(), invoiceMonthDate.getMonth(), newCustomer.dueDateCode);
+                
+                const newInvoice: Omit<Invoice, 'id'> = {
+                    customerId: customerRef.id,
+                    customerName: newCustomer.name,
+                    date: format(invoiceMonthDate, 'yyyy-MM-dd'),
+                    dueDate: format(invoiceDueDate, 'yyyy-MM-dd'),
+                    amount: packagePrice,
+                    status: 'belum lunas',
+                };
+                const invoiceRef = doc(collection(db, 'invoices'));
+                batch.set(invoiceRef, newInvoice);
             }
-          const newInvoice: Omit<Invoice, 'id'> = {
-            customerId: customerRef.id,
-            customerName: newCustomer.name,
-            date: format(today, 'yyyy-MM-dd'),
-            dueDate: format(dueDate, 'yyyy-MM-dd'),
-            amount: packagePrice,
-            status: 'belum lunas',
-          };
-          const invoiceRef = doc(collection(db, 'invoices'));
-          batch.set(invoiceRef, newInvoice);
         }
       });
 
