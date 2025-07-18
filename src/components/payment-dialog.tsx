@@ -329,18 +329,10 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                     <div className="grid gap-2">
                         <Label>Saldo</Label>
                         <p className={cn("font-semibold text-lg", paymentDifference < 0 ? "text-destructive" : "text-green-600")}>
-                           {paymentDifference < 0 ? '-' : ''}Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}
+                           {paymentDifference < 0 ? '- ' : ''}Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}
                         </p>
                     </div>
                 </div>
-                
-                 {paymentDifference > 0 && (
-                    <div className="grid gap-2 col-span-2">
-                         <p className="text-xs text-muted-foreground">
-                            Kelebihan pembayaran (Rp{paymentDifference.toLocaleString('id-ID')}) akan ditambahkan ke saldo deposit pelanggan.
-                        </p>
-                    </div>
-                 )}
 
                 <div className="mt-4 rounded-lg border bg-secondary/50 p-4">
                     <div className="flex justify-between items-center">
