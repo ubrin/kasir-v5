@@ -289,7 +289,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                    <TableCell className={`text-right font-semibold`}>
                     {difference < 0 ? (
                       <span className="text-destructive">
-                        Kekurangan: Rp{Math.abs(difference).toLocaleString('id-ID')}
+                        Kekurangan: -Rp{Math.abs(difference).toLocaleString('id-ID')}
                       </span>
                     ) : difference > 0 ? (
                       <span className="text-blue-600">
