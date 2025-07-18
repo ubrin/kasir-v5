@@ -1,8 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CreditCard, BarChart3, Users } from "lucide-react";
+import { CreditCard, BarChart3, Users, LayoutDashboard } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -16,7 +17,7 @@ export default function HomePage() {
         </div>
       </div>
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Link href="/delinquency">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center gap-4">
@@ -52,6 +53,19 @@ export default function HomePage() {
               <div>
                 <CardTitle>Data Pelanggan</CardTitle>
                 <CardDescription>Akses dan kelola informasi semua pelanggan.</CardDescription>
+              </div>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Link href="/dashboard">
+          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center gap-4">
+              <div className="bg-primary text-primary-foreground p-3 rounded-md">
+                <LayoutDashboard className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle>Keuangan</CardTitle>
+                <CardDescription>Lihat ringkasan dan statistik keuangan.</CardDescription>
               </div>
             </CardHeader>
           </Card>

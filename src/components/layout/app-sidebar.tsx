@@ -35,7 +35,6 @@ const menuItems = [
       { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
     ]
   },
-  { href: '/dashboard', label: 'Keuangan', icon: LayoutDashboard, roles: ['admin'] },
 ];
 
 export default function AppSidebar() {
