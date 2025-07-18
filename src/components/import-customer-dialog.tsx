@@ -22,6 +22,7 @@ import { FileUp, Loader2 } from 'lucide-react';
 import type { Customer, Invoice } from '@/lib/types';
 import { ScrollArea } from './ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface ImportCustomerDialogProps {
   onSuccess: () => void;
@@ -102,9 +103,16 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         let installationDateStr = format(new Date(), 'yyyy-MM-dd');
         if (lowerCaseRow.installationdate) {
             try {
+                // Handle different date formats, default to dd/MM/yyyy
                 const parsedDate = parse(lowerCaseRow.installationdate, 'dd/MM/yyyy', new Date());
                 if (!isNaN(parsedDate.getTime())) {
                     installationDateStr = format(parsedDate, 'yyyy-MM-dd');
+                } else {
+                    // Try parsing as yyyy-MM-dd
+                    const parsedDate2 = parse(lowerCaseRow.installationdate, 'yyyy-MM-dd', new Date());
+                     if (!isNaN(parsedDate2.getTime())) {
+                        installationDateStr = format(parsedDate2, 'yyyy-MM-dd');
+                    }
                 }
             } catch (e) { /* Defaults to today */ }
         }
@@ -173,6 +181,12 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
             Pilih file CSV. Header wajib: <strong>nama, alamat, harga</strong>. Header opsional: <strong>kode, paket, phone, installationDate</strong> (format dd/MM/yyyy).
           </DialogDescription>
         </DialogHeader>
+        <Alert>
+          <AlertTitle>File Contoh</AlertTitle>
+          <AlertDescription>
+              Saya telah menyiapkan file `public/customers-to-import.csv` yang bisa langsung Anda gunakan untuk mengimpor data contoh.
+          </AlertDescription>
+        </Alert>
         <div className="grid gap-4 py-4">
           <Input id="csvFile" type="file" accept=".csv" onChange={handleFileChange} />
           {error && <p className="text-sm text-destructive">{error}</p>}

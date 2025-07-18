@@ -173,7 +173,7 @@ export default function DelinquencyPage() {
             
             // 2. Calculate amounts
             const totalBilledAmountToClear = invoicesToPay.reduce((sum, inv) => sum + inv.amount, 0);
-            const discountAmount = paymentDetails.discount; // Already calculated in dialog
+            const discountAmount = paymentDetails.discount; 
             let creditedAmount = paymentDetails.paidAmount;
     
             // 3. Create a new payment record
@@ -217,7 +217,6 @@ export default function DelinquencyPage() {
                 outstandingBalance: increment(-balanceReduction)
             };
 
-            // Add any change (overpayment) to the customer's credit balance
             if (newPayment.changeAmount > 0) {
                 customerUpdates.creditBalance = increment(newPayment.changeAmount);
             }
