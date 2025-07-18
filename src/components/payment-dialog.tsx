@@ -132,7 +132,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     const paymentDetails = {
       ...data,
       billToPay,
-      totalPayment,
+      totalPayment: totalPayment,
+      paidAmount: data.paidAmount,
       changeAmount: Math.max(0, paymentDifference),
       shortageAmount: Math.max(0, -paymentDifference),
       discount: discountAmount,
@@ -141,6 +142,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     setOpen(false);
     reset();
   };
+
 
   React.useEffect(() => {
     if (open) {

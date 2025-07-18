@@ -83,18 +83,21 @@ export default function DelinquencyPage() {
 
             for (const customerId of Array.from(delinquentCustomerIds)) {
                 const customer = allCustomers.find(c => c.id === customerId);
-                if (customer && customer.outstandingBalance > 0) {
+                if (customer) { // We care about any customer with an unpaid invoice
                     const customerInvoices = overdueInvoices.filter(inv => inv.customerId === customerId);
-                    const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
-                    const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
+                    if (customerInvoices.length > 0) {
+                        const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
+                        const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
+                        const overdueAmount = customerInvoices.reduce((sum, inv) => sum + inv.amount, 0);
 
-                    delinquentsMap[customerId] = {
-                        ...customer,
-                        overdueAmount: customer.outstandingBalance, // Use the definitive outstandingBalance
-                        overdueInvoicesCount: customerInvoices.length,
-                        nearestDueDate: nearestDueDate,
-                        invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
-                    };
+                        delinquentsMap[customerId] = {
+                            ...customer,
+                            overdueAmount: overdueAmount,
+                            overdueInvoicesCount: customerInvoices.length,
+                            nearestDueDate: nearestDueDate,
+                            invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
+                        };
+                    }
                 }
             }
 
@@ -111,6 +114,7 @@ export default function DelinquencyPage() {
             setLoading(false);
         }
     }, [toast]);
+
 
     React.useEffect(() => {
         fetchDelinquentData();
