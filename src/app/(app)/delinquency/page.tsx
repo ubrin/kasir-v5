@@ -12,6 +12,7 @@ import {
   addDoc,
   updateDoc,
   increment,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -170,33 +171,33 @@ export default function DelinquencyPage() {
                 changeAmount: paymentDetails.changeAmount,
             };
             batch.set(newPaymentRef, newPayment);
-
-            // 2. Update invoice statuses and amounts
-            let amountPaid = paymentDetails.paidAmount;
-            const totalToPay = paymentDetails.totalPayment;
             
-            const selectedInvoicesToProcess = delinquentCustomersList
-                .find(c => c.id === customerId)?.invoices
+            // 2. Fetch all customer invoices to handle payments correctly
+            const customerDoc = await getDoc(doc(db, "customers", customerId));
+            const customerData = customerDoc.data() as Customer;
+            
+            let amountToDistribute = paymentDetails.totalPayment;
+
+            const invoicesToPayQuery = query(collection(db, "invoices"), where("customerId", "==", customerId), where("status", "==", "belum lunas"));
+            const invoicesSnapshot = await getDocs(invoicesToPayQuery);
+            const unpaidInvoices = invoicesSnapshot.docs
+                .map(d => ({...d.data(), id: d.id } as Invoice))
                 .filter(inv => paymentDetails.selectedInvoices.includes(inv.id))
-                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) || [];
-        
-            if (amountPaid >= totalToPay) {
-                selectedInvoicesToProcess.forEach(invoice => {
-                    const invoiceRef = doc(db, "invoices", invoice.id);
-                    batch.update(invoiceRef, { status: 'lunas' });
-                });
-            } else {
-                 for (const invoice of selectedInvoicesToProcess) {
-                    const invoiceRef = doc(db, "invoices", invoice.id);
-                    if (amountPaid >= invoice.amount) {
-                        amountPaid -= invoice.amount;
-                        batch.update(invoiceRef, { status: 'lunas' });
-                    } else {
-                        batch.update(invoiceRef, { amount: invoice.amount - amountPaid });
-                        amountPaid = 0;
-                        break; 
-                    }
+                .sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+
+
+            for (const invoice of unpaidInvoices) {
+                if (amountToDistribute <= 0) break;
+
+                const invoiceRef = doc(db, "invoices", invoice.id);
+                const paymentForThisInvoice = Math.min(amountToDistribute, invoice.amount);
+
+                if (paymentForThisInvoice >= invoice.amount) {
+                    batch.update(invoiceRef, { status: "lunas" });
+                } else {
+                    batch.update(invoiceRef, { amount: increment(-paymentForThisInvoice) });
                 }
+                amountToDistribute -= paymentForThisInvoice;
             }
 
             // 3. Update customer's outstanding balance
@@ -377,3 +378,5 @@ export default function DelinquencyPage() {
     </div>
   )
 }
+
+    
