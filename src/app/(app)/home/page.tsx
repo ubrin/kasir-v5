@@ -3,16 +3,28 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CreditCard, BarChart3, Users } from "lucide-react";
+import { CreditCard, BarChart3, Users, Download } from "lucide-react";
+import { usePwaInstall } from '@/hooks/use-pwa-install';
+import { Button } from '@/components/ui/button';
 
 export default function HomePage() {
+  const { installPrompt, canInstall } = usePwaInstall();
+
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Selamat Datang!</h1>
-        <p className="text-muted-foreground">
-          Pilih menu di bawah untuk mulai mengelola bisnis Anda.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold tracking-tight">Selamat Datang!</h1>
+            <p className="text-muted-foreground">
+            Pilih menu di bawah untuk mulai mengelola bisnis Anda.
+            </p>
+        </div>
+        {canInstall && (
+          <Button onClick={installPrompt} size="lg">
+            <Download className="mr-2 h-5 w-5" />
+            Instal Aplikasi
+          </Button>
+        )}
       </div>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
