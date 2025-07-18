@@ -208,11 +208,22 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             ) : (
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="grid gap-1">
-                    <p className="text-sm font-medium text-muted-foreground">Status</p>
-                    <Badge variant={editableCustomer?.outstandingBalance ?? 0 > 0 ? "destructive" : "secondary"} className={`${editableCustomer?.outstandingBalance ?? 0 > 0 ? "" : "bg-green-100 text-green-800"} w-fit`}>
-                        {editableCustomer?.outstandingBalance ?? 0 > 0 ? "Belum Lunas" : "Lunas"}
-                    </Badge>
+                        <p className="text-sm font-medium text-muted-foreground">Status</p>
+                        <Badge variant={editableCustomer?.outstandingBalance ?? 0 > 0 ? "destructive" : "secondary"} className={`${editableCustomer?.outstandingBalance ?? 0 > 0 ? "" : "bg-green-100 text-green-800"} w-fit`}>
+                            {editableCustomer?.outstandingBalance ?? 0 > 0 ? "Belum Lunas" : "Lunas"}
+                        </Badge>
                     </div>
+                    {(editableCustomer?.outstandingBalance ?? 0) > 0 ? (
+                        <div className="grid gap-1">
+                            <p className="text-sm font-medium text-muted-foreground">Tunggakan</p>
+                            <p className="font-semibold text-destructive">Rp{(editableCustomer?.outstandingBalance ?? 0).toLocaleString('id-ID')}</p>
+                        </div>
+                    ) : (editableCustomer?.creditBalance ?? 0) > 0 ? (
+                        <div className="grid gap-1">
+                            <p className="text-sm font-medium text-muted-foreground">Saldo</p>
+                            <p className="font-semibold text-blue-600">Rp{(editableCustomer?.creditBalance ?? 0).toLocaleString('id-ID')}</p>
+                        </div>
+                    ) : null}
                     <div className="grid gap-1">
                     <p className="text-sm font-medium text-muted-foreground">Alamat</p>
                     <p>{editableCustomer?.address}</p>
@@ -278,11 +289,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                    <TableCell className={`text-right font-semibold`}>
                     {difference < 0 ? (
                       <span className="text-destructive">
-                        -Rp{Math.abs(difference).toLocaleString('id-ID')}
+                        Kekurangan: Rp{Math.abs(difference).toLocaleString('id-ID')}
                       </span>
                     ) : difference > 0 ? (
                       <span className="text-blue-600">
-                        Rp{difference.toLocaleString('id-ID')}
+                        Saldo: Rp{difference.toLocaleString('id-ID')}
                       </span>
                     ) : (
                       'Rp0'
