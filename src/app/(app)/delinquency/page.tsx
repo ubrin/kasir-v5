@@ -154,7 +154,7 @@ export default function DelinquencyPage() {
     const handlePaymentSuccess = async (customerId: string, customerName: string, paymentDetails: any) => {
         try {
             const batch = writeBatch(db);
-
+    
             // 1. Fetch selected invoices to be paid
             const selectedInvoicesQuery = query(
                 collection(db, "invoices"),
@@ -174,9 +174,7 @@ export default function DelinquencyPage() {
             // 2. Calculate amounts
             const totalBilledAmountToClear = invoicesToPay.reduce((sum, inv) => sum + inv.amount, 0);
             let totalCredited = paymentDetails.paidAmount + paymentDetails.discount;
-            let balanceReduction = 0;
-
-
+    
             // 3. Create a new payment record
             const newPaymentRef = doc(collection(db, "payments"));
             const newPayment: Omit<Payment, 'id'> = {
@@ -193,28 +191,31 @@ export default function DelinquencyPage() {
             };
             batch.set(newPaymentRef, newPayment);
             
-            // 4. Update invoices
+            // 4. Update invoices and calculate balance reduction
+            let balanceReduction = 0;
             for (const invoice of invoicesToPay) {
                 const invoiceRef = doc(db, "invoices", invoice.id);
-                if (totalCredited >= invoice.amount) {
-                    batch.update(invoiceRef, { status: "lunas" });
-                    balanceReduction += invoice.amount;
-                    totalCredited -= invoice.amount;
+                const amountToClearForThisInvoice = invoice.amount;
+    
+                if (totalCredited >= amountToClearForThisInvoice) {
+                    batch.update(invoiceRef, { status: "lunas", amount: 0 }); // Set amount to 0 for clarity
+                    balanceReduction += amountToClearForThisInvoice;
+                    totalCredited -= amountToClearForThisInvoice;
                 } else {
-                    const remainingAmount = invoice.amount - totalCredited;
+                    const remainingAmount = amountToClearForThisInvoice - totalCredited;
                     batch.update(invoiceRef, { amount: remainingAmount });
-                    balanceReduction += totalCredited; // Reduce balance by the amount paid
+                    balanceReduction += totalCredited;
                     totalCredited = 0;
                 }
                 if (totalCredited <= 0) break;
             }
-
-            // 5. Update the customer's outstanding balance
+    
+            // 5. Update the customer's outstanding balance correctly
             const customerRef = doc(db, "customers", customerId);
             batch.update(customerRef, {
                 outstandingBalance: increment(-balanceReduction)
             });
-
+    
             // 6. Commit all changes
             await batch.commit();
         
