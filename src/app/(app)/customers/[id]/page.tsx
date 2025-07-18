@@ -58,7 +58,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             setCustomerInvoices(invoicesList);
 
             // Process payments
-            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)).sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.date).getTime());
+            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)).sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.paymentDate).getTime());
             setCustomerPayments(paymentsList);
 
         } catch (error) {
