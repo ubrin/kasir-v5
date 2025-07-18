@@ -122,7 +122,6 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         const startOfInstallationMonth = startOfMonth(installationDate);
         const startOfCurrentMonth = startOfMonth(today);
 
-        // Calculate first due date to check grace period
         const installationDay = getDate(installationDate);
         let firstDueDate;
         if (installationDay < dueDateCode) {
@@ -133,7 +132,6 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         
         const daysToFirstDueDate = differenceInDays(firstDueDate, installationDate);
         
-        // Determine the actual start month for invoicing
         let invoiceStartDate = startOfInstallationMonth;
         if (daysToFirstDueDate <= 25) {
             invoiceStartDate = addMonths(startOfInstallationMonth, 1);

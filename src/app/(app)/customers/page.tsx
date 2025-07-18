@@ -99,7 +99,6 @@ export default function CustomersPage() {
         const startOfInstallationMonth = startOfMonth(installationDate);
         const startOfCurrentMonth = startOfMonth(today);
 
-        // Calculate first due date to check grace period
         const installationDay = getDate(installationDate);
         let firstDueDate;
         if (installationDay < newCustomerData.dueDateCode) {
@@ -110,7 +109,6 @@ export default function CustomersPage() {
 
         const daysToFirstDueDate = differenceInDays(firstDueDate, installationDate);
         
-        // Determine the actual start month for invoicing
         let invoiceStartDate = startOfInstallationMonth;
         if (daysToFirstDueDate <= 25) {
             invoiceStartDate = addMonths(startOfInstallationMonth, 1);
@@ -178,18 +176,15 @@ export default function CustomersPage() {
     try {
         const batch = writeBatch(db);
 
-        // Delete customer document
         const customerDocRef = doc(db, "customers", customerToDelete.id);
         batch.delete(customerDocRef);
 
-        // Find and delete associated invoices
         const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", customerToDelete.id));
         const invoicesSnapshot = await getDocs(invoicesQuery);
         invoicesSnapshot.forEach(doc => {
             batch.delete(doc.ref);
         });
 
-        // Find and delete associated payments
         const paymentsQuery = query(collection(db, "payments"), where("customerId", "==", customerToDelete.id));
         const paymentsSnapshot = await getDocs(paymentsQuery);
         paymentsSnapshot.forEach(doc => {
@@ -205,7 +200,7 @@ export default function CustomersPage() {
         });
 
         setCustomerToDelete(null);
-        fetchCustomers(); // Refresh list
+        fetchCustomers();
     } catch (error) {
         console.error("Error deleting customer and associated data:", error);
         toast({
