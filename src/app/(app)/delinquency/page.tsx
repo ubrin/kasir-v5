@@ -185,34 +185,25 @@ export default function DelinquencyPage() {
                 .sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
 
             // 3. Logic to handle payment distribution (including discounts)
-            let totalAmountToCredit = paymentDetails.totalPayment; // Amount paid by customer
-            let totalBilledAmountPaid = 0; // The original value of the invoices being paid off
+            let totalAmountToCredit = paymentDetails.paidAmount; // Actual money received from customer
+            let totalBilledAmountToClear = 0; // The original value of the invoices being paid off
 
             for (const invoice of unpaidInvoices) {
-                if (totalAmountToCredit <= 0) break;
-
                 const invoiceRef = doc(db, "invoices", invoice.id);
                 const originalInvoiceAmount = invoice.amount;
                 
-                // If payment covers the whole invoice (or more)
-                if (totalAmountToCredit >= originalInvoiceAmount) {
-                    batch.update(invoiceRef, { status: "lunas" });
-                    totalAmountToCredit -= originalInvoiceAmount;
-                    totalBilledAmountPaid += originalInvoiceAmount;
-                } else { // Partial payment for this invoice
-                    batch.update(invoiceRef, { amount: increment(-totalAmountToCredit) });
-                    totalBilledAmountPaid += totalAmountToCredit;
-                    totalAmountToCredit = 0; // All payment used up
-                }
+                // If payment and discount together cover the whole invoice
+                // This logic is simplified: we assume selected invoices are intended to be paid in full
+                // A more complex system would handle partial payment across multiple selected invoices
+                batch.update(invoiceRef, { status: "lunas" });
+                totalBilledAmountToClear += originalInvoiceAmount;
             }
 
-            // Also account for the discount as part of the "paid" amount from the customer's balance perspective
-            totalBilledAmountPaid += paymentDetails.discount;
 
             // 4. Update the customer's outstanding balance
             const customerRef = doc(db, "customers", customerId);
             batch.update(customerRef, {
-                outstandingBalance: increment(-totalBilledAmountPaid)
+                outstandingBalance: increment(-totalBilledAmountToClear)
             });
 
             // 5. Commit all changes
