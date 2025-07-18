@@ -197,7 +197,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Dasbor</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Statistik</h1>
          <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline">
@@ -358,5 +358,7 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
 
     
