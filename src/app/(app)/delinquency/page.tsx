@@ -34,7 +34,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select"
-import { differenceInDays, parseISO, format, subMonths } from "date-fns";
+import { differenceInDays, parseISO, format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { Button } from "@/components/ui/button";
@@ -152,30 +152,35 @@ export default function DelinquencyPage() {
     };
 
     const handlePaymentSuccess = async (customerId: string, customerName: string, paymentDetails: any) => {
-        
         try {
             const batch = writeBatch(db);
 
-            // 1. Fetch the selected invoices to be paid
-            const selectedUnpaidInvoicesQuery = query(
-                collection(db, "invoices"), 
-                where("customerId", "==", customerId), 
+            // 1. Fetch selected invoices to be paid
+            const selectedInvoicesQuery = query(
+                collection(db, "invoices"),
+                where("customerId", "==", customerId),
                 where("__name__", "in", paymentDetails.selectedInvoices.length > 0 ? paymentDetails.selectedInvoices : ["dummy-id"])
             );
-
-            const invoicesSnapshot = await getDocs(selectedUnpaidInvoicesQuery);
+            const invoicesSnapshot = await getDocs(selectedInvoicesQuery);
             const invoicesToPay = invoicesSnapshot.docs
-                .map(d => ({...d.data(), id: d.id } as Invoice))
-                .sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+                .map(d => ({ ...d.data(), id: d.id } as Invoice))
+                .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
             
-            // 2. Calculate amounts based on user's logic
+            if (invoicesToPay.length === 0) {
+                toast({ title: "Tidak ada faktur dipilih", variant: "destructive" });
+                return;
+            }
+            
+            // 2. Calculate amounts
             const totalBilledAmountToClear = invoicesToPay.reduce((sum, inv) => sum + inv.amount, 0);
             const discountAmount = Math.floor(totalBilledAmountToClear * ((paymentDetails.discount || 0) / 100));
+            const totalPaymentDue = totalBilledAmountToClear - discountAmount;
             
-            // Total credit is the amount paid plus the discount value
+            // Total amount to credit against invoices
             let totalCredited = paymentDetails.paidAmount + discountAmount;
             
-            const totalPaymentAfterDiscount = totalBilledAmountToClear - discountAmount;
+            // Amount to reduce from customer's outstanding balance
+            const balanceReduction = totalBilledAmountToClear;
 
             // 3. Create a new payment record
             const newPaymentRef = doc(collection(db, "payments"));
@@ -188,32 +193,29 @@ export default function DelinquencyPage() {
                 invoiceIds: paymentDetails.selectedInvoices,
                 totalBill: totalBilledAmountToClear,
                 discount: discountAmount,
-                totalPayment: totalPaymentAfterDiscount,
-                changeAmount: Math.max(0, paymentDetails.paidAmount - totalPaymentAfterDiscount),
+                totalPayment: totalPaymentDue,
+                changeAmount: Math.max(0, paymentDetails.paidAmount - totalPaymentDue),
             };
             batch.set(newPaymentRef, newPayment);
             
-            // 4. Update invoices based on the credited amount
+            // 4. Update invoices
             for (const invoice of invoicesToPay) {
                 const invoiceRef = doc(db, "invoices", invoice.id);
                 if (totalCredited >= invoice.amount) {
-                    // If credit can fully pay this invoice, mark as 'lunas'
-                    batch.update(invoiceRef, { status: "lunas", amount: 0 });
+                    batch.update(invoiceRef, { status: "lunas" });
                     totalCredited -= invoice.amount;
                 } else {
-                    // If credit can only partially pay, update the remaining amount
                     const remainingAmount = invoice.amount - totalCredited;
                     batch.update(invoiceRef, { amount: remainingAmount });
                     totalCredited = 0;
                 }
-                if (totalCredited <= 0) break; // Stop if no more credit left
+                if (totalCredited <= 0) break;
             }
 
             // 5. Update the customer's outstanding balance
-            // The balance is reduced by the total amount of the original selected invoices that are now considered paid off
             const customerRef = doc(db, "customers", customerId);
             batch.update(customerRef, {
-                outstandingBalance: increment(-(paymentDetails.paidAmount + discountAmount))
+                outstandingBalance: increment(-balanceReduction)
             });
 
             // 6. Commit all changes
@@ -388,5 +390,3 @@ export default function DelinquencyPage() {
     </div>
   )
 }
-
-    
