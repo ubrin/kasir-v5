@@ -1,12 +1,13 @@
+
 {
   "theme_color": "#3F51B5",
   "background_color": "#ffffff",
   "display": "standalone",
   "scope": "/",
-  "start_url": "/",
-  "name": "APP GANTENG",
-  "short_name": "APP GANTENG",
-  "description": "Aplikasi untuk mengelola pelanggan dan tagihan internet.",
+  "start_url": "/home",
+  "name": "InvoiceFlow",
+  "short_name": "InvoiceFlow",
+  "description": "Kelola pelanggan dan penagihan dengan wawasan bertenaga AI.",
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -26,7 +27,8 @@
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

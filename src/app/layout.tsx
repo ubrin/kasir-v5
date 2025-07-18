@@ -4,15 +4,23 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 
+const APP_NAME = "InvoiceFlow";
+const APP_DESCRIPTION = "Kelola pelanggan dan penagihan dengan wawasan bertenaga AI.";
+
 export const metadata: Metadata = {
-  title: 'InvoiceFlow',
-  description: 'Kelola pelanggan dan penagihan dengan wawasan bertenaga AI.',
-  manifest: '/manifest.json',
+  applicationName: APP_NAME,
+  title: APP_NAME,
+  description: APP_DESCRIPTION,
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "InvoiceFlow",
+    title: APP_NAME,
   },
+  formatDetection: {
+    telephone: false,
+  },
+  themeColor: "#3F51B5",
 };
 
 export default function RootLayout({
@@ -26,8 +34,6 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></link>
-        <meta name="theme-color" content="#3F51B5" />
-        <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
