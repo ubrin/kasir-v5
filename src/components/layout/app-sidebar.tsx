@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -26,6 +26,7 @@ import { useAuth } from '@/context/auth-context';
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
   { href: '/dashboard', label: 'Statistik', icon: LayoutDashboard, roles: ['admin'] },
+  { href: '/monthly-bookkeeping', label: 'Pembukuan Bulanan', icon: BookText, roles: ['admin'] },
   {
     label: 'Transaksi',
     icon: Package,
@@ -80,7 +81,7 @@ export default function AppSidebar() {
         <SidebarMenu>
           {menuItems.filter(item => hasAccess(item.roles)).map((item, index) => (
             item.subItems ? (
-              <Collapsible key={index} defaultOpen={false}>
+              <Collapsible key={index} defaultOpen={pathname.startsWith('/delinquency') || pathname.startsWith('/payment-report') || pathname.startsWith('/customers')}>
                 <CollapsibleTrigger asChild className="w-full">
                    <SidebarMenuButton className="w-full justify-between" variant="ghost" tooltip={{children: item.label}}>
                       <div className="flex items-center gap-2">
@@ -137,5 +138,3 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
