@@ -34,7 +34,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select"
-import { differenceInDays, parseISO, format } from "date-fns";
+import { differenceInDays, parseISO, format, subMonths } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { Button } from "@/components/ui/button";
@@ -156,6 +156,7 @@ export default function DelinquencyPage() {
         try {
             const batch = writeBatch(db);
 
+            // 1. Create a new payment record
             const newPaymentRef = doc(collection(db, "payments"));
             const newPayment: Omit<Payment, 'id'> = {
                 customerId: customerId,
@@ -171,13 +172,11 @@ export default function DelinquencyPage() {
             };
             batch.set(newPaymentRef, newPayment);
             
-            let amountToDistribute = paymentDetails.totalPayment;
-
+            // 2. Fetch the selected invoices to be paid
             const selectedUnpaidInvoicesQuery = query(
                 collection(db, "invoices"), 
                 where("customerId", "==", customerId), 
-                where("status", "==", "belum lunas"),
-                where("__name__", "in", paymentDetails.selectedInvoices.length > 0 ? paymentDetails.selectedInvoices : ["dummy-id"]) // Prevent error on empty array
+                where("__name__", "in", paymentDetails.selectedInvoices.length > 0 ? paymentDetails.selectedInvoices : ["dummy-id"])
             );
 
             const invoicesSnapshot = await getDocs(selectedUnpaidInvoicesQuery);
@@ -185,26 +184,38 @@ export default function DelinquencyPage() {
                 .map(d => ({...d.data(), id: d.id } as Invoice))
                 .sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
 
+            // 3. Logic to handle payment distribution (including discounts)
+            let totalAmountToCredit = paymentDetails.totalPayment; // Amount paid by customer
+            let totalBilledAmountPaid = 0; // The original value of the invoices being paid off
 
             for (const invoice of unpaidInvoices) {
-                if (amountToDistribute <= 0) break;
+                if (totalAmountToCredit <= 0) break;
 
                 const invoiceRef = doc(db, "invoices", invoice.id);
-                const paymentForThisInvoice = Math.min(amountToDistribute, invoice.amount);
+                const originalInvoiceAmount = invoice.amount;
                 
-                if (paymentForThisInvoice >= invoice.amount) {
-                    batch.update(invoiceRef, { status: "lunas", amount: invoice.amount }); // Ensure full amount is set for clarity
-                } else {
-                    batch.update(invoiceRef, { amount: increment(-paymentForThisInvoice) });
+                // If payment covers the whole invoice (or more)
+                if (totalAmountToCredit >= originalInvoiceAmount) {
+                    batch.update(invoiceRef, { status: "lunas" });
+                    totalAmountToCredit -= originalInvoiceAmount;
+                    totalBilledAmountPaid += originalInvoiceAmount;
+                } else { // Partial payment for this invoice
+                    batch.update(invoiceRef, { amount: increment(-totalAmountToCredit) });
+                    totalBilledAmountPaid += totalAmountToCredit;
+                    totalAmountToCredit = 0; // All payment used up
                 }
-                amountToDistribute -= paymentForThisInvoice;
             }
 
+            // Also account for the discount as part of the "paid" amount from the customer's balance perspective
+            totalBilledAmountPaid += paymentDetails.discount;
+
+            // 4. Update the customer's outstanding balance
             const customerRef = doc(db, "customers", customerId);
             batch.update(customerRef, {
-                outstandingBalance: increment(-paymentDetails.totalPayment)
+                outstandingBalance: increment(-totalBilledAmountPaid)
             });
 
+            // 5. Commit all changes
             await batch.commit();
         
             toast({
