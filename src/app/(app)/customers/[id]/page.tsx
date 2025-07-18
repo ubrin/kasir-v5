@@ -8,14 +8,13 @@ import type { Customer, Invoice, Payment } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Save, X, Loader2, Receipt } from "lucide-react"
+import { ArrowLeft, Edit, Save, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -59,7 +58,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             setCustomerInvoices(invoicesList);
 
             // Process payments
-            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)).sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.date).getTime());
+            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)).sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.paymentDate).getTime());
             setCustomerPayments(paymentsList);
 
         } catch (error) {
@@ -265,7 +264,6 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <TableHead className="text-right">Total Tagihan</TableHead>
                 <TableHead className="text-right">Diskon</TableHead>
                 <TableHead className="text-right">Jumlah Dibayar</TableHead>
-                <TableHead className="text-center">Struk</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -276,18 +274,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                   <TableCell className="text-right">Rp{payment.totalBill.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-right text-green-600">Rp{payment.discount.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-right font-semibold">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
-                  <TableCell className="text-center">
-                    <Button asChild variant="ghost" size="icon">
-                        <Link href={`/receipt/${payment.id}`}>
-                            <Receipt className="h-4 w-4" />
-                            <span className="sr-only">Lihat Struk</span>
-                        </Link>
-                    </Button>
-                  </TableCell>
                 </TableRow>
               )) : (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">
+                    <TableCell colSpan={5} className="text-center h-24">
                         Belum ada riwayat pembayaran.
                     </TableCell>
                 </TableRow>
