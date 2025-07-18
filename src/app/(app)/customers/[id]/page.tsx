@@ -4,23 +4,25 @@ import { useState, useEffect } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Customer, Invoice } from "@/lib/types";
+import type { Customer, Invoice, Payment } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Save, X, Loader2 } from "lucide-react"
+import { ArrowLeft, Edit, Save, X, Loader2, Receipt } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
+  const [customerPayments, setCustomerPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [isEditing, setIsEditing] = useState(false);
@@ -32,10 +34,18 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     const fetchCustomerData = async () => {
         setLoading(true);
         try {
-            // Fetch customer details
+            // Fetch all data in parallel
             const customerDocRef = doc(db, "customers", params.id);
-            const customerDocSnap = await getDoc(customerDocRef);
+            const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", params.id));
+            const paymentsQuery = query(collection(db, "payments"), where("customerId", "==", params.id));
 
+            const [customerDocSnap, invoicesSnapshot, paymentsSnapshot] = await Promise.all([
+                getDoc(customerDocRef),
+                getDocs(invoicesQuery),
+                getDocs(paymentsQuery)
+            ]);
+
+            // Process customer
             if (!customerDocSnap.exists()) {
                 notFound();
                 return;
@@ -44,11 +54,13 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             setCustomer(customerData);
             setEditableCustomer(customerData);
 
-            // Fetch customer invoices
-            const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", params.id));
-            const invoicesSnapshot = await getDocs(invoicesQuery);
+            // Process invoices
             const invoicesList = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice)).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
             setCustomerInvoices(invoicesList);
+
+            // Process payments
+            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)).sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.paymentDate).getTime());
+            setCustomerPayments(paymentsList);
 
         } catch (error) {
             console.error("Error fetching customer data:", error);
@@ -77,7 +89,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     try {
         const customerDocRef = doc(db, "customers", editableCustomer.id);
         // We only update the fields that are editable, preserving others like outstandingBalance
-        const { id, outstandingBalance, ...dataToUpdate } = editableCustomer;
+        const { id, outstandingBalance, paymentHistory, ...dataToUpdate } = editableCustomer;
         await updateDoc(customerDocRef, dataToUpdate);
         
         setCustomer(editableCustomer); // Update the main state
@@ -101,7 +113,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     setIsEditing(false);
   }
 
-  const getBadgeClasses = (status: 'lunas' | 'belum lunas', dueDate: string) => {
+  const getInvoiceBadgeClasses = (status: 'lunas' | 'belum lunas', dueDate: string) => {
     const isOverdue = new Date(dueDate) < new Date() && status === 'belum lunas';
     switch (status) {
       case 'lunas':
@@ -111,7 +123,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     }
   };
 
-  const translateStatus = (status: 'lunas' | 'belum lunas', dueDate: string) => {
+  const translateInvoiceStatus = (status: 'lunas' | 'belum lunas', dueDate: string) => {
     const isOverdue = new Date(dueDate) < new Date() && status === 'belum lunas';
     switch (status) {
       case 'lunas':
@@ -120,6 +132,14 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
         return isOverdue ? 'Jatuh Tempo' : 'Belum Lunas';
     }
   };
+
+  const getMethodBadge = (method: 'cash' | 'bri' | 'dana') => {
+    switch(method) {
+        case 'cash': return <Badge variant="secondary">Cash</Badge>;
+        case 'bri': return <Badge className="bg-blue-600 text-white hover:bg-blue-700">BRI</Badge>;
+        case 'dana': return <Badge className="bg-sky-500 text-white hover:bg-sky-600">DANA</Badge>;
+    }
+  }
 
   if (loading) {
     return (
@@ -230,11 +250,57 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             )}
         </CardContent>
       </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Riwayat Pembayaran</CardTitle>
+          <CardDescription>Rincian transaksi pembayaran yang telah dilakukan oleh {customer.name}.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tanggal Bayar</TableHead>
+                <TableHead>Metode</TableHead>
+                <TableHead className="text-right">Total Tagihan</TableHead>
+                <TableHead className="text-right">Diskon</TableHead>
+                <TableHead className="text-right">Jumlah Dibayar</TableHead>
+                <TableHead className="text-center">Struk</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {customerPayments.length > 0 ? customerPayments.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell className="font-medium">{format(parseISO(payment.paymentDate), "d MMMM yyyy", { locale: id })}</TableCell>
+                  <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
+                  <TableCell className="text-right">Rp{payment.totalBill.toLocaleString('id-ID')}</TableCell>
+                  <TableCell className="text-right text-green-600">Rp{payment.discount.toLocaleString('id-ID')}</TableCell>
+                  <TableCell className="text-right font-semibold">Rp{payment.totalPayment.toLocaleString('id-ID')}</TableCell>
+                  <TableCell className="text-center">
+                    <Button asChild variant="ghost" size="icon">
+                        <Link href={`/receipt/${payment.id}`}>
+                            <Receipt className="h-4 w-4" />
+                            <span className="sr-only">Lihat Struk</span>
+                        </Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )) : (
+                <TableRow>
+                    <TableCell colSpan={6} className="text-center h-24">
+                        Belum ada riwayat pembayaran.
+                    </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
        <Card>
         <CardHeader>
-          <CardTitle>Riwayat Pembayaran</CardTitle>
-          <CardDescription>Rincian pembayaran bulanan untuk {customer.name}.</CardDescription>
+          <CardTitle>Riwayat Faktur</CardTitle>
+          <CardDescription>Rincian faktur bulanan untuk {customer.name}.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -251,15 +317,15 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                   <TableCell className="font-medium">{format(parseISO(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
                   <TableCell className="text-right">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-center">
-                    <Badge variant="outline" className={getBadgeClasses(invoice.status, invoice.dueDate)}>
-                        {translateStatus(invoice.status, invoice.dueDate)}
+                    <Badge variant="outline" className={getInvoiceBadgeClasses(invoice.status, invoice.dueDate)}>
+                        {translateInvoiceStatus(invoice.status, invoice.dueDate)}
                     </Badge>
                   </TableCell>
                 </TableRow>
               )) : (
                 <TableRow>
                     <TableCell colSpan={3} className="text-center h-24">
-                        Tidak ada riwayat pembayaran.
+                        Tidak ada riwayat faktur.
                     </TableCell>
                 </TableRow>
               )}
@@ -270,3 +336,5 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   )
 }
+
+    
