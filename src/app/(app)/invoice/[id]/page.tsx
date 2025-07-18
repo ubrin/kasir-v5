@@ -47,7 +47,7 @@ export default function InvoicePage() {
                 const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", customerId), where("status", "==", "belum lunas"));
                 const invoicesSnapshot = await getDocs(invoicesQuery);
                 const invoicesList = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
-                setCustomerInvoices(invoicesList);
+                setCustomerInvoices(invoicesList.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()));
 
             } catch (error) {
                 console.error("Error fetching invoice data:", error);
@@ -65,7 +65,9 @@ export default function InvoicePage() {
     }, [customerId, toast]);
 
 
-    const totalAmount = customerInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const subTotal = customerInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+    const creditUsed = Math.min(customer?.creditBalance ?? 0, subTotal);
+    const totalAmount = subTotal - creditUsed;
 
     const handleDownloadPdf = () => {
         const input = invoiceRef.current;
@@ -193,9 +195,22 @@ export default function InvoicePage() {
                     </CardContent>
                     <CardFooter className="bg-muted/30 p-6">
                         <div className="w-full">
+                            <div className="space-y-2 text-right">
+                                <div className="flex justify-end items-center">
+                                    <p className="text-muted-foreground mr-4">Subtotal:</p>
+                                    <p className="font-medium w-32">Rp{subTotal.toLocaleString('id-ID')}</p>
+                                </div>
+                                {creditUsed > 0 && (
+                                     <div className="flex justify-end items-center">
+                                        <p className="text-muted-foreground mr-4">Penggunaan Saldo:</p>
+                                        <p className="font-medium text-blue-600 w-32">- Rp{creditUsed.toLocaleString('id-ID')}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <Separator className="my-4"/>
                             <div className="flex justify-end items-center">
                                 <p className="text-lg font-medium mr-4">Total Tagihan:</p>
-                                <p className="text-2xl font-bold text-primary">Rp{totalAmount.toLocaleString('id-ID')}</p>
+                                <p className="text-2xl font-bold text-primary w-32">Rp{totalAmount.toLocaleString('id-ID')}</p>
                             </div>
                             <Separator className="my-4"/>
                             <div className="text-xs text-muted-foreground">
@@ -229,5 +244,3 @@ export default function InvoicePage() {
         </div>
     );
 }
-
-    

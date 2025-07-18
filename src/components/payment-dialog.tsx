@@ -107,6 +107,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   const discountValue = watch('discount') || 0;
   const discountType = watch('discountType');
   const paidAmount = watch('paidAmount') || 0;
+  const creditBalance = customer.creditBalance ?? 0;
 
   const billToPay = React.useMemo(() => {
     return customer.invoices
@@ -121,7 +122,13 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
      return Math.min(billToPay, discountValue); // Ensure discount is not more than the bill
   }, [billToPay, discountValue, discountType]);
 
-  const totalPayment = Math.max(0, billToPay - discountAmount);
+  const billAfterDiscount = billToPay - discountAmount;
+
+  const creditApplied = React.useMemo(() => {
+      return Math.min(creditBalance, billAfterDiscount);
+  }, [creditBalance, billAfterDiscount]);
+
+  const totalPayment = Math.max(0, billAfterDiscount - creditApplied);
   const paymentDifference = paidAmount - totalPayment;
 
   React.useEffect(() => {
@@ -137,6 +144,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       changeAmount: Math.max(0, paymentDifference),
       shortageAmount: Math.max(0, -paymentDifference),
       discount: discountAmount,
+      creditUsed: creditApplied,
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
     setOpen(false);
@@ -271,9 +279,24 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                        <Label>Total Tagihan</Label>
-                        <p className="font-semibold text-lg">Rp{billToPay.toLocaleString('id-ID')}</p>
+                    <div className="grid gap-2 col-span-2">
+                        <Label>Rincian Tagihan</Label>
+                        <div className="border rounded-md p-3 space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span>Total Tagihan</span>
+                                <span className="font-medium">Rp{billToPay.toLocaleString('id-ID')}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Diskon</span>
+                                <span className="font-medium text-green-600">- Rp{discountAmount.toLocaleString('id-ID')}</span>
+                            </div>
+                            {creditApplied > 0 && (
+                                <div className="flex justify-between">
+                                    <span>Saldo Digunakan</span>
+                                    <span className="font-medium text-blue-600">- Rp{creditApplied.toLocaleString('id-ID')}</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="discount">Diskon</Label>
@@ -328,8 +351,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                             )}
                         />
                     </div>
-                    <div className="grid gap-2">
-                        <Label>Saldo</Label>
+                     <div className="grid gap-2 col-span-2">
+                        <Label>Kembalian / Sisa Saldo</Label>
                         <p className={cn("font-semibold text-lg", paymentDifference < 0 ? "text-destructive" : "text-green-600")}>
                            {paymentDifference < 0 ? '- ' : ''}Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}
                         </p>

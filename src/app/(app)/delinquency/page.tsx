@@ -83,16 +83,15 @@ export default function DelinquencyPage() {
 
             for (const customerId of Array.from(delinquentCustomerIds)) {
                 const customer = allCustomers.find(c => c.id === customerId);
-                if (customer) { // We care about any customer with an unpaid invoice
+                 if (customer && customer.outstandingBalance > 0) { // Only show customers with actual outstanding balance
                     const customerInvoices = overdueInvoices.filter(inv => inv.customerId === customerId);
                     if (customerInvoices.length > 0) {
                         const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
                         const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
-                        const overdueAmount = customerInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-
+                        
                         delinquentsMap[customerId] = {
                             ...customer,
-                            overdueAmount: overdueAmount,
+                            overdueAmount: customer.outstandingBalance, // Use the accurate balance from customer doc
                             overdueInvoicesCount: customerInvoices.length,
                             nearestDueDate: nearestDueDate,
                             invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
@@ -167,7 +166,8 @@ export default function DelinquencyPage() {
             // 2. Calculate amounts
             const totalBilledAmountToClear = invoicesToPay.reduce((sum, inv) => sum + inv.amount, 0);
             const discountAmount = paymentDetails.discount; 
-            let creditedAmount = paymentDetails.paidAmount;
+            const creditUsed = paymentDetails.creditUsed;
+            let creditedAmount = paymentDetails.paidAmount + creditUsed;
     
             // 3. Create a new payment record
             const newPaymentRef = doc(collection(db, "payments"));
@@ -180,7 +180,7 @@ export default function DelinquencyPage() {
                 invoiceIds: paymentDetails.selectedInvoices,
                 totalBill: totalBilledAmountToClear,
                 discount: discountAmount,
-                totalPayment: paymentDetails.totalPayment,
+                totalPayment: paymentDetails.paidAmount, // The actual cash/transfer received
                 changeAmount: Math.max(0, paymentDetails.paidAmount - paymentDetails.totalPayment),
             };
             batch.set(newPaymentRef, newPayment);
@@ -210,8 +210,9 @@ export default function DelinquencyPage() {
                 outstandingBalance: increment(-balanceReduction)
             };
 
-            if (newPayment.changeAmount > 0) {
-                customerUpdates.creditBalance = increment(newPayment.changeAmount);
+            const creditChange = newPayment.changeAmount - creditUsed;
+            if (creditChange !== 0) {
+                customerUpdates.creditBalance = increment(creditChange);
             }
 
             batch.update(customerRef, customerUpdates);
