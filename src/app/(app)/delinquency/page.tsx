@@ -83,19 +83,26 @@ export default function DelinquencyPage() {
 
             for (const customerId of Array.from(delinquentCustomerIds)) {
                 const customer = allCustomers.find(c => c.id === customerId);
-                 if (customer && customer.outstandingBalance > 0) { // Only show customers with actual outstanding balance
+                 if (customer) {
                     const customerInvoices = overdueInvoices.filter(inv => inv.customerId === customerId);
                     if (customerInvoices.length > 0) {
-                        const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
-                        const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
+                        const totalInvoiceAmount = customerInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+                        const creditBalance = customer.creditBalance ?? 0;
+                        const finalOverdueAmount = totalInvoiceAmount - creditBalance;
                         
-                        delinquentsMap[customerId] = {
-                            ...customer,
-                            overdueAmount: customer.outstandingBalance, // Use the accurate balance from customer doc
-                            overdueInvoicesCount: customerInvoices.length,
-                            nearestDueDate: nearestDueDate,
-                            invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
-                        };
+                        // Only show if there's an actual amount to be paid after applying credit
+                        if (finalOverdueAmount > 0) {
+                            const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
+                            const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
+                            
+                            delinquentsMap[customerId] = {
+                                ...customer,
+                                overdueAmount: finalOverdueAmount,
+                                overdueInvoicesCount: customerInvoices.length,
+                                nearestDueDate: nearestDueDate,
+                                invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
+                            };
+                        }
                     }
                 }
             }
