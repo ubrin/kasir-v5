@@ -43,16 +43,16 @@ const addCustomerSchema = z.object({
   address: z.string().min(1, { message: "Alamat harus diisi." }),
   phone: z.string().optional(),
   dueDateCode: z.preprocess(
-    (val) => Number(val),
-    z.number({invalid_type_error: "Harus berupa angka"}).min(1, "Tanggal minimal 1").max(31, "Tanggal maksimal 31")
+    (val) => (String(val).trim() === '' ? undefined : Number(val)),
+    z.number({required_error: "Tgl jatuh tempo harus diisi.", invalid_type_error: "Harus berupa angka"}).min(1, "Tanggal minimal 1").max(31, "Tanggal maksimal 31")
   ),
   subscriptionMbps: z.preprocess(
-    (val) => Number(val),
-    z.number({invalid_type_error: "Harus berupa angka"}).min(1, "Kecepatan minimal 1 Mbps")
+    (val) => (String(val).trim() === '' ? undefined : Number(val)),
+    z.number({required_error: "Paket harus diisi.", invalid_type_error: "Harus berupa angka"}).min(1, "Kecepatan minimal 1 Mbps")
   ),
   packagePrice: z.preprocess(
-    (val) => Number(val),
-    z.number({invalid_type_error: "Harus berupa angka"}).min(0, "Harga paket tidak boleh negatif")
+    (val) => (String(val).trim() === '' ? undefined : Number(val)),
+    z.number({required_error: "Harga paket harus diisi.", invalid_type_error: "Harus berupa angka"}).min(0, "Harga paket tidak boleh negatif")
   ),
   installationDate: z.date({
     required_error: 'Tanggal pemasangan harus diisi.',
@@ -73,9 +73,9 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
       name: '',
       address: '',
       phone: '',
-      dueDateCode: 1,
-      subscriptionMbps: 10,
-      packagePrice: 0,
+      dueDateCode: '' as any,
+      subscriptionMbps: '' as any,
+      packagePrice: '' as any,
       installationDate: new Date(),
     },
   });
@@ -85,7 +85,15 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
         ...data,
         installationDate: format(data.installationDate, 'yyyy-MM-dd'),
     });
-    form.reset();
+    form.reset({
+        name: '',
+        address: '',
+        phone: '',
+        dueDateCode: '' as any,
+        subscriptionMbps: '' as any,
+        packagePrice: '' as any,
+        installationDate: new Date(),
+    });
     setOpen(false);
   };
 
@@ -219,7 +227,7 @@ export function AddCustomerDialog({ onCustomerAdded }: AddCustomerDialogProps) {
                             <FormItem>
                             <FormLabel>Harga Paket (Rp)</FormLabel>
                             <FormControl>
-                                <Input type="number" placeholder="0" {...field} />
+                                <Input type="number" placeholder="cth. 150000" {...field} />
                             </FormControl>
                             <FormMessage />
                             </FormItem>
