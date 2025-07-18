@@ -156,7 +156,6 @@ export default function DelinquencyPage() {
         try {
             const batch = writeBatch(db);
 
-            // 1. Create a new payment document
             const newPaymentRef = doc(collection(db, "payments"));
             const newPayment: Omit<Payment, 'id'> = {
                 customerId: customerId,
@@ -172,17 +171,18 @@ export default function DelinquencyPage() {
             };
             batch.set(newPaymentRef, newPayment);
             
-            // 2. Fetch all customer invoices to handle payments correctly
-            const customerDoc = await getDoc(doc(db, "customers", customerId));
-            const customerData = customerDoc.data() as Customer;
-            
             let amountToDistribute = paymentDetails.totalPayment;
 
-            const invoicesToPayQuery = query(collection(db, "invoices"), where("customerId", "==", customerId), where("status", "==", "belum lunas"));
-            const invoicesSnapshot = await getDocs(invoicesToPayQuery);
+            const selectedUnpaidInvoicesQuery = query(
+                collection(db, "invoices"), 
+                where("customerId", "==", customerId), 
+                where("status", "==", "belum lunas"),
+                where("__name__", "in", paymentDetails.selectedInvoices.length > 0 ? paymentDetails.selectedInvoices : ["dummy-id"]) // Prevent error on empty array
+            );
+
+            const invoicesSnapshot = await getDocs(selectedUnpaidInvoicesQuery);
             const unpaidInvoices = invoicesSnapshot.docs
                 .map(d => ({...d.data(), id: d.id } as Invoice))
-                .filter(inv => paymentDetails.selectedInvoices.includes(inv.id))
                 .sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
 
 
@@ -191,22 +191,20 @@ export default function DelinquencyPage() {
 
                 const invoiceRef = doc(db, "invoices", invoice.id);
                 const paymentForThisInvoice = Math.min(amountToDistribute, invoice.amount);
-
+                
                 if (paymentForThisInvoice >= invoice.amount) {
-                    batch.update(invoiceRef, { status: "lunas" });
+                    batch.update(invoiceRef, { status: "lunas", amount: invoice.amount }); // Ensure full amount is set for clarity
                 } else {
                     batch.update(invoiceRef, { amount: increment(-paymentForThisInvoice) });
                 }
                 amountToDistribute -= paymentForThisInvoice;
             }
 
-            // 3. Update customer's outstanding balance
             const customerRef = doc(db, "customers", customerId);
             batch.update(customerRef, {
                 outstandingBalance: increment(-paymentDetails.totalPayment)
             });
 
-            // Commit all changes
             await batch.commit();
         
             toast({
@@ -221,7 +219,7 @@ export default function DelinquencyPage() {
                 ),
             });
     
-            fetchDelinquentData(); // Refresh data
+            fetchDelinquentData(); 
         } catch (error) {
             console.error("Payment processing error:", error);
             toast({
@@ -378,5 +376,3 @@ export default function DelinquencyPage() {
     </div>
   )
 }
-
-    

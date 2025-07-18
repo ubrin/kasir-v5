@@ -10,7 +10,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContaine
 import { DollarSign, Users, CreditCard, Activity, Archive, Loader2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { differenceInMonths, getMonth, getYear, parseISO, startOfMonth, endOfMonth } from "date-fns"
+import { differenceInMonths, getMonth, getYear, parseISO, startOfMonth, endOfMonth, subMonths } from "date-fns"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,22 +51,28 @@ export default function DashboardPage() {
             const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 
             // Calculate Stats
-            const totalRevenue = invoices.filter(i => i.status === 'lunas').reduce((acc, i) => acc + i.amount, 0);
-            const outstandingPayments = invoices.filter(i => i.status === 'belum lunas').reduce((acc, i) => acc + i.amount, 0);
-            const newCustomers = customers.filter(c => differenceInMonths(new Date(), new Date(c.installationDate)) <= 1).length;
-            const delinquentAccounts = invoices.filter(i => i.status === 'belum lunas' && new Date(i.dueDate) < new Date()).length;
+            const totalRevenue = payments.reduce((acc, p) => acc + p.totalPayment, 0);
+            const outstandingPayments = customers.reduce((acc, c) => acc + c.outstandingBalance, 0);
+            const newCustomers = customers.filter(c => c.installationDate && differenceInMonths(new Date(), parseISO(c.installationDate)) < 1).length;
+            
+            const delinquentQuery = query(collection(db, "invoices"), where("status", "==", "belum lunas"), where("dueDate", "<", new Date().toISOString().split('T')[0]));
+            const delinquentSnapshot = await getDocs(delinquentQuery);
+            const delinquentAccounts = delinquentSnapshot.size;
+            
             setStats({ totalRevenue, outstandingPayments, newCustomers, delinquentAccounts });
 
             // Pie Chart Data (Current Month)
             const today = new Date();
-            const currentMonth = getMonth(today);
-            const currentYear = getYear(today);
-            const currentMonthInvoices = invoices.filter(invoice => {
-                const invoiceDate = parseISO(invoice.date);
-                return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
-            });
+            const startOfCurrentMonthISO = startOfMonth(today).toISOString().split('T')[0];
+            const endOfCurrentMonthISO = endOfMonth(today).toISOString().split('T')[0];
+
+            const currentMonthInvoicesQuery = query(collection(db, "invoices"), where("date", ">=", startOfCurrentMonthISO), where("date", "<=", endOfCurrentMonthISO));
+            const currentMonthInvoicesSnapshot = await getDocs(currentMonthInvoicesQuery);
+            const currentMonthInvoices = currentMonthInvoicesSnapshot.docs.map(doc => doc.data() as Invoice);
+
             const paidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'lunas').length;
             const unpaidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'belum lunas').length;
+            
             setPieData([
                 { name: 'Lunas', value: paidInvoicesCurrentMonth },
                 { name: 'Belum Lunas', value: unpaidInvoicesCurrentMonth },
@@ -76,31 +82,33 @@ export default function DashboardPage() {
             const startOfCurrentMonth = startOfMonth(today);
             const endOfCurrentMonth = endOfMonth(today);
             const monthlyPayments = payments.filter(payment => {
-              const paymentDate = new Date(payment.paymentDate);
+              const paymentDate = parseISO(payment.paymentDate);
               return paymentDate >= startOfCurrentMonth && paymentDate <= endOfCurrentMonth;
             });
             const summary = monthlyPayments.reduce(
               (acc, payment) => {
-                acc[payment.paymentMethod] += payment.totalPayment;
+                acc[payment.paymentMethod] = (acc[payment.paymentMethod] || 0) + payment.totalPayment;
                 acc.total += payment.totalPayment;
                 return acc;
               },
-              { cash: 0, bri: 0, dana: 0, total: 0 }
+              { cash: 0, bri: 0, dana: 0, total: 0 } as any
             );
             setPaymentSummary(summary);
 
             // Revenue Chart Data (Last 6 months)
             const revenueDataByMonth: { [key: string]: number } = {};
             for (let i = 5; i >= 0; i--) {
-                const date = subMonths(today, i);
-                const monthName = date.toLocaleString('default', { month: 'short' });
+                const date = subMonths(new Date(), i);
+                const monthName = date.toLocaleString('id-ID', { month: 'short' });
                 revenueDataByMonth[monthName] = 0;
             }
             payments.forEach(p => {
                 const paymentDate = parseISO(p.paymentDate);
-                const monthName = paymentDate.toLocaleString('default', { month: 'short' });
-                if (revenueDataByMonth.hasOwnProperty(monthName)) {
-                    revenueDataByMonth[monthName] += p.totalPayment;
+                 if (differenceInMonths(new Date(), paymentDate) < 6) {
+                    const monthName = paymentDate.toLocaleString('id-ID', { month: 'short' });
+                    if (revenueDataByMonth.hasOwnProperty(monthName)) {
+                        revenueDataByMonth[monthName] += p.totalPayment;
+                    }
                 }
             });
              setMonthlyRevenueData(Object.keys(revenueDataByMonth).map(month => ({ month, revenue: revenueDataByMonth[month] })));
@@ -147,7 +155,6 @@ export default function DashboardPage() {
                 description: `${snapshot.size} faktur yang sudah lunas telah diarsipkan.`,
             });
 
-            // Refresh data on the page
             fetchData();
         } catch (error) {
             console.error("Archiving error:", error);
@@ -349,9 +356,10 @@ export default function DashboardPage() {
                         const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
                         const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
                         const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+                        if (!percent) return null;
                         return (
                         <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central">
-                            {`${((percent as number) * 100).toFixed(0)}%`}
+                            {`${(percent * 100).toFixed(0)}%`}
                         </text>
                         );
                     }}
@@ -369,5 +377,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    
