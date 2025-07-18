@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, getDocs, doc, deleteDoc, writeBatch, query, where, getDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, deleteDoc, writeBatch, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   Table,
@@ -33,6 +33,7 @@ import {
     SelectValue,
   } from "@/components/ui/select"
 import { AddCustomerDialog } from "@/components/add-customer-dialog";
+import { ImportCustomerDialog } from "@/components/import-customer-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -54,7 +55,7 @@ export default function CustomersPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = React.useCallback(async () => {
     setLoading(true);
     try {
       const customersCollection = collection(db, "customers");
@@ -71,11 +72,11 @@ export default function CustomersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   React.useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [fetchCustomers]);
 
   const handleCustomerAdded = async (newCustomerData: Omit<Customer, 'id' | 'outstandingBalance'>) => {
     const amountDue = newCustomerData.packagePrice;
@@ -91,7 +92,12 @@ export default function CustomersPage() {
         // Automatically create the first invoice
         if (amountDue > 0) {
             const today = new Date();
-            const dueDate = new Date(today.getFullYear(), today.getMonth() + 1, newCustomerData.dueDateCode);
+            const dueDate = new Date(today.getFullYear(), today.getMonth(), newCustomerData.dueDateCode);
+            // If the due date for this month has already passed, set it for next month
+            if (dueDate < today) {
+                dueDate.setMonth(dueDate.getMonth() + 1);
+            }
+
             const newInvoice: Omit<Invoice, 'id'> = {
                 customerId: docRef.id,
                 customerName: newCustomerData.name,
@@ -186,6 +192,15 @@ export default function CustomersPage() {
   const handleRowClick = (customerId: string) => {
     router.push(`/customers/${customerId}`);
   };
+  
+  const handleImportSuccess = () => {
+    toast({
+      title: "Impor Berhasil",
+      description: "Data pelanggan telah berhasil diimpor dari file CSV.",
+    });
+    fetchCustomers();
+  };
+
 
   if (loading) {
     return (
@@ -213,6 +228,7 @@ export default function CustomersPage() {
                         ))}
                     </SelectContent>
                 </Select>
+                <ImportCustomerDialog onSuccess={handleImportSuccess} />
                 <AddCustomerDialog onCustomerAdded={handleCustomerAdded} />
             </div>
         </div>
@@ -292,7 +308,7 @@ export default function CustomersPage() {
              <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
                     <p className="text-lg font-medium">Tidak Ada Pelanggan</p>
-                    <p className="text-muted-foreground">Mulai dengan menambahkan pelanggan baru.</p>
+                    <p className="text-muted-foreground">Mulai dengan menambahkan pelanggan baru atau impor dari file.</p>
                 </CardContent>
             </Card>
         )}
