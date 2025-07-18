@@ -16,6 +16,7 @@ import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -184,6 +185,9 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   if (!customer) {
       return notFound();
   }
+  
+  const hasArrearsOrCredit = calculatedArrears > 0 || (editableCustomer?.creditBalance ?? 0) > 0;
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -243,7 +247,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     </div>
                 </div>
             ) : (
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <div className={cn("grid gap-6 sm:grid-cols-2", hasArrearsOrCredit ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
                     <div className="grid gap-1">
                         <p className="text-sm font-medium text-muted-foreground">Status</p>
                         <Badge variant={hasUnpaidInvoices ? "destructive" : "secondary"} className={`${hasUnpaidInvoices ? "" : "bg-green-100 text-green-800"} w-fit`}>
