@@ -1,7 +1,6 @@
-
 'use client';
 import Link from 'next/link';
-import { Search, Bell, User, LogOut } from 'lucide-react';
+import { Search, Bell, User, LogOut, Download } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,10 +16,12 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { usePwaInstall } from '@/hooks/use-pwa-install';
 
 export default function Header() {
   const router = useRouter();
   const { toast } = useToast();
+  const { installPrompt, canInstall } = usePwaInstall();
 
   const handleLogout = async () => {
     try {
@@ -76,6 +77,12 @@ export default function Header() {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Akun Saya</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {canInstall && (
+            <DropdownMenuItem onClick={installPrompt}>
+              <Download className="mr-2 h-4 w-4" />
+              Instal Aplikasi
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem>Pengaturan</DropdownMenuItem>
           <DropdownMenuItem>Dukungan</DropdownMenuItem>
           <DropdownMenuSeparator />
