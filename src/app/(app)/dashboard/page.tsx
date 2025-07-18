@@ -7,10 +7,10 @@ import type { Customer, Invoice, Payment } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
-import { DollarSign, Users, CreditCard, Activity, Archive, Loader2 } from "lucide-react"
+import { DollarSign, Users, CreditCard, Activity, Archive, Loader2, FileClock, Files } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { differenceInMonths, parseISO, startOfMonth, endOfMonth, subMonths } from "date-fns"
+import { differenceInMonths, parseISO, startOfMonth, endOfMonth, subMonths, getMonth, getYear } from "date-fns"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,10 +30,11 @@ export default function DashboardPage() {
     const { toast } = useToast();
     const [loading, setLoading] = React.useState(true);
     const [stats, setStats] = React.useState({
-        totalRevenue: 0,
-        outstandingPayments: 0,
+        totalOmset: 0,
+        totalArrears: 0,
         newCustomers: 0,
-        delinquentAccounts: 0,
+        thisMonthTotalBill: 0,
+        thisMonthInvoiceCount: 0,
     });
     const [monthlyRevenueData, setMonthlyRevenueData] = React.useState<any[]>([]);
     const [pieData, setPieData] = React.useState<any[]>([]);
@@ -42,7 +43,6 @@ export default function DashboardPage() {
     const fetchData = React.useCallback(async () => {
         setLoading(true);
         try {
-            // Fetch all data in parallel for efficiency
             const [customersSnapshot, invoicesSnapshot, paymentsSnapshot] = await Promise.all([
                 getDocs(collection(db, "customers")),
                 getDocs(collection(db, "invoices")),
@@ -52,40 +52,53 @@ export default function DashboardPage() {
             const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
             const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
             const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
-
-            // --- Process Data Only After All Fetches Succeed ---
-
-            // 1. Calculate Core Stats
-            const totalRevenue = payments.reduce((acc, p) => acc + p.totalPayment, 0);
-            const outstandingPayments = customers.reduce((acc, c) => acc + c.outstandingBalance, 0);
-            const newCustomers = customers.filter(c => c.installationDate && differenceInMonths(new Date(), parseISO(c.installationDate)) < 1).length;
             
-            const delinquentInvoices = invoices.filter(i => 
-                i.status === 'belum lunas' && parseISO(i.dueDate) < new Date()
-            );
-            const delinquentAccounts = new Set(delinquentInvoices.map(i => i.customerId)).size;
-
-            setStats({ totalRevenue, outstandingPayments, newCustomers, delinquentAccounts });
-
-            // 2. Pie Chart Data (Current Month)
+            // --- New Stats Logic ---
             const today = new Date();
+            const currentMonth = getMonth(today);
+            const currentYear = getYear(today);
             const startOfCurrentMonth = startOfMonth(today);
             const endOfCurrentMonth = endOfMonth(today);
 
-            const currentMonthInvoices = invoices.filter(invoice => {
+            // 1. Total Omset (MRR)
+            const totalOmset = customers.reduce((acc, c) => acc + c.packagePrice, 0);
+
+            // 2. New Customers
+            const newCustomers = customers.filter(c => c.installationDate && differenceInMonths(new Date(), parseISO(c.installationDate)) < 1).length;
+
+            // 3. Tagihan Bulan Ini
+            const thisMonthInvoices = invoices.filter(invoice => {
                 const invoiceDate = parseISO(invoice.date);
-                return invoiceDate >= startOfCurrentMonth && invoiceDate <= endOfCurrentMonth;
+                return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
+            });
+            const thisMonthTotalBill = thisMonthInvoices.reduce((acc, inv) => acc + inv.amount, 0);
+            const thisMonthInvoiceCount = thisMonthInvoices.length;
+
+            // 4. Total Tunggakan (Arrears from previous months)
+            const oldUnpaidInvoices = invoices.filter(invoice => {
+                const invoiceDate = parseISO(invoice.date);
+                return invoice.status === 'belum lunas' && invoiceDate < startOfCurrentMonth;
+            });
+            const totalArrears = oldUnpaidInvoices.reduce((acc, inv) => acc + inv.amount, 0);
+
+            setStats({
+                totalOmset,
+                totalArrears,
+                newCustomers,
+                thisMonthTotalBill,
+                thisMonthInvoiceCount,
             });
 
-            const paidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'lunas').length;
-            const unpaidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'belum lunas').length;
+            // 5. Pie Chart Data (Current Month)
+            const paidInvoicesCurrentMonth = thisMonthInvoices.filter(i => i.status === 'lunas').length;
+            const unpaidInvoicesCurrentMonth = thisMonthInvoices.filter(i => i.status === 'belum lunas').length;
             
             setPieData([
                 { name: 'Lunas', value: paidInvoicesCurrentMonth },
                 { name: 'Belum Lunas', value: unpaidInvoicesCurrentMonth },
             ]);
 
-            // 3. Payment Summary (Current Month)
+            // 6. Payment Summary (Current Month)
             const monthlyPayments = payments.filter(payment => {
               const paymentDate = parseISO(payment.paymentDate);
               return paymentDate >= startOfCurrentMonth && paymentDate <= endOfCurrentMonth;
@@ -93,7 +106,8 @@ export default function DashboardPage() {
 
             const summary = monthlyPayments.reduce(
               (acc, payment) => {
-                acc[payment.paymentMethod] = (acc[payment.paymentMethod] || 0) + payment.totalPayment;
+                const method = payment.paymentMethod || 'cash'; // Fallback for old data
+                acc[method] = (acc[method] || 0) + payment.totalPayment;
                 acc.total += payment.totalPayment;
                 return acc;
               },
@@ -101,7 +115,7 @@ export default function DashboardPage() {
             );
             setPaymentSummary(summary);
 
-            // 4. Revenue Chart Data (Last 6 months)
+            // 7. Revenue Chart Data (Last 6 months)
             const revenueDataByMonth: { [key: string]: number } = {};
             for (let i = 5; i >= 0; i--) {
                 const date = subMonths(new Date(), i);
@@ -211,14 +225,14 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Pendapatan
+              Total Omset
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Rp{stats.totalRevenue.toLocaleString('id-ID')}</div>
+            <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
             <p className="text-xs text-muted-foreground">
-              Total pendapatan lunas tercatat
+              Potensi pendapatan bulanan
             </p>
           </CardContent>
         </Card>
@@ -237,28 +251,28 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pembayaran Terutang</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Rp{stats.outstandingPayments.toLocaleString('id-ID')}</div>
-            <p className="text-xs text-muted-foreground">
-              Total faktur belum lunas
-            </p>
-          </CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tagihan Bulan Ini</CardTitle>
+                <Files className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">Rp{stats.thisMonthTotalBill.toLocaleString('id-ID')}</div>
+                <p className="text-xs text-muted-foreground">
+                    dari {stats.thisMonthInvoiceCount} faktur diterbitkan
+                </p>
+            </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Akun Menunggak
+              Total Tunggakan
             </CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <FileClock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.delinquentAccounts}</div>
+            <div className="text-2xl font-bold">Rp{stats.totalArrears.toLocaleString('id-ID')}</div>
             <p className="text-xs text-muted-foreground">
-              Total pelanggan jatuh tempo
+              Tagihan belum lunas dari bulan lalu
             </p>
           </CardContent>
         </Card>
@@ -362,7 +376,7 @@ export default function DashboardPage() {
                         const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
                         const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
                         const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-                        if (!percent || percent < 0.01) return null; // Hide label if value is too small
+                        if (!percent || percent < 0.01) return null;
                         return (
                         <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central">
                             {`${(percent * 100).toFixed(0)}%`}
@@ -383,5 +397,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    
