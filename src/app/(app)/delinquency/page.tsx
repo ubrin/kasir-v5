@@ -173,14 +173,9 @@ export default function DelinquencyPage() {
             
             // 2. Calculate amounts
             const totalBilledAmountToClear = invoicesToPay.reduce((sum, inv) => sum + inv.amount, 0);
-            const discountAmount = Math.floor(totalBilledAmountToClear * ((paymentDetails.discount || 0) / 100));
-            const totalPaymentDue = totalBilledAmountToClear - discountAmount;
-            
-            // Total amount to credit against invoices
-            let totalCredited = paymentDetails.paidAmount + discountAmount;
-            
-            // Amount to reduce from customer's outstanding balance
-            const balanceReduction = totalBilledAmountToClear;
+            let totalCredited = paymentDetails.paidAmount + paymentDetails.discount;
+            let balanceReduction = 0;
+
 
             // 3. Create a new payment record
             const newPaymentRef = doc(collection(db, "payments"));
@@ -192,9 +187,9 @@ export default function DelinquencyPage() {
                 paymentMethod: paymentDetails.paymentMethod,
                 invoiceIds: paymentDetails.selectedInvoices,
                 totalBill: totalBilledAmountToClear,
-                discount: discountAmount,
-                totalPayment: totalPaymentDue,
-                changeAmount: Math.max(0, paymentDetails.paidAmount - totalPaymentDue),
+                discount: paymentDetails.discount,
+                totalPayment: paymentDetails.totalPayment,
+                changeAmount: Math.max(0, paymentDetails.paidAmount - paymentDetails.totalPayment),
             };
             batch.set(newPaymentRef, newPayment);
             
@@ -203,10 +198,12 @@ export default function DelinquencyPage() {
                 const invoiceRef = doc(db, "invoices", invoice.id);
                 if (totalCredited >= invoice.amount) {
                     batch.update(invoiceRef, { status: "lunas" });
+                    balanceReduction += invoice.amount;
                     totalCredited -= invoice.amount;
                 } else {
                     const remainingAmount = invoice.amount - totalCredited;
                     batch.update(invoiceRef, { amount: remainingAmount });
+                    balanceReduction += totalCredited; // Reduce balance by the amount paid
                     totalCredited = 0;
                 }
                 if (totalCredited <= 0) break;
