@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from "react";
 import { notFound, useRouter } from "next/navigation";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, Invoice, Payment } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   
   const [isEditing, setIsEditing] = useState(false);
   const [editableCustomer, setEditableCustomer] = useState<Customer | null>(null);
+  const [editableInvoices, setEditableInvoices] = useState<Invoice[]>([]);
 
   useEffect(() => {
     if (!params.id) return;
@@ -57,6 +59,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             // Process invoices
             const invoicesList = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice)).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
             setCustomerInvoices(invoicesList);
+            setEditableInvoices(invoicesList);
 
             // Check for unpaid invoices
             const unpaidCheck = invoicesList.some(invoice => invoice.status === 'belum lunas');
@@ -84,19 +87,39 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setEditableCustomer(prev => prev ? { ...prev, [id]: id === 'subscriptionMbps' || id === 'packagePrice' || id === 'dueDateCode' ? Number(value) : value } : null);
+    setEditableCustomer(prev => prev ? { ...prev, [id]: id === 'subscriptionMbps' || id === 'packagePrice' || id === 'dueDateCode' || id === 'creditBalance' ? Number(value) : value } : null);
   };
+  
+  const handleInvoiceStatusChange = (invoiceId: string, newStatus: 'lunas' | 'belum lunas') => {
+    setEditableInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
+  };
+
 
   const handleSave = async () => {
     if (!editableCustomer) return;
     
     try {
+        const batch = writeBatch(db);
         const customerDocRef = doc(db, "customers", editableCustomer.id);
-        // We only update the fields that are editable, preserving others like outstandingBalance
-        const { id, outstandingBalance, paymentHistory, creditBalance, ...dataToUpdate } = editableCustomer;
-        await updateDoc(customerDocRef, dataToUpdate);
         
-        setCustomer(editableCustomer); // Update the main state
+        // We only update the fields that are editable, preserving others like outstandingBalance
+        const { id, outstandingBalance, paymentHistory, ...dataToUpdate } = editableCustomer;
+        batch.update(customerDocRef, dataToUpdate);
+
+        // Update invoices statuses
+        editableInvoices.forEach(invoice => {
+            const originalInvoice = customerInvoices.find(orig => orig.id === invoice.id);
+            if (originalInvoice && originalInvoice.status !== invoice.status) {
+                const invoiceDocRef = doc(db, "invoices", invoice.id);
+                batch.update(invoiceDocRef, { status: invoice.status });
+            }
+        });
+        
+        await batch.commit();
+        
+        setCustomer(editableCustomer); // Update the main state for customer
+        setCustomerInvoices(editableInvoices); // Update main state for invoices
+        
         toast({
             title: "Data Disimpan",
             description: "Perubahan data pelanggan telah berhasil disimpan."
@@ -114,6 +137,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
 
   const handleCancel = () => {
     setEditableCustomer(customer);
+    setEditableInvoices(customerInvoices);
     setIsEditing(false);
   }
 
@@ -212,6 +236,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <div className="grid gap-2">
                         <Label htmlFor="dueDateCode">Tanggal Jatuh Tempo</Label>
                         <Input id="dueDateCode" type="number" value={editableCustomer?.dueDateCode || 1} onChange={handleInputChange} />
+                    </div>
+                     <div className="grid gap-2">
+                        <Label htmlFor="creditBalance">Saldo (Rp)</Label>
+                        <Input id="creditBalance" type="number" value={editableCustomer?.creditBalance || 0} onChange={handleInputChange} />
                     </div>
                 </div>
             ) : (
@@ -336,14 +364,29 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customerInvoices.length > 0 ? customerInvoices.map((invoice) => (
+              {(isEditing ? editableInvoices : customerInvoices).length > 0 ? (isEditing ? editableInvoices : customerInvoices).map((invoice) => (
                 <TableRow key={invoice.id}>
                   <TableCell className="font-medium">{format(parseISO(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
                   <TableCell className="text-right">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-center">
-                    <Badge variant="outline" className={getInvoiceBadgeClasses(invoice.status, invoice.dueDate)}>
-                        {translateInvoiceStatus(invoice.status, invoice.dueDate)}
-                    </Badge>
+                    {isEditing ? (
+                        <Select
+                            value={invoice.status}
+                            onValueChange={(value: 'lunas' | 'belum lunas') => handleInvoiceStatusChange(invoice.id, value)}
+                        >
+                            <SelectTrigger className="w-[150px] mx-auto">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="lunas">Lunas</SelectItem>
+                                <SelectItem value="belum lunas">Belum Lunas</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <Badge variant="outline" className={getInvoiceBadgeClasses(invoice.status, invoice.dueDate)}>
+                            {translateInvoiceStatus(invoice.status, invoice.dueDate)}
+                        </Badge>
+                    )}
                   </TableCell>
                 </TableRow>
               )) : (
