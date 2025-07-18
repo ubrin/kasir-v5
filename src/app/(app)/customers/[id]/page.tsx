@@ -186,7 +186,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
       return notFound();
   }
   
-  const hasArrearsOrCredit = calculatedArrears > 0 || (editableCustomer?.creditBalance ?? 0) > 0;
+  const hasArrears = calculatedArrears > 0;
+  const hasCredit = (editableCustomer?.creditBalance ?? 0) > 0;
 
 
   return (
@@ -247,24 +248,25 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     </div>
                 </div>
             ) : (
-                <div className={cn("grid gap-6 sm:grid-cols-2", hasArrearsOrCredit ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
+                <div className={cn("grid gap-6 sm:grid-cols-2 lg:grid-cols-3", (hasArrears && hasCredit) ? "lg:grid-cols-4" : (hasArrears || hasCredit) ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
                     <div className="grid gap-1">
                         <p className="text-sm font-medium text-muted-foreground">Status</p>
                         <Badge variant={hasUnpaidInvoices ? "destructive" : "secondary"} className={`${hasUnpaidInvoices ? "" : "bg-green-100 text-green-800"} w-fit`}>
                             {hasUnpaidInvoices ? "Belum Lunas" : "Lunas"}
                         </Badge>
                     </div>
-                    {calculatedArrears > 0 ? (
+                    {hasArrears && (
                         <div className="grid gap-1">
                             <p className="text-sm font-medium text-muted-foreground">Tunggakan</p>
                             <p className="font-semibold text-destructive">Rp{calculatedArrears.toLocaleString('id-ID')}</p>
                         </div>
-                    ) : (editableCustomer?.creditBalance ?? 0) > 0 ? (
+                    )}
+                    {hasCredit && (
                         <div className="grid gap-1">
                             <p className="text-sm font-medium text-muted-foreground">Saldo</p>
                             <p className="font-semibold text-blue-600">Rp{(editableCustomer?.creditBalance ?? 0).toLocaleString('id-ID')}</p>
                         </div>
-                    ) : null}
+                    )}
                     <div className="grid gap-1">
                     <p className="text-sm font-medium text-muted-foreground">Alamat</p>
                     <p>{editableCustomer?.address}</p>
@@ -330,11 +332,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                    <TableCell className={`text-right font-semibold`}>
                     {difference < 0 ? (
                       <span className="text-destructive">
-                        Kekurangan: -Rp{Math.abs(difference).toLocaleString('id-ID')}
+                        -Rp{Math.abs(difference).toLocaleString('id-ID')}
                       </span>
                     ) : difference > 0 ? (
                       <span className="text-blue-600">
-                        Saldo: +Rp{difference.toLocaleString('id-ID')}
+                        +Rp{difference.toLocaleString('id-ID')}
                       </span>
                     ) : (
                       'Rp0'
