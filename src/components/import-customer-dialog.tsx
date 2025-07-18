@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Papa from 'papaparse';
 import { db } from '@/lib/firebase';
-import { writeBatch, collection, addDoc } from 'firebase/firestore';
+import { writeBatch, collection, doc } from 'firebase/firestore';
 import { format, parse } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,16 +27,17 @@ interface ImportCustomerDialogProps {
   onSuccess: () => void;
 }
 
-// Define the expected CSV headers
-const EXPECTED_HEADERS = [
-  "name",
-  "address",
-  "phone",
-  "installationDate",
-  "subscriptionMbps",
-  "dueDateCode",
-  "packagePrice",
-];
+// Map user's headers to our internal customer fields
+const headerMapping: { [key: string]: keyof Omit<Customer, 'id' | 'outstandingBalance' | 'paymentHistory'> } = {
+    nama: 'name',
+    alamat: 'address',
+    kode: 'dueDateCode',
+    paket: 'subscriptionMbps',
+    harga: 'packagePrice',
+    phone: 'phone',
+    installationDate: 'installationDate'
+};
+
 
 export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
   const [open, setOpen] = React.useState(false);
@@ -45,6 +46,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
   const { toast } = useToast();
+  const [detectedHeaders, setDetectedHeaders] = React.useState<string[]>([]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -56,17 +58,20 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-            const headers = results.meta.fields || [];
-            const missingHeaders = EXPECTED_HEADERS.filter(h => !headers.includes(h));
+            const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
+            setDetectedHeaders(headers);
+
+            const requiredUserHeaders = ['nama', 'alamat', 'harga'];
+            const missingHeaders = requiredUserHeaders.filter(h => !headers.includes(h));
 
             if (missingHeaders.length > 0) {
-                 setError(`File CSV tidak valid. Header berikut tidak ditemukan: ${missingHeaders.join(', ')}`);
+                 setError(`File CSV tidak valid. Header wajib berikut tidak ditemukan: ${missingHeaders.join(', ')}`);
                  setParsedData([]);
                  return;
             }
 
             // Filter out rows where essential fields are missing
-            const validData = results.data.filter((row: any) => row.name && row.address && row.packagePrice);
+            const validData = results.data.filter((row: any) => row.nama && row.alamat && row.harga);
             setParsedData(validData as any[]);
         },
         error: (err: any) => {
@@ -87,25 +92,30 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
       const batch = writeBatch(db);
 
       parsedData.forEach((row) => {
-        const packagePrice = Number(row.packagePrice) || 0;
+        const lowerCaseRow: { [key: string]: any } = {};
+        for (const key in row) {
+            lowerCaseRow[key.trim().toLowerCase()] = row[key];
+        }
+
+        const packagePrice = Number(lowerCaseRow.harga) || 0;
         
-        // Validate and format date
         let installationDateStr = format(new Date(), 'yyyy-MM-dd');
-        try {
-            // Attempt to parse with common formats, default to today
-            const parsedDate = parse(row.installationDate, 'dd/MM/yyyy', new Date());
-            if (!isNaN(parsedDate.getTime())) {
-                installationDateStr = format(parsedDate, 'yyyy-MM-dd');
-            }
-        } catch (e) { /* Defaults to today */ }
+        if (lowerCaseRow.installationdate) {
+            try {
+                const parsedDate = parse(lowerCaseRow.installationdate, 'dd/MM/yyyy', new Date());
+                if (!isNaN(parsedDate.getTime())) {
+                    installationDateStr = format(parsedDate, 'yyyy-MM-dd');
+                }
+            } catch (e) { /* Defaults to today */ }
+        }
 
         const newCustomer: Omit<Customer, 'id'> = {
-          name: row.name || 'N/A',
-          address: row.address || 'N/A',
-          phone: row.phone || '',
+          name: lowerCaseRow.nama || 'N/A',
+          address: lowerCaseRow.alamat || 'N/A',
+          phone: lowerCaseRow.phone || '',
           installationDate: installationDateStr,
-          subscriptionMbps: Number(row.subscriptionMbps) || 0,
-          dueDateCode: Number(row.dueDateCode) || 1,
+          subscriptionMbps: Number(lowerCaseRow.paket) || 0,
+          dueDateCode: Number(lowerCaseRow.kode) || 1,
           packagePrice: packagePrice,
           outstandingBalance: packagePrice,
           paymentHistory: `Diimpor pada ${format(new Date(), 'dd/MM/yyyy')}`
@@ -160,7 +170,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         <DialogHeader>
           <DialogTitle>Impor Pelanggan dari CSV</DialogTitle>
           <DialogDescription>
-            Pilih file CSV untuk mengimpor data pelanggan secara massal. Pastikan file Anda memiliki header: name, address, phone, installationDate (dd/MM/yyyy), subscriptionMbps, dueDateCode, packagePrice.
+            Pilih file CSV. Header wajib: <strong>nama, alamat, harga</strong>. Header opsional: <strong>kode, paket, phone, installationDate</strong> (format dd/MM/yyyy).
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -175,17 +185,17 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Alamat</TableHead>
-                    <TableHead className="text-right">Harga Paket</TableHead>
+                    {detectedHeaders.map(h => headerMapping[h] && <TableHead key={h}>{h}</TableHead>)}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {parsedData.slice(0, 10).map((row, index) => (
                     <TableRow key={index}>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>{row.address}</TableCell>
-                      <TableCell className="text-right">Rp{Number(row.packagePrice || 0).toLocaleString('id-ID')}</TableCell>
+                      {detectedHeaders.map(h => headerMapping[h] && (
+                        <TableCell key={`${index}-${h}`}>
+                           { h === 'harga' ? `Rp${Number(row[h] || 0).toLocaleString('id-ID')}` : row[h] }
+                        </TableCell>
+                      ))}
                     </TableRow>
                   ))}
                 </TableBody>
