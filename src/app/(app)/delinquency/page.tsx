@@ -164,15 +164,19 @@ export default function DelinquencyPage() {
             );
 
             const invoicesSnapshot = await getDocs(selectedUnpaidInvoicesQuery);
-            const unpaidInvoices = invoicesSnapshot.docs
+            const invoicesToPay = invoicesSnapshot.docs
                 .map(d => ({...d.data(), id: d.id } as Invoice))
                 .sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
             
-            // 2. Calculate amounts based on selected invoices and discount
-            const totalBilledAmountToClear = unpaidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+            // 2. Calculate amounts based on user's logic
+            const totalBilledAmountToClear = invoicesToPay.reduce((sum, inv) => sum + inv.amount, 0);
             const discountAmount = Math.floor(totalBilledAmountToClear * ((paymentDetails.discount || 0) / 100));
-            const totalPaymentAfterDiscount = totalBilledAmountToClear - discountAmount;
             
+            // Total credit is the amount paid plus the discount value
+            let totalCredited = paymentDetails.paidAmount + discountAmount;
+            
+            const totalPaymentAfterDiscount = totalBilledAmountToClear - discountAmount;
+
             // 3. Create a new payment record
             const newPaymentRef = doc(collection(db, "payments"));
             const newPayment: Omit<Payment, 'id'> = {
@@ -189,17 +193,27 @@ export default function DelinquencyPage() {
             };
             batch.set(newPaymentRef, newPayment);
             
-            // 4. Update the selected invoices to 'lunas'
-            for (const invoice of unpaidInvoices) {
+            // 4. Update invoices based on the credited amount
+            for (const invoice of invoicesToPay) {
                 const invoiceRef = doc(db, "invoices", invoice.id);
-                batch.update(invoiceRef, { status: "lunas" });
+                if (totalCredited >= invoice.amount) {
+                    // If credit can fully pay this invoice, mark as 'lunas'
+                    batch.update(invoiceRef, { status: "lunas", amount: 0 });
+                    totalCredited -= invoice.amount;
+                } else {
+                    // If credit can only partially pay, update the remaining amount
+                    const remainingAmount = invoice.amount - totalCredited;
+                    batch.update(invoiceRef, { amount: remainingAmount });
+                    totalCredited = 0;
+                }
+                if (totalCredited <= 0) break; // Stop if no more credit left
             }
 
             // 5. Update the customer's outstanding balance
-            // We reduce the balance by the FULL billed amount, not the discounted amount.
+            // The balance is reduced by the total amount of the original selected invoices that are now considered paid off
             const customerRef = doc(db, "customers", customerId);
             batch.update(customerRef, {
-                outstandingBalance: increment(-totalBilledAmountToClear)
+                outstandingBalance: increment(-(paymentDetails.paidAmount + discountAmount))
             });
 
             // 6. Commit all changes
@@ -374,3 +388,5 @@ export default function DelinquencyPage() {
     </div>
   )
 }
+
+    
