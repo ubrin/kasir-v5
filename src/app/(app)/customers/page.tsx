@@ -84,6 +84,7 @@ export default function CustomersPage() {
     const customerToAdd = {
       ...newCustomerData,
       outstandingBalance: amountDue,
+      paymentHistory: `Didaftarkan pada ${format(new Date(), 'dd/MM/yyyy')}`
     };
 
     try {
@@ -336,5 +337,3 @@ export default function CustomersPage() {
     </div>
   )
 }
-
-    
