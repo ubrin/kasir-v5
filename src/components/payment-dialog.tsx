@@ -329,7 +329,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                     <div className="grid gap-2">
                         <Label>Saldo</Label>
                         <p className={cn("font-semibold text-lg", paymentDifference < 0 ? "text-destructive" : "text-green-600")}>
-                            Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}
+                           {paymentDifference < 0 ? '-' : ''}Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}
                         </p>
                     </div>
                 </div>
