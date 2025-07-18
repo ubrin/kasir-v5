@@ -14,6 +14,7 @@ export type Customer = {
   outstandingBalance: number;
   subscriptionMbps: number;
   packagePrice: number;
+  creditBalance?: number; // Saldo atau deposit pelanggan
 };
 
 export type Invoice = {

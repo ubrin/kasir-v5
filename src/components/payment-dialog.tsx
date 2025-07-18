@@ -52,7 +52,7 @@ const paymentSchema = z.object({
   }),
   discount: z.preprocess(
     (a) => (a ? parseInt(String(a), 10) : 0),
-    z.number().min(0, "Diskon tidak boleh negatif").max(100, "Diskon maksimal 100%").optional()
+    z.number().min(0, "Diskon tidak boleh negatif").optional()
   ),
   paidAmount: z.preprocess(
     (a) => (a ? parseInt(String(a), 10) : 0),
@@ -94,7 +94,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   });
 
   const selectedInvoices = watch('selectedInvoices') || [];
-  const discountPercent = watch('discount') || 0;
+  const discountAmount = watch('discount') || 0;
   const paidAmount = watch('paidAmount') || 0;
 
   const billToPay = React.useMemo(() => {
@@ -103,7 +103,6 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       .reduce((sum, invoice) => sum + invoice.amount, 0);
   }, [customer.invoices, selectedInvoices]);
 
-  const discountAmount = Math.floor(billToPay * (discountPercent / 100));
   const totalPayment = Math.max(0, billToPay - discountAmount);
   const paymentDifference = paidAmount - totalPayment;
 
@@ -118,8 +117,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       totalPayment,
       changeAmount: Math.max(0, paymentDifference),
       shortageAmount: Math.max(0, -paymentDifference),
-      // We save the calculated amount, not the percentage
-      discount: discountAmount,
+      discount: data.discount || 0,
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
     setOpen(false);
@@ -128,27 +126,13 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
 
   React.useEffect(() => {
     if (open) {
-        const today = new Date();
-        const currentMonth = getMonth(today);
-        const currentYear = getYear(today);
-
-        // Find invoice for the current month among ALL customer's unpaid invoices
-        const currentMonthInvoice = invoices.find(invoice => 
-            invoice.customerId === customer.id &&
-            invoice.status === 'belum lunas' &&
-            getMonth(parseISO(invoice.date)) === currentMonth && 
-            getYear(parseISO(invoice.date)) === currentYear
-        );
-
-        if (currentMonthInvoice) {
-            setValue('selectedInvoices', [currentMonthInvoice.id]);
-        } else {
-            setValue('selectedInvoices', []);
-        }
+        // Automatically select all unpaid invoices for this customer
+        const allUnpaidInvoiceIds = customer.invoices.map(inv => inv.id);
+        setValue('selectedInvoices', allUnpaidInvoiceIds);
     } else {
         reset();
     }
-}, [open, customer.id, setValue, reset]);
+  }, [open, customer.invoices, setValue, reset]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -272,7 +256,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         <p className="font-semibold text-lg">Rp{billToPay.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="discount">Diskon (%)</Label>
+                        <Label htmlFor="discount">Diskon (Rp)</Label>
                         <Controller
                             name="discount"
                             control={control}
@@ -311,6 +295,18 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         </p>
                     </div>
                 </div>
+                
+                 {paymentDifference > 0 && (
+                    <div className="grid gap-2 col-span-2">
+                        <Label>Saldo</Label>
+                        <p className="font-semibold text-lg text-green-600">
+                           Rp{paymentDifference.toLocaleString('id-ID')}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Jumlah ini akan ditambahkan ke saldo deposit pelanggan.
+                        </p>
+                    </div>
+                 )}
 
                 <div className="mt-4 rounded-lg border bg-secondary/50 p-4">
                     <div className="flex justify-between items-center">
@@ -331,5 +327,3 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     </Dialog>
   );
 }
-
-    
