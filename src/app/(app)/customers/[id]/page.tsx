@@ -293,7 +293,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                       </span>
                     ) : difference > 0 ? (
                       <span className="text-blue-600">
-                        Saldo: Rp{difference.toLocaleString('id-ID')}
+                        Saldo: +Rp{difference.toLocaleString('id-ID')}
                       </span>
                     ) : (
                       'Rp0'
