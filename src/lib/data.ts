@@ -7,6 +7,8 @@ import { format, subMonths, addMonths } from 'date-fns';
 // These arrays can be used for initial seeding or testing if needed.
 
 const today = new Date();
+const currentYear = today.getFullYear();
+
 
 export const customers: Customer[] = [
   {
@@ -56,6 +58,18 @@ export const customers: Customer[] = [
     packagePrice: 180000,
     outstandingBalance: 360000,
     paymentHistory: 'Menunggak 2 bulan.'
+  },
+  {
+    id: 'CUST005',
+    name: 'heri',
+    phone: '6281234567891',
+    address: 'gebang',
+    dueDateCode: 1,
+    installationDate: `${currentYear}-04-01`,
+    subscriptionMbps: 10,
+    packagePrice: 150000,
+    outstandingBalance: 300000, // Tunggakan Mei + Juli
+    paymentHistory: 'Pemasangan pada 1 April. Pembayaran Juni lunas.'
   }
 ];
 
@@ -108,6 +122,34 @@ export const invoices: Invoice[] = [
     dueDate: format(new Date(today.getFullYear(), today.getMonth() - 1, 25), 'yyyy-MM-dd'),
     amount: 180000,
     status: 'belum lunas'
+  },
+  // Invoices for heri
+  {
+    id: 'INV006',
+    customerId: 'CUST005',
+    customerName: 'heri',
+    date: `${currentYear}-05-01`, // Mei
+    dueDate: `${currentYear}-05-01`,
+    amount: 150000,
+    status: 'belum lunas'
+  },
+  {
+    id: 'INV007',
+    customerId: 'CUST005',
+    customerName: 'heri',
+    date: `${currentYear}-06-01`, // Juni
+    dueDate: `${currentYear}-06-01`,
+    amount: 150000,
+    status: 'lunas'
+  },
+  {
+    id: 'INV008',
+    customerId: 'CUST005',
+    customerName: 'heri',
+    date: `${currentYear}-07-01`, // Juli
+    dueDate: `${currentYear}-07-01`,
+    amount: 150000,
+    status: 'belum lunas'
   }
 ];
 
@@ -123,6 +165,19 @@ export const payments: Payment[] = [
         totalBill: 250000,
         discount: 0,
         totalPayment: 250000,
+        changeAmount: 0
+    },
+    {
+        id: 'PAY002',
+        customerId: 'CUST005',
+        customerName: 'heri',
+        paymentDate: `${currentYear}-06-10`, // Pembayaran Juni
+        paidAmount: 150000,
+        paymentMethod: 'bri',
+        invoiceIds: ['INV007'],
+        totalBill: 150000,
+        discount: 0,
+        totalPayment: 150000,
         changeAmount: 0
     }
 ];
