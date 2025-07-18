@@ -50,14 +50,23 @@ const paymentSchema = z.object({
   paymentDate: z.date({
     required_error: 'Tanggal pembayaran harus diisi.',
   }),
+  discountType: z.enum(['rp', 'percentage']),
   discount: z.preprocess(
     (a) => (a ? parseFloat(String(a)) : 0),
-    z.number().min(0, "Diskon tidak boleh negatif").max(100, "Diskon maksimal 100%").optional()
+    z.number().min(0, "Diskon tidak boleh negatif").optional()
   ),
   paidAmount: z.preprocess(
     (a) => (a ? parseInt(String(a), 10) : 0),
     z.number().min(0)
   ),
+}).refine(data => {
+    if (data.discountType === 'percentage') {
+        return data.discount === undefined || (data.discount >= 0 && data.discount <= 100);
+    }
+    return true;
+}, {
+    message: "Diskon persen harus antara 0 dan 100",
+    path: ["discount"],
 });
 
 type PaymentFormValues = z.infer<typeof paymentSchema>;
@@ -87,6 +96,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     defaultValues: {
       paymentDate: new Date(),
       discount: 0,
+      discountType: 'rp',
       paymentMethod: 'cash',
       selectedInvoices: [],
       paidAmount: 0,
@@ -94,7 +104,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   });
 
   const selectedInvoices = watch('selectedInvoices') || [];
-  const discountPercentage = watch('discount') || 0;
+  const discountValue = watch('discount') || 0;
+  const discountType = watch('discountType');
   const paidAmount = watch('paidAmount') || 0;
 
   const billToPay = React.useMemo(() => {
@@ -104,8 +115,11 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   }, [customer.invoices, selectedInvoices]);
   
   const discountAmount = React.useMemo(() => {
-    return (billToPay * discountPercentage) / 100;
-  }, [billToPay, discountPercentage]);
+     if (discountType === 'percentage') {
+        return (billToPay * discountValue) / 100;
+     }
+     return Math.min(billToPay, discountValue); // Ensure discount is not more than the bill
+  }, [billToPay, discountValue, discountType]);
 
   const totalPayment = Math.max(0, billToPay - discountAmount);
   const paymentDifference = paidAmount - totalPayment;
@@ -121,7 +135,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       totalPayment,
       changeAmount: Math.max(0, paymentDifference),
       shortageAmount: Math.max(0, -paymentDifference),
-      discount: discountAmount, // Send the calculated amount, not percentage
+      discount: discountAmount,
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
     setOpen(false);
@@ -260,21 +274,41 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         <p className="font-semibold text-lg">Rp{billToPay.toLocaleString('id-ID')}</p>
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="discount">Diskon (%)</Label>
-                        <Controller
-                            name="discount"
-                            control={control}
-                            render={({ field }) => (
-                                <Input
-                                {...field}
-                                id="discount"
-                                type="number"
-                                placeholder="0"
-                                onChange={e => field.onChange(e.target.value)}
-                                />
-                            )}
-                        />
-                         {errors.discount && <p className="text-sm text-destructive">{errors.discount.message}</p>}
+                        <Label htmlFor="discount">Diskon</Label>
+                        <div className="flex items-center gap-2">
+                             <Controller
+                                name="discount"
+                                control={control}
+                                render={({ field }) => (
+                                    <Input
+                                    {...field}
+                                    id="discount"
+                                    type="number"
+                                    placeholder="0"
+                                    className="flex-1"
+                                    onChange={e => field.onChange(e.target.value)}
+                                    />
+                                )}
+                            />
+                             <Controller
+                                name="discountType"
+                                control={control}
+                                render={({ field }) => (
+                                    <RadioGroup
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                    className="flex rounded-md border bg-muted p-1"
+                                    >
+                                        <RadioGroupItem value="rp" id="rp" className="sr-only" />
+                                        <Label htmlFor="rp" className={cn("px-2 py-1 text-xs rounded-sm cursor-pointer", field.value === 'rp' && "bg-background shadow")}>Rp</Label>
+                                        
+                                        <RadioGroupItem value="percentage" id="percentage" className="sr-only"/>
+                                        <Label htmlFor="percentage" className={cn("px-2 py-1 text-xs rounded-sm cursor-pointer", field.value === 'percentage' && "bg-background shadow")}>%</Label>
+                                    </RadioGroup>
+                                )}
+                            />
+                        </div>
+                        {errors.discount && <p className="text-sm text-destructive">{errors.discount.message}</p>}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="paidAmount">Jumlah Dibayar (Rp)</Label>
@@ -302,8 +336,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                 
                  {paymentDifference > 0 && (
                     <div className="grid gap-2 col-span-2">
-                        <p className="text-xs text-muted-foreground">
-                            Jumlah ini akan ditambahkan ke saldo deposit pelanggan.
+                         <p className="text-xs text-muted-foreground">
+                            Kelebihan pembayaran (Rp{paymentDifference.toLocaleString('id-ID')}) akan ditambahkan ke saldo deposit pelanggan.
                         </p>
                     </div>
                  )}
