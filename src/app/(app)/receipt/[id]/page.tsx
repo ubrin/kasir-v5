@@ -3,41 +3,89 @@
 
 import * as React from 'react';
 import { useParams, notFound, useRouter } from 'next/navigation';
-import { customers, invoices, payments } from '@/lib/data';
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type { Customer, Invoice, Payment } from '@/lib/types';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, ArrowLeft, Send, Printer, MoreVertical } from 'lucide-react';
+import { Download, ArrowLeft, Send, Printer, MoreVertical, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ReceiptPage() {
     const params = useParams();
     const router = useRouter();
+    const { toast } = useToast();
     const paymentId = params.id as string;
     const receiptRef = React.useRef<HTMLDivElement>(null);
     
-    const [isClient, setIsClient] = React.useState(false);
-    React.useEffect(() => { setIsClient(true) }, []);
+    const [loading, setLoading] = React.useState(true);
+    const [payment, setPayment] = React.useState<Payment | null>(null);
+    const [customer, setCustomer] = React.useState<Customer | null>(null);
+    const [paidInvoices, setPaidInvoices] = React.useState<Invoice[]>([]);
 
-    const payment = payments.find(p => p.id === paymentId);
+    React.useEffect(() => {
+        if (!paymentId) return;
 
-    if (!payment) {
-        notFound();
-    }
+        const fetchReceiptData = async () => {
+            setLoading(true);
+            try {
+                const paymentDocRef = doc(db, "payments", paymentId);
+                const paymentDocSnap = await getDoc(paymentDocRef);
+                if (!paymentDocSnap.exists()) {
+                    notFound();
+                    return;
+                }
+                const paymentData = { id: paymentDocSnap.id, ...paymentDocSnap.data() } as Payment;
+                setPayment(paymentData);
 
-    const customer = customers.find(c => c.id === payment.customerId);
-    const paidInvoices = invoices.filter(i => payment.invoiceIds.includes(i.id));
+                const customerDocRef = doc(db, "customers", paymentData.customerId);
+                const customerDocSnap = await getDoc(customerDocRef);
+                if (customerDocSnap.exists()) {
+                    setCustomer({ id: customerDocSnap.id, ...customerDocSnap.data() } as Customer);
+                }
 
-    if (!customer) {
-        notFound();
-    }
+                if (paymentData.invoiceIds && paymentData.invoiceIds.length > 0) {
+                    const invoicesQuery = query(collection(db, "invoices"), where("__name__", "in", paymentData.invoiceIds));
+                    const invoicesSnapshot = await getDocs(invoicesQuery);
+                    const invoicesList = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Invoice);
+
+                    // We need to re-calculate invoice amounts if they were partially paid,
+                    // but for a receipt, we usually show the full original amount.
+                    // Let's find the original invoice amounts from the customer's total invoices.
+                     const allInvoicesQuery = query(collection(db, "invoices"), where("customerId", "==", paymentData.customerId));
+                     const allInvoicesSnapshot = await getDocs(allInvoicesQuery);
+                     const allInvoices = allInvoicesSnapshot.docs.map(doc => ({id: doc.id, ...doc.data() as Invoice}));
+                    
+                     const finalPaidInvoices = paymentData.invoiceIds.map(id => {
+                        const foundInvoice = allInvoices.find(inv => inv.id === id);
+                        return foundInvoice ? { ...foundInvoice, amount: foundInvoice.amount } : null;
+                     }).filter(inv => inv !== null) as Invoice[];
+
+                    setPaidInvoices(finalPaidInvoices);
+                }
+
+            } catch (error) {
+                console.error("Error fetching receipt data:", error);
+                toast({
+                    title: "Gagal memuat data struk",
+                    variant: "destructive",
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchReceiptData();
+    }, [paymentId, toast]);
 
     const handleDownloadPdf = () => {
         const input = receiptRef.current;
@@ -59,14 +107,18 @@ export default function ReceiptPage() {
           
           pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
           
-          const fileName = `Struk-${customer.name.replace(/ /g, '_')}-${format(parseISO(payment.paymentDate), 'yyyyMMdd')}.pdf`;
+          const fileName = `Struk-${customer?.name.replace(/ /g, '_')}-${payment ? format(parseISO(payment.paymentDate), 'yyyyMMdd') : ''}.pdf`;
           pdf.save(fileName);
         });
     };
 
     const handleSendWhatsApp = () => {
-        if (!customer.phone) {
-            alert('Nomor WhatsApp pelanggan tidak ditemukan.');
+        if (!customer?.phone) {
+            toast({
+                title: "Nomor Tidak Ditemukan",
+                description: "Nomor WhatsApp pelanggan tidak terdaftar.",
+                variant: "destructive",
+            });
             return;
         }
 
@@ -74,7 +126,7 @@ export default function ReceiptPage() {
 
         const message = `
 Terima kasih Anda telah melakukan Pembayaran internet untuk: ${paidMonths}
-Total Bayar: Rp${payment.totalPayment.toLocaleString('id-ID')}
+Total Bayar: Rp${payment?.totalPayment.toLocaleString('id-ID')}
 
 Terima kasih telah menggunakan layanan kami.
 - PT CYBERNETWORK CORP -
@@ -88,8 +140,16 @@ Terima kasih telah menggunakan layanan kami.
         window.print();
     }
     
-    if (!isClient) {
-        return null;
+    if (loading) {
+        return (
+             <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-16 w-16 animate-spin" />
+            </div>
+        );
+    }
+    
+    if (!payment || !customer) {
+        return notFound();
     }
 
     return (
@@ -209,3 +269,5 @@ Terima kasih telah menggunakan layanan kami.
         </div>
     );
 }
+
+    

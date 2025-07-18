@@ -2,16 +2,18 @@
 'use client';
 
 import * as React from 'react';
-import { addDays, format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-import { payments } from '@/lib/data';
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type { Payment } from '@/lib/types';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon, Receipt } from 'lucide-react';
+import { Calendar as CalendarIcon, Receipt, Loader2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +24,7 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion"
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 
 type GroupedPayments = {
@@ -35,10 +38,34 @@ type GroupedPayments = {
 };
 
 export default function PaymentReportPage() {
+  const { toast } = useToast();
+  const [loading, setLoading] = React.useState(true);
+  const [payments, setPayments] = React.useState<Payment[]>([]);
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+
+  React.useEffect(() => {
+    const fetchPayments = async () => {
+        setLoading(true);
+        try {
+            const paymentsSnapshot = await getDocs(collection(db, "payments"));
+            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+            setPayments(paymentsList);
+        } catch (error) {
+            console.error("Error fetching payments:", error);
+            toast({
+                title: "Gagal Memuat Laporan",
+                description: "Tidak dapat mengambil data pembayaran dari database.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchPayments();
+  }, [toast]);
 
   const filteredPayments = payments.filter(payment => {
     if (!date?.from) return true;
@@ -53,24 +80,13 @@ export default function PaymentReportPage() {
     if (!acc[paymentDate]) {
       acc[paymentDate] = { cash: 0, bri: 0, dana: 0, total: 0, details: [] };
     }
-    acc[paymentDate][payment.paymentMethod] += payment.paidAmount;
-    acc[paymentDate].total += payment.paidAmount;
+    acc[paymentDate][payment.paymentMethod] += payment.totalPayment;
+    acc[paymentDate].total += payment.totalPayment;
     acc[paymentDate].details.push(payment);
     return acc;
   }, {});
 
   const sortedDates = Object.keys(groupedPayments).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  
-  const grandTotal = sortedDates.reduce(
-    (acc, date) => {
-      acc.cash += groupedPayments[date].cash;
-      acc.bri += groupedPayments[date].bri;
-      acc.dana += groupedPayments[date].dana;
-      acc.total += groupedPayments[date].total;
-      return acc;
-    },
-    { cash: 0, bri: 0, dana: 0, total: 0 }
-  );
   
   const getMethodBadge = (method: 'cash' | 'bri' | 'dana') => {
     switch(method) {
@@ -78,6 +94,14 @@ export default function PaymentReportPage() {
         case 'bri': return <Badge className="bg-blue-600 text-white hover:bg-blue-700">BRI</Badge>;
         case 'dana': return <Badge className="bg-sky-500 text-white hover:bg-sky-600">DANA</Badge>;
     }
+  }
+
+  if (loading) {
+    return (
+        <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-16 w-16 animate-spin" />
+        </div>
+    );
   }
 
   return (
@@ -192,3 +216,5 @@ export default function PaymentReportPage() {
     </div>
   );
 }
+
+    

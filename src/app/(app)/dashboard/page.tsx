@@ -1,12 +1,14 @@
 
 'use client'
 import * as React from "react";
+import { collection, getDocs, query, where, writeBatch, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Customer, Invoice, Payment } from "@/lib/types";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
-import { DollarSign, Users, CreditCard, Activity, Archive, AlertTriangle } from "lucide-react"
-import { revenueData, customers, invoices, payments } from "@/lib/data"
+import { DollarSign, Users, CreditCard, Activity, Archive, Loader2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { differenceInMonths, getMonth, getYear, parseISO, startOfMonth, endOfMonth } from "date-fns"
 import {
@@ -22,86 +24,148 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
 
-
-const chartConfig = {
-  revenue: {
-    label: "Pendapatan",
-    color: "hsl(var(--primary))",
-  },
-}
-
 const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
 
 export default function DashboardPage() {
     const { toast } = useToast();
-    const [forceUpdate, setForceUpdate] = React.useState(0);
-
-    const totalRevenue = invoices.filter(i => i.status === 'lunas').reduce((acc, i) => acc + i.amount, 0);
-    const outstandingPayments = invoices.filter(i => i.status === 'belum lunas').reduce((acc, i) => acc + i.amount, 0);
-    const newCustomers = customers.filter(c => differenceInMonths(new Date(), new Date(c.installationDate)) <= 1).length;
-    const delinquentAccounts = invoices.filter(i => i.status === 'belum lunas' && new Date(i.dueDate) < new Date()).length;
-
-    // Filter invoices for the current month and year for the pie chart
-    const today = new Date();
-    const currentMonth = getMonth(today);
-    const currentYear = getYear(today);
-
-    const currentMonthInvoices = invoices.filter(invoice => {
-        const invoiceDate = parseISO(invoice.date);
-        return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
+    const [loading, setLoading] = React.useState(true);
+    const [stats, setStats] = React.useState({
+        totalRevenue: 0,
+        outstandingPayments: 0,
+        newCustomers: 0,
+        delinquentAccounts: 0,
     });
+    const [monthlyRevenueData, setMonthlyRevenueData] = React.useState<any[]>([]);
+    const [pieData, setPieData] = React.useState<any[]>([]);
+    const [paymentSummary, setPaymentSummary] = React.useState({ cash: 0, bri: 0, dana: 0, total: 0 });
 
-    const paidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'lunas').length;
-    const unpaidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'belum lunas').length;
-    
-    const pieData = [
-      { name: 'Lunas', value: paidInvoicesCurrentMonth },
-      { name: 'Belum Lunas', value: unpaidInvoicesCurrentMonth },
-    ];
+    const fetchData = React.useCallback(async () => {
+        setLoading(true);
+        try {
+            const customersSnapshot = await getDocs(collection(db, "customers"));
+            const invoicesSnapshot = await getDocs(collection(db, "invoices"));
+            const paymentsSnapshot = await getDocs(collection(db, "payments"));
 
-    // Payment Summary for this month
-    const startOfCurrentMonth = startOfMonth(today);
-    const endOfCurrentMonth = endOfMonth(today);
+            const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+            const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
+            const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 
-    const monthlyPayments = payments.filter(payment => {
-      const paymentDate = new Date(payment.paymentDate);
-      return paymentDate >= startOfCurrentMonth && paymentDate <= endOfCurrentMonth;
-    });
+            // Calculate Stats
+            const totalRevenue = invoices.filter(i => i.status === 'lunas').reduce((acc, i) => acc + i.amount, 0);
+            const outstandingPayments = invoices.filter(i => i.status === 'belum lunas').reduce((acc, i) => acc + i.amount, 0);
+            const newCustomers = customers.filter(c => differenceInMonths(new Date(), new Date(c.installationDate)) <= 1).length;
+            const delinquentAccounts = invoices.filter(i => i.status === 'belum lunas' && new Date(i.dueDate) < new Date()).length;
+            setStats({ totalRevenue, outstandingPayments, newCustomers, delinquentAccounts });
 
-    const paymentSummary = monthlyPayments.reduce(
-      (acc, payment) => {
-        acc[payment.paymentMethod] += payment.paidAmount;
-        acc.total += payment.paidAmount;
-        return acc;
-      },
-      { cash: 0, bri: 0, dana: 0, total: 0 }
-    );
-    
-    const handleArchivePaidInvoices = () => {
-        const paidInvoiceIds = invoices.filter(inv => inv.status === 'lunas').map(inv => inv.id);
-        
-        if (paidInvoiceIds.length === 0) {
-            toast({
-                title: "Tidak Ada Data untuk Diarsipkan",
-                description: "Semua faktur lunas sudah diarsipkan.",
-                variant: "default",
+            // Pie Chart Data (Current Month)
+            const today = new Date();
+            const currentMonth = getMonth(today);
+            const currentYear = getYear(today);
+            const currentMonthInvoices = invoices.filter(invoice => {
+                const invoiceDate = parseISO(invoice.date);
+                return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
             });
-            return;
+            const paidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'lunas').length;
+            const unpaidInvoicesCurrentMonth = currentMonthInvoices.filter(i => i.status === 'belum lunas').length;
+            setPieData([
+                { name: 'Lunas', value: paidInvoicesCurrentMonth },
+                { name: 'Belum Lunas', value: unpaidInvoicesCurrentMonth },
+            ]);
+
+            // Payment Summary (Current Month)
+            const startOfCurrentMonth = startOfMonth(today);
+            const endOfCurrentMonth = endOfMonth(today);
+            const monthlyPayments = payments.filter(payment => {
+              const paymentDate = new Date(payment.paymentDate);
+              return paymentDate >= startOfCurrentMonth && paymentDate <= endOfCurrentMonth;
+            });
+            const summary = monthlyPayments.reduce(
+              (acc, payment) => {
+                acc[payment.paymentMethod] += payment.totalPayment;
+                acc.total += payment.totalPayment;
+                return acc;
+              },
+              { cash: 0, bri: 0, dana: 0, total: 0 }
+            );
+            setPaymentSummary(summary);
+
+            // Revenue Chart Data (Last 6 months)
+            const revenueDataByMonth: { [key: string]: number } = {};
+            for (let i = 5; i >= 0; i--) {
+                const date = subMonths(today, i);
+                const monthName = date.toLocaleString('default', { month: 'short' });
+                revenueDataByMonth[monthName] = 0;
+            }
+            payments.forEach(p => {
+                const paymentDate = parseISO(p.paymentDate);
+                const monthName = paymentDate.toLocaleString('default', { month: 'short' });
+                if (revenueDataByMonth.hasOwnProperty(monthName)) {
+                    revenueDataByMonth[monthName] += p.totalPayment;
+                }
+            });
+             setMonthlyRevenueData(Object.keys(revenueDataByMonth).map(month => ({ month, revenue: revenueDataByMonth[month] })));
+
+
+        } catch (error) {
+            console.error("Failed to fetch dashboard data:", error);
+            toast({
+                title: "Gagal memuat data",
+                description: "Tidak dapat mengambil data untuk dasbor.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
         }
+    }, [toast]);
+    
+    React.useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+    
+    const handleArchivePaidInvoices = async () => {
+        try {
+            const q = query(collection(db, "invoices"), where("status", "==", "lunas"));
+            const snapshot = await getDocs(q);
 
-        // Remove paid invoices from the main invoices array
-        const originalLength = invoices.length;
-        invoices.splice(0, invoices.length, ...invoices.filter(inv => inv.status !== 'lunas'));
+            if (snapshot.empty) {
+                toast({
+                    title: "Tidak Ada Data untuk Diarsipkan",
+                    description: "Semua faktur lunas sudah diarsipkan.",
+                    variant: "default",
+                });
+                return;
+            }
 
-        toast({
-            title: "Pengarsipan Berhasil",
-            description: `${originalLength - invoices.length} faktur yang sudah lunas telah diarsipkan.`,
-        });
+            const batch = writeBatch(db);
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
 
-        // Trigger a re-render
-        setForceUpdate(prev => prev + 1);
+            toast({
+                title: "Pengarsipan Berhasil",
+                description: `${snapshot.size} faktur yang sudah lunas telah diarsipkan.`,
+            });
+
+            // Refresh data on the page
+            fetchData();
+        } catch (error) {
+            console.error("Archiving error:", error);
+            toast({
+                title: "Gagal Mengarsipkan",
+                description: "Terjadi kesalahan saat mengarsipkan faktur.",
+                variant: "destructive",
+            });
+        }
     }
-
+    
+  if (loading) {
+    return (
+        <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-16 w-16 animate-spin" />
+        </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -139,9 +203,9 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Rp{totalRevenue.toLocaleString('id-ID')}</div>
+            <div className="text-2xl font-bold">Rp{stats.totalRevenue.toLocaleString('id-ID')}</div>
             <p className="text-xs text-muted-foreground">
-              +20.1% dari bulan lalu
+              Total pendapatan lunas tercatat
             </p>
           </CardContent>
         </Card>
@@ -153,9 +217,9 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{newCustomers}</div>
+            <div className="text-2xl font-bold">+{stats.newCustomers}</div>
             <p className="text-xs text-muted-foreground">
-              +180.1% dari bulan lalu
+              Bulan ini
             </p>
           </CardContent>
         </Card>
@@ -165,9 +229,9 @@ export default function DashboardPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Rp{outstandingPayments.toLocaleString('id-ID')}</div>
+            <div className="text-2xl font-bold">Rp{stats.outstandingPayments.toLocaleString('id-ID')}</div>
             <p className="text-xs text-muted-foreground">
-              +19% dari bulan lalu
+              Total faktur belum lunas
             </p>
           </CardContent>
         </Card>
@@ -179,9 +243,9 @@ export default function DashboardPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{delinquentAccounts}</div>
+            <div className="text-2xl font-bold">+{stats.delinquentAccounts}</div>
             <p className="text-xs text-muted-foreground">
-              +2 sejak bulan lalu
+              Total pelanggan jatuh tempo
             </p>
           </CardContent>
         </Card>
@@ -194,7 +258,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="pl-2">
             <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={revenueData}>
+                <BarChart data={monthlyRevenueData}>
                     <CartesianGrid vertical={false} />
                     <XAxis
                     dataKey="month"
@@ -208,7 +272,7 @@ export default function DashboardPage() {
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(value) => `Rp${new Intl.NumberFormat('id-ID', { notation: "compact", compactDisplay: "short" }).format(value)}`}
+                    tickFormatter={(value) => `Rp${new Intl.NumberFormat('id-ID', { notation: "compact", compactDisplay: "short" }).format(value as number)}`}
                     />
                     <Tooltip
                         contentStyle={{
@@ -287,7 +351,7 @@ export default function DashboardPage() {
                         const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
                         return (
                         <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central">
-                            {`${(percent * 100).toFixed(0)}%`}
+                            {`${((percent as number) * 100).toFixed(0)}%`}
                         </text>
                         );
                     }}

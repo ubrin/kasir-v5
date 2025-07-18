@@ -3,40 +3,73 @@
 
 import * as React from 'react';
 import { useParams, notFound, useRouter } from 'next/navigation';
-import { customers, invoices } from '@/lib/data';
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type { Customer, Invoice } from '@/lib/types';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, ArrowLeft } from 'lucide-react';
+import { Download, ArrowLeft, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useToast } from '@/hooks/use-toast';
 
 export default function InvoicePage() {
     const params = useParams();
     const router = useRouter();
+    const { toast } = useToast();
     const customerId = params.id as string;
     const invoiceRef = React.useRef<HTMLDivElement>(null);
     
-    const [isClient, setIsClient] = React.useState(false);
-    React.useEffect(() => { setIsClient(true) }, []);
+    const [loading, setLoading] = React.useState(true);
+    const [customer, setCustomer] = React.useState<Customer | null>(null);
+    const [customerInvoices, setCustomerInvoices] = React.useState<Invoice[]>([]);
 
-    const customer = customers.find(c => c.id === customerId);
-    const customerInvoices = invoices.filter(i => i.customerId === customerId && i.status === 'belum lunas');
+    React.useEffect(() => {
+        if (!customerId) return;
+        
+        const fetchInvoiceData = async () => {
+            setLoading(true);
+            try {
+                const customerDocRef = doc(db, "customers", customerId);
+                const customerDocSnap = await getDoc(customerDocRef);
+                if (!customerDocSnap.exists()) {
+                    notFound();
+                    return;
+                }
+                setCustomer({ id: customerDocSnap.id, ...customerDocSnap.data() } as Customer);
+                
+                const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", customerId), where("status", "==", "belum lunas"));
+                const invoicesSnapshot = await getDocs(invoicesQuery);
+                const invoicesList = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
+                setCustomerInvoices(invoicesList);
 
-    if (!customer) {
-        notFound();
-    }
+            } catch (error) {
+                console.error("Error fetching invoice data:", error);
+                 toast({
+                    title: "Gagal memuat data",
+                    description: "Tidak dapat mengambil data faktur dari database.",
+                    variant: "destructive"
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchInvoiceData();
+    }, [customerId, toast]);
+
 
     const totalAmount = customerInvoices.reduce((sum, inv) => sum + inv.amount, 0);
 
     const handleDownloadPdf = () => {
         const input = invoiceRef.current;
-        if (!input) return;
+        if (!input || !customer) return;
 
         // Hide buttons before capture
         const buttons = input.querySelectorAll('button');
@@ -77,8 +110,16 @@ export default function InvoicePage() {
         });
       };
     
-    if (!isClient) {
-        return null;
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-16 w-16 animate-spin" />
+            </div>
+        );
+    }
+
+    if (!customer) {
+        return notFound();
     }
 
     return (
@@ -130,7 +171,6 @@ export default function InvoicePage() {
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/50">
-                                    <TableHead className="w-[100px]">ID Faktur</TableHead>
                                     <TableHead>Deskripsi</TableHead>
                                     <TableHead className="text-right">Jumlah</TableHead>
                                 </TableRow>
@@ -139,14 +179,13 @@ export default function InvoicePage() {
                                 {customerInvoices.length > 0 ? (
                                     customerInvoices.map(invoice => (
                                         <TableRow key={invoice.id}>
-                                            <TableCell>{invoice.id}</TableCell>
                                             <TableCell>Tagihan Internet - {format(parseISO(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
                                             <TableCell className="text-right">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center">Tidak ada tagihan tertunggak.</TableCell>
+                                        <TableCell colSpan={2} className="text-center h-24">Tidak ada tagihan tertunggak.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -190,3 +229,5 @@ export default function InvoicePage() {
         </div>
     );
 }
+
+    
