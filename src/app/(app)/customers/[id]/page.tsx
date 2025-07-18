@@ -88,7 +88,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     try {
         const customerDocRef = doc(db, "customers", editableCustomer.id);
         // We only update the fields that are editable, preserving others like outstandingBalance
-        const { id, outstandingBalance, paymentHistory, ...dataToUpdate } = editableCustomer;
+        const { id, outstandingBalance, paymentHistory, creditBalance, ...dataToUpdate } = editableCustomer;
         await updateDoc(customerDocRef, dataToUpdate);
         
         setCustomer(editableCustomer); // Update the main state
@@ -260,12 +260,14 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <TableHead className="text-right">Total Tagihan</TableHead>
                 <TableHead className="text-right">Diskon</TableHead>
                 <TableHead className="text-right">Jumlah Dibayar</TableHead>
-                <TableHead className="text-right">Kekurangan</TableHead>
+                <TableHead className="text-right">Kekurangan/Saldo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {customerPayments.length > 0 ? customerPayments.map((payment) => {
-                const shortfall = (payment.totalBill - payment.discount) - payment.paidAmount;
+                const effectiveBill = payment.totalBill - payment.discount;
+                const difference = payment.paidAmount - effectiveBill;
+                
                 return (
                 <TableRow key={payment.id}>
                   <TableCell className="font-medium">{format(parseISO(payment.paymentDate), "d MMMM yyyy", { locale: id })}</TableCell>
@@ -273,8 +275,18 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                   <TableCell className="text-right">Rp{payment.totalBill.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-right text-green-600">Rp{payment.discount.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-right font-semibold">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
-                  <TableCell className={`text-right font-semibold ${shortfall > 0 ? 'text-destructive' : ''}`}>
-                    Rp{Math.max(0, shortfall).toLocaleString('id-ID')}
+                   <TableCell className={`text-right font-semibold`}>
+                    {difference < 0 ? (
+                      <span className="text-destructive">
+                        -Rp{Math.abs(difference).toLocaleString('id-ID')}
+                      </span>
+                    ) : difference > 0 ? (
+                      <span className="text-blue-600">
+                        Rp{difference.toLocaleString('id-ID')}
+                      </span>
+                    ) : (
+                      'Rp0'
+                    )}
                   </TableCell>
                 </TableRow>
               )}) : (
