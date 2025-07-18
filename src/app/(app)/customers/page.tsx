@@ -52,6 +52,7 @@ export default function CustomersPage() {
   const [loading, setLoading] = React.useState(true);
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
   const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
+  const [unpaidCustomerIds, setUnpaidCustomerIds] = React.useState<Set<string>>(new Set());
   const router = useRouter();
   const { toast } = useToast();
 
@@ -59,9 +60,19 @@ export default function CustomersPage() {
     setLoading(true);
     try {
       const customersCollection = collection(db, "customers");
-      const customersSnapshot = await getDocs(customersCollection);
+      const invoicesUnpaidQuery = query(collection(db, "invoices"), where("status", "==", "belum lunas"));
+
+      const [customersSnapshot, unpaidInvoicesSnapshot] = await Promise.all([
+        getDocs(customersCollection),
+        getDocs(invoicesUnpaidQuery),
+      ]);
+
       const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
       setCustomers(customersList);
+
+      const unpaidIds = new Set(unpaidInvoicesSnapshot.docs.map(doc => (doc.data() as Invoice).customerId));
+      setUnpaidCustomerIds(unpaidIds);
+
     } catch (error) {
       console.error("Error fetching customers:", error);
       toast({
@@ -255,7 +266,9 @@ export default function CustomersPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {groupedCustomers[code].map((customer) => (
+                            {groupedCustomers[code].map((customer) => {
+                                const hasUnpaidInvoice = unpaidCustomerIds.has(customer.id);
+                                return (
                                 <TableRow 
                                     key={customer.id} 
                                     onClick={() => handleRowClick(customer.id)}
@@ -265,8 +278,8 @@ export default function CustomersPage() {
                                         {customer.name}
                                     </TableCell>
                                     <TableCell>
-                                    <Badge variant={customer.outstandingBalance > 0 ? "destructive" : "secondary"} className={`${customer.outstandingBalance > 0 ? "" : "bg-green-100 text-green-800"}`}>
-                                        {customer.outstandingBalance > 0 ? "Belum Lunas" : "Lunas"}
+                                    <Badge variant={hasUnpaidInvoice ? "destructive" : "secondary"} className={`${hasUnpaidInvoice ? "" : "bg-green-100 text-green-800"}`}>
+                                        {hasUnpaidInvoice ? "Belum Lunas" : "Lunas"}
                                     </Badge>
                                     </TableCell>
                                     <TableCell className="hidden md:table-cell">{customer.subscriptionMbps} Mbps</TableCell>
@@ -299,7 +312,7 @@ export default function CustomersPage() {
                                     </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                         </Table>
                     </CardContent>
