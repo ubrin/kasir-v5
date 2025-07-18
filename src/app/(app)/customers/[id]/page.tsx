@@ -23,6 +23,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
   const [customerPayments, setCustomerPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasUnpaidInvoices, setHasUnpaidInvoices] = useState(false);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editableCustomer, setEditableCustomer] = useState<Customer | null>(null);
@@ -35,12 +36,12 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
         try {
             // Fetch all data in parallel
             const customerDocRef = doc(db, "customers", params.id);
-            const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", params.id));
+            const allInvoicesQuery = query(collection(db, "invoices"), where("customerId", "==", params.id));
             const paymentsQuery = query(collection(db, "payments"), where("customerId", "==", params.id));
 
             const [customerDocSnap, invoicesSnapshot, paymentsSnapshot] = await Promise.all([
                 getDoc(customerDocRef),
-                getDocs(invoicesQuery),
+                getDocs(allInvoicesQuery),
                 getDocs(paymentsQuery)
             ]);
 
@@ -56,6 +57,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             // Process invoices
             const invoicesList = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice)).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
             setCustomerInvoices(invoicesList);
+
+            // Check for unpaid invoices
+            const unpaidCheck = invoicesList.some(invoice => invoice.status === 'belum lunas');
+            setHasUnpaidInvoices(unpaidCheck);
 
             // Process payments
             const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)).sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.paymentDate).getTime());
@@ -209,8 +214,8 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="grid gap-1">
                         <p className="text-sm font-medium text-muted-foreground">Status</p>
-                        <Badge variant={(editableCustomer?.outstandingBalance ?? 0) > 0 ? "destructive" : "secondary"} className={`${(editableCustomer?.outstandingBalance ?? 0) > 0 ? "" : "bg-green-100 text-green-800"} w-fit`}>
-                            {(editableCustomer?.outstandingBalance ?? 0) > 0 ? "Belum Lunas" : "Lunas"}
+                        <Badge variant={hasUnpaidInvoices ? "destructive" : "secondary"} className={`${hasUnpaidInvoices ? "" : "bg-green-100 text-green-800"} w-fit`}>
+                            {hasUnpaidInvoices ? "Belum Lunas" : "Lunas"}
                         </Badge>
                     </div>
                     {(editableCustomer?.outstandingBalance ?? 0) > 0 ? (
@@ -351,5 +356,3 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   )
 }
-
-    
