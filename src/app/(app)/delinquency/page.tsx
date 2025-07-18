@@ -156,23 +156,7 @@ export default function DelinquencyPage() {
         try {
             const batch = writeBatch(db);
 
-            // 1. Create a new payment record
-            const newPaymentRef = doc(collection(db, "payments"));
-            const newPayment: Omit<Payment, 'id'> = {
-                customerId: customerId,
-                customerName: customerName,
-                paymentDate: format(paymentDetails.paymentDate, 'yyyy-MM-dd'),
-                paidAmount: paymentDetails.paidAmount,
-                paymentMethod: paymentDetails.paymentMethod,
-                invoiceIds: paymentDetails.selectedInvoices,
-                totalBill: paymentDetails.billToPay,
-                discount: paymentDetails.discount,
-                totalPayment: paymentDetails.totalPayment,
-                changeAmount: paymentDetails.changeAmount,
-            };
-            batch.set(newPaymentRef, newPayment);
-            
-            // 2. Fetch the selected invoices to be paid
+            // 1. Fetch the selected invoices to be paid
             const selectedUnpaidInvoicesQuery = query(
                 collection(db, "invoices"), 
                 where("customerId", "==", customerId), 
@@ -183,30 +167,42 @@ export default function DelinquencyPage() {
             const unpaidInvoices = invoicesSnapshot.docs
                 .map(d => ({...d.data(), id: d.id } as Invoice))
                 .sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
-
-            // 3. Logic to handle payment distribution (including discounts)
-            let totalAmountToCredit = paymentDetails.paidAmount; // Actual money received from customer
-            let totalBilledAmountToClear = 0; // The original value of the invoices being paid off
-
+            
+            // 2. Calculate amounts based on selected invoices and discount
+            const totalBilledAmountToClear = unpaidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+            const discountAmount = Math.floor(totalBilledAmountToClear * ((paymentDetails.discount || 0) / 100));
+            const totalPaymentAfterDiscount = totalBilledAmountToClear - discountAmount;
+            
+            // 3. Create a new payment record
+            const newPaymentRef = doc(collection(db, "payments"));
+            const newPayment: Omit<Payment, 'id'> = {
+                customerId: customerId,
+                customerName: customerName,
+                paymentDate: format(paymentDetails.paymentDate, 'yyyy-MM-dd'),
+                paidAmount: paymentDetails.paidAmount,
+                paymentMethod: paymentDetails.paymentMethod,
+                invoiceIds: paymentDetails.selectedInvoices,
+                totalBill: totalBilledAmountToClear,
+                discount: discountAmount,
+                totalPayment: totalPaymentAfterDiscount,
+                changeAmount: Math.max(0, paymentDetails.paidAmount - totalPaymentAfterDiscount),
+            };
+            batch.set(newPaymentRef, newPayment);
+            
+            // 4. Update the selected invoices to 'lunas'
             for (const invoice of unpaidInvoices) {
                 const invoiceRef = doc(db, "invoices", invoice.id);
-                const originalInvoiceAmount = invoice.amount;
-                
-                // If payment and discount together cover the whole invoice
-                // This logic is simplified: we assume selected invoices are intended to be paid in full
-                // A more complex system would handle partial payment across multiple selected invoices
                 batch.update(invoiceRef, { status: "lunas" });
-                totalBilledAmountToClear += originalInvoiceAmount;
             }
 
-
-            // 4. Update the customer's outstanding balance
+            // 5. Update the customer's outstanding balance
+            // We reduce the balance by the FULL billed amount, not the discounted amount.
             const customerRef = doc(db, "customers", customerId);
             batch.update(customerRef, {
                 outstandingBalance: increment(-totalBilledAmountToClear)
             });
 
-            // 5. Commit all changes
+            // 6. Commit all changes
             await batch.commit();
         
             toast({
