@@ -52,10 +52,15 @@ export default function CustomersPage() {
   const [loading, setLoading] = React.useState(true);
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
   const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
-  const [unpaidCustomerIds, setUnpaidCustomerIds] = React.useState<Set<string>>(new Set());
+  const [unpaidCustomerDetails, setUnpaidCustomerDetails] = React.useState<Map<string, string>>(new Map());
+  const [isClient, setIsClient] = React.useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
   const fetchCustomers = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -70,8 +75,15 @@ export default function CustomersPage() {
       const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
       setCustomers(customersList);
 
-      const unpaidIds = new Set(unpaidInvoicesSnapshot.docs.map(doc => (doc.data() as Invoice).customerId));
-      setUnpaidCustomerIds(unpaidIds);
+      const unpaidDetails = new Map<string, string>();
+      unpaidInvoicesSnapshot.docs.forEach(doc => {
+        const invoice = doc.data() as Invoice;
+        const existingDueDate = unpaidDetails.get(invoice.customerId);
+        if (!existingDueDate || new Date(invoice.dueDate) < new Date(existingDueDate)) {
+          unpaidDetails.set(invoice.customerId, invoice.dueDate);
+        }
+      });
+      setUnpaidCustomerDetails(unpaidDetails);
 
     } catch (error) {
       console.error("Error fetching customers:", error);
@@ -239,6 +251,19 @@ export default function CustomersPage() {
     fetchCustomers();
   };
 
+  const formatDueDateCountdown = (dueDate: string) => {
+    if (!isClient || !dueDate) return null;
+    const daysDiff = differenceInDays(parseISO(dueDate), new Date());
+
+    if (daysDiff < 0) {
+        return <Badge variant="destructive">Jatuh Tempo</Badge>
+    }
+    if (daysDiff === 0) {
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Hari Ini</Badge>
+    }
+    return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>
+  }
+
 
   if (loading) {
     return (
@@ -293,7 +318,7 @@ export default function CustomersPage() {
                         </TableHeader>
                         <TableBody>
                             {groupedCustomers[code].map((customer) => {
-                                const hasUnpaidInvoice = unpaidCustomerIds.has(customer.id);
+                                const nearestDueDate = unpaidCustomerDetails.get(customer.id);
                                 return (
                                 <TableRow 
                                     key={customer.id} 
@@ -304,9 +329,13 @@ export default function CustomersPage() {
                                         {customer.name}
                                     </TableCell>
                                     <TableCell>
-                                    <Badge variant={hasUnpaidInvoice ? "destructive" : "secondary"} className={`${hasUnpaidInvoice ? "" : "bg-green-100 text-green-800"}`}>
-                                        {hasUnpaidInvoice ? "Belum Lunas" : "Lunas"}
-                                    </Badge>
+                                    {nearestDueDate ? (
+                                        formatDueDateCountdown(nearestDueDate)
+                                      ) : (
+                                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                          Lunas
+                                        </Badge>
+                                      )}
                                     </TableCell>
                                     <TableCell className="hidden md:table-cell">{customer.subscriptionMbps} Mbps</TableCell>
                                     <TableCell className="hidden sm:table-cell">{customer.address}</TableCell>
