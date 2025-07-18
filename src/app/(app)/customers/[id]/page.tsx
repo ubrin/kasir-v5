@@ -59,7 +59,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             setCustomerInvoices(invoicesList);
 
             // Process payments
-            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)).sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.paymentDate).getTime());
+            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)).sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.date).getTime());
             setCustomerPayments(paymentsList);
 
         } catch (error) {
@@ -275,7 +275,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                   <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
                   <TableCell className="text-right">Rp{payment.totalBill.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-right text-green-600">Rp{payment.discount.toLocaleString('id-ID')}</TableCell>
-                  <TableCell className="text-right font-semibold">Rp{payment.totalPayment.toLocaleString('id-ID')}</TableCell>
+                  <TableCell className="text-right font-semibold">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-center">
                     <Button asChild variant="ghost" size="icon">
                         <Link href={`/receipt/${payment.id}`}>
@@ -336,5 +336,3 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   )
 }
-
-    
