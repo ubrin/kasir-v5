@@ -145,6 +145,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     }
   }
 
+  const calculatedArrears = customerInvoices
+    .filter(invoice => invoice.status === 'belum lunas')
+    .reduce((sum, invoice) => sum + invoice.amount, 0);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -218,10 +222,10 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                             {hasUnpaidInvoices ? "Belum Lunas" : "Lunas"}
                         </Badge>
                     </div>
-                    {(editableCustomer?.outstandingBalance ?? 0) > 0 ? (
+                    {calculatedArrears > 0 ? (
                         <div className="grid gap-1">
                             <p className="text-sm font-medium text-muted-foreground">Tunggakan</p>
-                            <p className="font-semibold text-destructive">Rp{(editableCustomer?.outstandingBalance ?? 0).toLocaleString('id-ID')}</p>
+                            <p className="font-semibold text-destructive">Rp{calculatedArrears.toLocaleString('id-ID')}</p>
                         </div>
                     ) : (editableCustomer?.creditBalance ?? 0) > 0 ? (
                         <div className="grid gap-1">
