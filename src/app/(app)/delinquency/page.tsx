@@ -77,40 +77,29 @@ export default function DelinquencyPage() {
             const overdueInvoicesSnapshot = await getDocs(invoicesQuery);
             const overdueInvoices = overdueInvoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
             
-            const delinquentCustomersData = overdueInvoices.reduce<Record<string, { customer: Customer; overdueAmount: number; overdueInvoicesCount: number, dueDates: string[], invoices: Invoice[] }>>((acc, invoice) => {
-                const customer = allCustomers.find((c) => c.id === invoice.customerId);
-                if (customer) {
-                    if (!acc[customer.id]) {
-                        acc[customer.id] = {
-                            customer: customer,
-                            overdueAmount: 0,
-                            overdueInvoicesCount: 0,
-                            dueDates: [],
-                            invoices: [],
-                        };
-                    }
-                    acc[customer.id].overdueAmount += invoice.amount;
-                    acc[customer.id].overdueInvoicesCount += 1;
-                    acc[customer.id].dueDates.push(invoice.dueDate);
-                    acc[customer.id].invoices.push(invoice);
-                }
-                return acc;
-            }, {});
+            const delinquentCustomerIds = new Set(overdueInvoices.map(inv => inv.customerId));
 
-            const delinquents = Object.values(delinquentCustomersData).map(data => {
-                const sortedDueDates = data.dueDates.map(d => parseISO(d)).sort((a, b) => a.getTime() - b.getTime());
-                const nearestDueDate = sortedDueDates.length > 0 ? sortedDueDates[0].toISOString().split('T')[0] : '';
-                
-                return {
-                    ...data.customer,
-                    overdueAmount: data.overdueAmount,
-                    overdueInvoicesCount: data.overdueInvoicesCount,
-                    nearestDueDate: nearestDueDate,
-                    invoices: data.invoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
-                }
-            });
+            const delinquentsMap: Record<string, DelinquentCustomer> = {};
 
-            setDelinquentCustomersList(delinquents);
+            for (const customerId of Array.from(delinquentCustomerIds)) {
+                const customer = allCustomers.find(c => c.id === customerId);
+                if (customer && customer.outstandingBalance > 0) {
+                    const customerInvoices = overdueInvoices.filter(inv => inv.customerId === customerId);
+                    const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
+                    const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
+
+                    delinquentsMap[customerId] = {
+                        ...customer,
+                        overdueAmount: customer.outstandingBalance, // Use the definitive outstandingBalance
+                        overdueInvoicesCount: customerInvoices.length,
+                        nearestDueDate: nearestDueDate,
+                        invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
+                    };
+                }
+            }
+
+            setDelinquentCustomersList(Object.values(delinquentsMap));
+
         } catch (error) {
             console.error("Error fetching delinquent data:", error);
             toast({
