@@ -5,7 +5,7 @@ import * as React from 'react';
 import Papa from 'papaparse';
 import { db } from '@/lib/firebase';
 import { writeBatch, collection, doc } from 'firebase/firestore';
-import { format, parse, differenceInCalendarMonths, addMonths, startOfMonth, parseISO } from 'date-fns';
+import { format, parse, differenceInCalendarMonths, addMonths, startOfMonth, parseISO, getDate, getYear, getMonth, differenceInDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -99,6 +99,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         }
 
         const packagePrice = Number(lowerCaseRow.harga) || 0;
+        const dueDateCode = Number(lowerCaseRow.kode) || 1;
         
         let installationDate = new Date();
         if (lowerCaseRow.installationdate) {
@@ -116,14 +117,31 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
             } catch (e) { /* Defaults to today */ }
         }
         const installationDateStr = format(installationDate, 'yyyy-MM-dd');
-
+        
         const today = new Date();
         const startOfInstallationMonth = startOfMonth(installationDate);
         const startOfCurrentMonth = startOfMonth(today);
+
+        // Calculate first due date to check grace period
+        const installationDay = getDate(installationDate);
+        let firstDueDate;
+        if (installationDay < dueDateCode) {
+            firstDueDate = new Date(getYear(installationDate), getMonth(installationDate), dueDateCode);
+        } else {
+            firstDueDate = addMonths(new Date(getYear(installationDate), getMonth(installationDate), dueDateCode), 1);
+        }
         
+        const daysToFirstDueDate = differenceInDays(firstDueDate, installationDate);
+        
+        // Determine the actual start month for invoicing
+        let invoiceStartDate = startOfInstallationMonth;
+        if (daysToFirstDueDate <= 25) {
+            invoiceStartDate = addMonths(startOfInstallationMonth, 1);
+        }
+
         let totalInvoices = 0;
-        if (startOfInstallationMonth <= startOfCurrentMonth) {
-            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, startOfInstallationMonth) + 1;
+        if (invoiceStartDate <= startOfCurrentMonth) {
+            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, invoiceStartDate) + 1;
         }
 
         const totalOutstanding = totalInvoices * packagePrice;
@@ -134,7 +152,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
           phone: lowerCaseRow.phone || '',
           installationDate: installationDateStr,
           subscriptionMbps: Number(lowerCaseRow.paket) || 0,
-          dueDateCode: Number(lowerCaseRow.kode) || 1,
+          dueDateCode: dueDateCode,
           packagePrice: packagePrice,
           outstandingBalance: totalOutstanding,
           paymentHistory: `Diimpor pada ${format(new Date(), 'dd/MM/yyyy')}`
@@ -144,7 +162,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
 
         if (packagePrice > 0 && totalInvoices > 0) {
             for (let i = 0; i < totalInvoices; i++) {
-                const invoiceMonthDate = addMonths(startOfInstallationMonth, i);
+                const invoiceMonthDate = addMonths(invoiceStartDate, i);
                 const invoiceDueDate = new Date(invoiceMonthDate.getFullYear(), invoiceMonthDate.getMonth(), newCustomer.dueDateCode);
                 
                 const newInvoice: Omit<Invoice, 'id'> = {

@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths } from 'date-fns';
+import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, getMonth, getYear, differenceInDays } from 'date-fns';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = React.useState<Customer[]>([]);
@@ -98,10 +98,27 @@ export default function CustomersPage() {
         const today = new Date();
         const startOfInstallationMonth = startOfMonth(installationDate);
         const startOfCurrentMonth = startOfMonth(today);
+
+        // Calculate first due date to check grace period
+        const installationDay = getDate(installationDate);
+        let firstDueDate;
+        if (installationDay < newCustomerData.dueDateCode) {
+            firstDueDate = new Date(getYear(installationDate), getMonth(installationDate), newCustomerData.dueDateCode);
+        } else {
+            firstDueDate = addMonths(new Date(getYear(installationDate), getMonth(installationDate), newCustomerData.dueDateCode), 1);
+        }
+
+        const daysToFirstDueDate = differenceInDays(firstDueDate, installationDate);
+        
+        // Determine the actual start month for invoicing
+        let invoiceStartDate = startOfInstallationMonth;
+        if (daysToFirstDueDate <= 25) {
+            invoiceStartDate = addMonths(startOfInstallationMonth, 1);
+        }
         
         let totalInvoices = 0;
-        if (startOfInstallationMonth <= startOfCurrentMonth) {
-            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, startOfInstallationMonth) + 1;
+        if (invoiceStartDate <= startOfCurrentMonth) {
+            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, invoiceStartDate) + 1;
         }
 
         const totalOutstanding = totalInvoices * newCustomerData.packagePrice;
@@ -116,7 +133,7 @@ export default function CustomersPage() {
 
         if (newCustomerData.packagePrice > 0 && totalInvoices > 0) {
             for (let i = 0; i < totalInvoices; i++) {
-                const invoiceMonthDate = addMonths(startOfInstallationMonth, i);
+                const invoiceMonthDate = addMonths(invoiceStartDate, i);
                 const invoiceDueDate = new Date(invoiceMonthDate.getFullYear(), invoiceMonthDate.getMonth(), newCustomerData.dueDateCode);
 
                 const newInvoice: Omit<Invoice, 'id'> = {
