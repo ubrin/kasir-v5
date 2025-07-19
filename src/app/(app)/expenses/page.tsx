@@ -5,12 +5,12 @@ import * as React from 'react';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-import { collection, query, where, getDocs, doc, addDoc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
+import { collection, query, getDocs, doc, addDoc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, PlusCircle, Save, Trash2, Calendar as CalendarIcon, MoreHorizontal, Edit, CreditCard } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, MoreHorizontal, Edit, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -222,6 +222,34 @@ const DeleteDialog = ({ onConfirm }: { onConfirm: () => void }) => {
     );
 };
 
+const ExpenseCategoryCard = ({
+    title,
+    description,
+    totalAmount,
+    expenses,
+    children,
+}: {
+    title: string;
+    description: string;
+    totalAmount: number;
+    expenses: React.ReactNode;
+    children: React.ReactNode;
+}) => {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription>
+                    {description} Total: <span className="font-bold text-destructive">Rp{formatNumber(totalAmount)}</span>
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {children}
+            </CardContent>
+        </Card>
+    );
+};
+
 // --- Main Page Component ---
 
 export default function ExpensesPage() {
@@ -234,38 +262,34 @@ export default function ExpensesPage() {
     });
 
     const fetchExpenses = React.useCallback(async () => {
-        if (!date?.from || !date?.to) return;
         setLoading(true);
         try {
-            // Fetch all expenses and then filter, because Firestore can't query based on OR conditions for dates/duedays
             const expensesQuery = query(collection(db, "expenses"));
             const snapshot = await getDocs(expensesQuery);
             const allExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             
-            const fromDate = date.from;
-            const toDate = date.to;
+            const fromDate = date?.from;
+            const toDate = date?.to;
 
             const filteredExpenses = allExpenses.filter(exp => {
+                 if (!fromDate || !toDate) return true; // Show all if no date range
+
                 if (exp.category === 'utama') {
-                    // For now, show all recurring expenses regardless of date range.
-                    return true; 
+                    return true; // Always show recurring expenses
                 }
-                if (exp.date) {
+                if (exp.date && (exp.category === 'lainnya' || exp.category === 'angsuran')) {
                     const expDate = parseISO(exp.date);
-                    // Check if the expense date falls within the selected range for 'angsuran' and 'lainnya'
                     return expDate >= fromDate && expDate <= toDate;
                 }
                 return false;
             });
             
-            // Sort expenses client-side
             const sortedExpenses = filteredExpenses.sort((a, b) => {
                 const dateA = a.date ? parseISO(a.date).getTime() : 0;
                 const dateB = b.date ? parseISO(b.date).getTime() : 0;
                 if (dateA !== dateB) {
-                    return dateB - dateA; // Sort by date descending
+                    return dateB - dateA;
                 }
-                // if dates are same or one is missing, sort by name
                 return a.name.localeCompare(b.name);
             });
 
@@ -285,11 +309,9 @@ export default function ExpensesPage() {
     const handleSaveExpense = async (data: Omit<Expense, 'id'|'paidTenor'>, id?: string) => {
         try {
             if (id) {
-                // When updating, we don't reset the paidTenor
                 await updateDoc(doc(db, "expenses", id), data);
                 toast({ title: "Pengeluaran diperbarui" });
             } else {
-                // When adding a new one, paidTenor starts at 0 if it's an installment
                 const dataToCreate = {...data};
                 if(dataToCreate.category === 'angsuran') {
                     (dataToCreate as Expense).paidTenor = 0;
@@ -335,23 +357,21 @@ export default function ExpensesPage() {
              toast({ title: "Gagal membayar angsuran", variant: "destructive" });
         }
     }
-
-    const totalExpenses = expenses.reduce((sum, exp) => {
-        // Only sum expenses that fall within the current month for an accurate total
-        const fromDate = date?.from;
-        const toDate = date?.to;
-
-        if (!fromDate || !toDate) return sum;
-
-        const isRecurringThisMonth = exp.category === 'utama';
-        const fallsInRange = exp.date && (exp.category === 'lainnya' || exp.category === 'angsuran') && parseISO(exp.date) >= fromDate && parseISO(exp.date) <= toDate;
-
-        if (isRecurringThisMonth || fallsInRange) {
-            return sum + exp.amount;
-        }
-        return sum;
-    }, 0);
-
+    
+    const groupedExpenses = React.useMemo(() => {
+        return expenses.reduce((acc, exp) => {
+            (acc[exp.category] = acc[exp.category] || []).push(exp);
+            return acc;
+        }, {} as Record<Expense['category'], Expense[]>);
+    }, [expenses]);
+    
+    const totals = React.useMemo(() => {
+        return {
+            utama: groupedExpenses.utama?.reduce((sum, exp) => sum + exp.amount, 0) || 0,
+            angsuran: groupedExpenses.angsuran?.reduce((sum, exp) => sum + exp.amount, 0) || 0,
+            lainnya: groupedExpenses.lainnya?.reduce((sum, exp) => sum + exp.amount, 0) || 0,
+        };
+    }, [groupedExpenses]);
 
     return (
         <div className="flex flex-col gap-8">
@@ -377,47 +397,32 @@ export default function ExpensesPage() {
                     </ExpenseDialog>
                 </div>
             </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Daftar Pengeluaran</CardTitle>
-                    <CardDescription>Total Pengeluaran (Periode Terpilih): <span className="font-bold text-destructive">Rp{formatNumber(totalExpenses)}</span></CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                         <div className="flex justify-center items-center h-48">
-                            <Loader2 className="h-16 w-16 animate-spin" />
-                        </div>
-                    ) : (
+
+            {loading ? (
+                <div className="flex justify-center items-center h-48">
+                    <Loader2 className="h-16 w-16 animate-spin" />
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+                    <ExpenseCategoryCard
+                        title="Pengeluaran Utama"
+                        description="Pengeluaran rutin yang terjadi setiap bulan."
+                        totalAmount={totals.utama}
+                    >
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Tanggal</TableHead>
                                     <TableHead>Nama Pengeluaran</TableHead>
-                                    <TableHead>Kategori</TableHead>
+                                    <TableHead>Jatuh Tempo</TableHead>
                                     <TableHead className="text-right">Jumlah</TableHead>
                                     <TableHead className="text-right">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {expenses.length > 0 ? expenses.map(expense => (
+                                {groupedExpenses.utama?.length > 0 ? groupedExpenses.utama.map(expense => (
                                     <TableRow key={expense.id}>
-                                        <TableCell>
-                                            {expense.category === 'utama' && `Setiap Tgl. ${expense.dueDateDay}`}
-                                            {expense.category !== 'utama' && expense.date && format(parseISO(expense.date), 'd MMM yyyy', {locale: localeId})}
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {expense.name}
-                                            {expense.category === 'angsuran' && expense.tenor && (
-                                                <span className="text-muted-foreground ml-2 text-xs">
-                                                   ({expense.paidTenor || 0}/{expense.tenor})
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className={cn(categoryMap[expense.category].className)}>
-                                                {categoryMap[expense.category].label}
-                                            </Badge>
-                                        </TableCell>
+                                        <TableCell className="font-medium">{expense.name}</TableCell>
+                                        <TableCell>{`Setiap Tgl. ${expense.dueDateDay}`}</TableCell>
                                         <TableCell className="text-right">Rp{formatNumber(expense.amount)}</TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
@@ -425,14 +430,6 @@ export default function ExpensesPage() {
                                                     <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    {expense.category === 'angsuran' && (
-                                                        <>
-                                                            <DropdownMenuItem onClick={() => handlePayInstallment(expense)}>
-                                                                <CreditCard className="mr-2 h-4 w-4"/> Bayar Angsuran
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                        </>
-                                                    )}
                                                     <ExpenseDialog onSave={(data, id) => handleSaveExpense(data, id)} expense={expense}>
                                                         <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                                             <Edit className="mr-2 h-4 w-4"/> Ubah
@@ -445,14 +442,117 @@ export default function ExpensesPage() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center h-24">Tidak ada data pengeluaran pada periode ini.</TableCell>
+                                        <TableCell colSpan={4} className="text-center h-24">Tidak ada pengeluaran utama.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
                         </Table>
-                    )}
-                </CardContent>
-            </Card>
+                    </ExpenseCategoryCard>
+
+                    <ExpenseCategoryCard
+                        title="Pengeluaran Angsuran"
+                        description="Cicilan atau pembayaran bertahap."
+                        totalAmount={totals.angsuran}
+                    >
+                       <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nama Pengeluaran</TableHead>
+                                    <TableHead>Tanggal Jatuh Tempo</TableHead>
+                                    <TableHead className="text-right">Jumlah</TableHead>
+                                    <TableHead className="text-right">Aksi</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {groupedExpenses.angsuran?.length > 0 ? groupedExpenses.angsuran.map(expense => (
+                                    <TableRow key={expense.id}>
+                                        <TableCell className="font-medium">
+                                            {expense.name}
+                                            {expense.tenor && (
+                                                <span className="text-muted-foreground ml-2 text-xs">
+                                                   ({expense.paidTenor || 0}/{expense.tenor})
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>{expense.date && format(parseISO(expense.date), 'd MMM yyyy', {locale: localeId})}</TableCell>
+                                        <TableCell className="text-right">Rp{formatNumber(expense.amount)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => handlePayInstallment(expense)}>
+                                                        <CreditCard className="mr-2 h-4 w-4"/> Bayar Angsuran
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <ExpenseDialog onSave={(data, id) => handleSaveExpense(data, id)} expense={expense}>
+                                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                            <Edit className="mr-2 h-4 w-4"/> Ubah
+                                                        </DropdownMenuItem>
+                                                    </ExpenseDialog>
+                                                    <DeleteDialog onConfirm={() => handleDeleteExpense(expense.id)} />
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center h-24">Tidak ada angsuran pada periode ini.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </ExpenseCategoryCard>
+
+                     <ExpenseCategoryCard
+                        title="Pengeluaran Lainnya"
+                        description="Pengeluaran insidental atau tidak terduga."
+                        totalAmount={totals.lainnya}
+                    >
+                       <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nama Pengeluaran</TableHead>
+                                    <TableHead>Tanggal</TableHead>
+                                    <TableHead className="text-right">Jumlah</TableHead>
+                                    <TableHead className="text-right">Aksi</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {groupedExpenses.lainnya?.length > 0 ? groupedExpenses.lainnya.map(expense => (
+                                    <TableRow key={expense.id}>
+                                        <TableCell className="font-medium">{expense.name}</TableCell>
+                                        <TableCell>{expense.date && format(parseISO(expense.date), 'd MMM yyyy', {locale: localeId})}</TableCell>
+                                        <TableCell className="text-right">Rp{formatNumber(expense.amount)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <ExpenseDialog onSave={(data, id) => handleSaveExpense(data, id)} expense={expense}>
+                                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                                            <Edit className="mr-2 h-4 w-4"/> Ubah
+                                                        </DropdownMenuItem>
+                                                    </ExpenseDialog>
+                                                    <DeleteDialog onConfirm={() => handleDeleteExpense(expense.id)} />
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center h-24">Tidak ada pengeluaran lain pada periode ini.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </ExpenseCategoryCard>
+                </div>
+            )}
         </div>
     );
 }
+
+    
