@@ -56,13 +56,13 @@ export type AppUser = {
 };
 
 export type Expense = {
-  id: string; // Corresponds to Firestore document ID
+  id: string;
   name: string;
   amount: number;
   category: 'utama' | 'angsuran' | 'lainnya';
-  date?: string; // 'yyyy-MM-dd', for 'lainnya' and 'angsuran'
-  dueDateDay?: number; // 1-31, for 'utama'
-  tenor?: number; // total months for 'angsuran'
-  paidTenor?: number; // how many months have been paid for 'angsuran'
+  date?: string; // 'yyyy-MM-dd'
+  dueDateDay?: number; // 1-31
+  tenor?: number;
+  paidTenor?: number;
   note?: string;
 };
