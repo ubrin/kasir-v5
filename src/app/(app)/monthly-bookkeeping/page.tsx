@@ -226,103 +226,107 @@ export default function MonthlyBookkeepingPage() {
             </div>
         ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Ringkasan Pemasukan</CardTitle>
+                    <CardDescription>
+                        Total pemasukan berdasarkan periode yang dipilih.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div>
+                        <p className="text-sm font-medium text-muted-foreground">Total Pemasukan</p>
+                        <p className="text-4xl font-bold">Rp{summary.total.toLocaleString('id-ID')}</p>
+                    </div>
+                    <Separator />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="flex items-center">
+                            <Wallet className="h-6 w-6 text-muted-foreground" />
+                            <div className="ml-4 flex-1">
+                                <p className="text-sm text-muted-foreground">Cash</p>
+                                <p className="text-lg font-bold">Rp{summary.cash.toLocaleString('id-ID')}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center">
+                            <Landmark className="h-6 w-6 text-muted-foreground" />
+                            <div className="ml-4 flex-1">
+                                <p className="text-sm text-muted-foreground">BRI</p>
+                                <p className="text-lg font-bold">Rp{summary.bri.toLocaleString('id-ID')}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center">
+                            <Banknote className="h-6 w-6 text-muted-foreground" />
+                            <div className="ml-4 flex-1">
+                                <p className="text-sm text-muted-foreground">DANA</p>
+                                <p className="text-lg font-bold">Rp{summary.dana.toLocaleString('id-ID')}</p>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+            
             <div className="flex flex-col gap-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Ringkasan Pemasukan</CardTitle>
+                        <CardTitle>Catat Pengeluaran Operasional</CardTitle>
                         <CardDescription>
-                            Total pemasukan berdasarkan periode yang dipilih.
+                            Input pengeluaran rutin dan lainnya pada periode ini.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Total Pemasukan</p>
-                            <p className="text-4xl font-bold">Rp{summary.total.toLocaleString('id-ID')}</p>
-                        </div>
-                        <Separator />
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                            <div className="flex items-center">
-                                <Wallet className="h-6 w-6 text-muted-foreground" />
-                                <div className="ml-4 flex-1">
-                                    <p className="text-sm text-muted-foreground">Cash</p>
-                                    <p className="text-lg font-bold">Rp{summary.cash.toLocaleString('id-ID')}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center">
-                                <Landmark className="h-6 w-6 text-muted-foreground" />
-                                <div className="ml-4 flex-1">
-                                    <p className="text-sm text-muted-foreground">BRI</p>
-                                    <p className="text-lg font-bold">Rp{summary.bri.toLocaleString('id-ID')}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center">
-                                <Banknote className="h-6 w-6 text-muted-foreground" />
-                                <div className="ml-4 flex-1">
-                                    <p className="text-sm text-muted-foreground">DANA</p>
-                                    <p className="text-lg font-bold">Rp{summary.dana.toLocaleString('id-ID')}</p>
-                                </div>
-                            </div>
-                        </div>
+                    <CardContent>
+                        <Accordion type="multiple" defaultValue={['item-1']} className="w-full">
+                            <AccordionItem value="item-1">
+                                <AccordionTrigger>Pengeluaran Utama</AccordionTrigger>
+                                <AccordionContent className="space-y-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="bandwidth">Bandwidth (Rp)</Label>
+                                        <Input id="bandwidth" type="text" placeholder="cth. 5.000.000" value={expenseInput.bandwidth} onChange={handleCurrencyInputChange} />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="listrik">Listrik (Rp)</Label>
+                                        <Input id="listrik" type="text" placeholder="cth. 1.000.000" value={expenseInput.listrik} onChange={handleCurrencyInputChange} />
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                            <AccordionItem value="item-2">
+                                <AccordionTrigger>Pengeluaran Lainnya</AccordionTrigger>
+                                <AccordionContent className="space-y-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="lainnyaRp">Jumlah (Rp)</Label>
+                                        <Input id="lainnyaRp" type="text" placeholder="cth. 150.000" value={expenseInput.lainnyaRp} onChange={handleCurrencyInputChange} />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="lainnyaKet">Keterangan</Label>
+                                        <Textarea id="lainnyaKet" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." value={expenseInput.lainnyaKet} onChange={handleTextChange} />
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Catat Angsuran</CardTitle>
+                        <CardDescription>Input semua pembayaran angsuran.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                         <div className="grid gap-2">
+                            <Label htmlFor="angsuranBri">BRI (Rp)</Label>
+                            <Input id="angsuranBri" type="text" placeholder="cth. 2.500.000" value={expenseInput.angsuranBri} onChange={handleCurrencyInputChange} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="angsuranShopee">Shopee (Rp)</Label>
+                            <Input id="angsuranShopee" type="text" placeholder="cth. 500.000" value={expenseInput.angsuranShopee} onChange={handleCurrencyInputChange} />
+                                <Label htmlFor="angsuranShopeeKet" className="sr-only">Keterangan Shopee</Label>
+                            <Input id="angsuranShopeeKet" placeholder="Keterangan (misal: Pembelian router)" value={expenseInput.angsuranShopeeKet} onChange={handleTextChange} />
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <Button className="w-full" onClick={handleSaveExpenses}>Simpan Seluruh Pengeluaran</Button>
+                    </CardFooter>
+                </Card>
             </div>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle>Catat Pengeluaran</CardTitle>
-                    <CardDescription>
-                        Input semua pengeluaran operasional pada periode ini.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <Accordion type="multiple" defaultValue={['item-1']} className="w-full">
-                        <AccordionItem value="item-1">
-                            <AccordionTrigger>Pengeluaran Utama</AccordionTrigger>
-                            <AccordionContent className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="bandwidth">Bandwidth (Rp)</Label>
-                                    <Input id="bandwidth" type="text" placeholder="cth. 5.000.000" value={expenseInput.bandwidth} onChange={handleCurrencyInputChange} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="listrik">Listrik (Rp)</Label>
-                                    <Input id="listrik" type="text" placeholder="cth. 1.000.000" value={expenseInput.listrik} onChange={handleCurrencyInputChange} />
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="item-2">
-                            <AccordionTrigger>Angsuran</AccordionTrigger>
-                            <AccordionContent className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="angsuranBri">BRI (Rp)</Label>
-                                    <Input id="angsuranBri" type="text" placeholder="cth. 2.500.000" value={expenseInput.angsuranBri} onChange={handleCurrencyInputChange} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="angsuranShopee">Shopee (Rp)</Label>
-                                    <Input id="angsuranShopee" type="text" placeholder="cth. 500.000" value={expenseInput.angsuranShopee} onChange={handleCurrencyInputChange} />
-                                     <Label htmlFor="angsuranShopeeKet" className="sr-only">Keterangan Shopee</Label>
-                                    <Input id="angsuranShopeeKet" placeholder="Keterangan (misal: Pembelian router)" value={expenseInput.angsuranShopeeKet} onChange={handleTextChange} />
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="item-3">
-                            <AccordionTrigger>Pengeluaran Lainnya</AccordionTrigger>
-                             <AccordionContent className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="lainnyaRp">Jumlah (Rp)</Label>
-                                    <Input id="lainnyaRp" type="text" placeholder="cth. 150.000" value={expenseInput.lainnyaRp} onChange={handleCurrencyInputChange} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="lainnyaKet">Keterangan</Label>
-                                    <Textarea id="lainnyaKet" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." value={expenseInput.lainnyaKet} onChange={handleTextChange} />
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                </CardContent>
-                <CardFooter>
-                    <Button className="w-full" onClick={handleSaveExpenses}>Simpan Pengeluaran</Button>
-                </CardFooter>
-            </Card>
         </div>
       )}
     </div>
