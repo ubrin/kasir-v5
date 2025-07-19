@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -26,7 +26,7 @@ import { useAuth } from '@/context/auth-context';
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
   { href: '/dashboard', label: 'Statistik', icon: LayoutDashboard, roles: ['admin'] },
-  { href: '/monthly-bookkeeping', label: 'Pembukuan Bulanan', icon: BookText, roles: ['admin'] },
+  { href: '/expenses', label: 'Pengeluaran', icon: TrendingDown, roles: ['admin'] },
   {
     label: 'Transaksi',
     icon: Package,

@@ -55,34 +55,11 @@ export type AppUser = {
   role: 'admin' | 'user';
 };
 
-export type MainExpenseItem = {
-    id: string;
-    name: string;
-    amount: number;
-}
-
-export type InstallmentItem = {
-    id: string; // unique id for the item in the array
-    name: string;
-    amount: number;
-    totalTenor: number; // e.g. 12
-    currentTenor: number; // e.g. 3
-    dueDate: number; // e.g. 15 (for 15th of the month)
-}
-
 export type Expense = {
-  id: string; // Firestore document ID
-  periodFrom: string; // 'yyyy-MM-dd'
-  periodTo: string; // 'yyyy-MM-dd'
-  mainExpenses: MainExpenseItem[];
-  installments: InstallmentItem[];
-  otherExpenses: {
-    amount: number;
-    note: string;
-  };
-  totalExpense: number;
-  createdAt: string; // 'yyyy-MM-dd HH:mm:ss'
-  updatedAt?: string; // 'yyyy-MM-dd HH:mm:ss'
+  id: string; // Corresponds to Firestore document ID
+  name: string;
+  amount: number;
+  category: 'utama' | 'angsuran' | 'lainnya';
+  date: string; // 'yyyy-MM-dd'
+  note?: string;
 };
-
-export type ExpenseCategory = 'main' | 'installments' | 'other';
