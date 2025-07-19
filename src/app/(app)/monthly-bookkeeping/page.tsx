@@ -187,12 +187,17 @@ export default function MonthlyBookkeepingPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Ringkasan Pengeluaran</CardTitle>
-                    <CardDescription className="pt-8">
-                        Klik untuk melihat & mengelola rincian pengeluaran.
+                    <CardDescription>
+                        Total pengeluaran berdasarkan periode yang dipilih.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2">
+                <CardContent className="space-y-6">
+                     <div>
+                        <p className="text-sm font-medium text-muted-foreground">Total Pengeluaran</p>
+                        <p className="text-4xl font-bold text-destructive">Rp{expenseSummary.total.toLocaleString('id-ID')}</p>
+                    </div>
+                    <Separator />
+                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                         <Link href={`/expense-report?category=main&from=${format(date!.from!, 'yyyy-MM-dd')}&to=${format(date!.to!, 'yyyy-MM-dd')}`} className="flex items-center hover:bg-muted p-2 rounded-lg transition-colors">
                             <TrendingDown className="h-6 w-6 text-muted-foreground" />
                             <div className="ml-4 flex-1">
