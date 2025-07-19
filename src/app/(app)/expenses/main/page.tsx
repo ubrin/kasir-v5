@@ -42,24 +42,23 @@ export default function MainExpensesPage() {
             const start = startOfMonth(today);
             const end = endOfMonth(today);
 
-            const expensesQuery = query(collection(db, "expenses"), where("category", "==", "utama"));
-            const snapshot = await getDocs(expensesQuery);
-            
-            const allMainExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-            
-            const templates = allMainExpenses.filter(exp => !exp.date);
+            // 1. Fetch only the expense templates (items without a date)
+            const templatesQuery = query(collection(db, "expenses"), where("category", "==", "utama"), where("date", "==", null));
+            const templatesSnapshot = await getDocs(templatesQuery);
+            const templates = templatesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             setExpenseTemplates(templates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
 
+            // 2. Fetch paid transactions for this month to determine status
+            const paidTransactionsQuery = query(
+                collection(db, "expenses"),
+                where("category", "==", "utama"),
+                where("date", ">=", format(start, 'yyyy-MM-dd')),
+                where("date", "<=", format(end, 'yyyy-MM-dd'))
+            );
+            const paidSnapshot = await getDocs(paidTransactionsQuery);
             const paidNames = new Set<string>();
-            const paidTransactions = allMainExpenses.filter(exp => exp.date);
-
-            paidTransactions.forEach(transaction => {
-                 if (transaction.date) {
-                    const expenseDate = parseISO(transaction.date);
-                    if (isWithinInterval(expenseDate, { start, end })) {
-                        paidNames.add(transaction.name);
-                    }
-                }
+            paidSnapshot.docs.forEach(doc => {
+                paidNames.add(doc.data().name);
             });
             setPaidExpenseNames(paidNames);
 
@@ -94,15 +93,15 @@ export default function MainExpensesPage() {
     
     const handlePayMainExpense = async (expenseTemplate: Expense) => {
         try {
-            const expenseRecord: Omit<Expense, 'id'> = {
-                ...expenseTemplate,
+            const expenseRecord: Omit<Expense, 'id' | 'dueDateDay'> = {
+                name: expenseTemplate.name,
+                amount: expenseTemplate.amount,
+                category: expenseTemplate.category,
                 date: format(new Date(), 'yyyy-MM-dd'),
                 note: `Pembayaran rutin untuk ${expenseTemplate.name} (${format(new Date(), 'MMMM yyyy')})`
             };
-            
-            const { id, ...recordToSave } = expenseRecord;
 
-            await addDoc(collection(db, 'expenses'), recordToSave);
+            await addDoc(collection(db, 'expenses'), expenseRecord);
             
             toast({
                 title: 'Pembayaran Dicatat',
