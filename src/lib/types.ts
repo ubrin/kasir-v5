@@ -60,6 +60,9 @@ export type Expense = {
   name: string;
   amount: number;
   category: 'utama' | 'angsuran' | 'lainnya';
-  date: string; // 'yyyy-MM-dd'
+  date?: string; // 'yyyy-MM-dd', for 'lainnya' and 'angsuran'
+  dueDateDay?: number; // 1-31, for 'utama'
+  tenor?: number; // total months for 'angsuran'
+  paidTenor?: number; // how many months have been paid for 'angsuran'
   note?: string;
 };

@@ -2,16 +2,15 @@
 'use client';
 
 import * as React from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-import { collection, query, where, getDocs, doc, addDoc, updateDoc, deleteDoc, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, addDoc, updateDoc, deleteDoc, orderBy, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, PlusCircle, Save, Trash2, Calendar as CalendarIcon, MoreHorizontal, Edit } from 'lucide-react';
+import { ArrowLeft, Loader2, PlusCircle, Save, Trash2, Calendar as CalendarIcon, MoreHorizontal, Edit, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -42,7 +41,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const formatNumber = (value: number | undefined): string => {
     if (value === undefined || value === null) return '0';
@@ -63,35 +62,58 @@ const ExpenseDialog = ({
   children,
 }: {
   expense?: Expense | null;
-  onSave: (data: Omit<Expense, 'id'>) => Promise<void>;
+  onSave: (data: Omit<Expense, 'id'|'paidTenor'>, id?: string) => Promise<void>;
   children: React.ReactNode;
 }) => {
   const [open, setOpen] = React.useState(false);
-  const [name, setName] = React.useState(expense?.name || '');
-  const [amount, setAmount] = React.useState<number | string>(expense?.amount || '');
-  const [category, setCategory] = React.useState<Expense['category']>(expense?.category || 'utama');
-  const [date, setDate] = React.useState<Date>(expense ? parseISO(expense.date) : new Date());
-  const [note, setNote] = React.useState(expense?.note || '');
+  const [name, setName] = React.useState('');
+  const [amount, setAmount] = React.useState<number | string>('');
+  const [category, setCategory] = React.useState<Expense['category']>('lainnya');
+  const [date, setDate] = React.useState<Date | undefined>(new Date());
+  const [dueDateDay, setDueDateDay] = React.useState<number|string>('');
+  const [tenor, setTenor] = React.useState<number|string>('');
+  const [note, setNote] = React.useState('');
 
   React.useEffect(() => {
     if (open) {
       setName(expense?.name || '');
       setAmount(expense?.amount || '');
-      setCategory(expense?.category || 'utama');
-      setDate(expense ? parseISO(expense.date) : new Date());
+      setCategory(expense?.category || 'lainnya');
+      setDate(expense?.date ? parseISO(expense.date) : new Date());
+      setDueDateDay(expense?.dueDateDay || '');
+      setTenor(expense?.tenor || '');
       setNote(expense?.note || '');
+    } else {
+        // Reset form when dialog closes
+        setName('');
+        setAmount('');
+        setCategory('lainnya');
+        setDate(new Date());
+        setDueDateDay('');
+        setTenor('');
+        setNote('');
     }
   }, [open, expense]);
 
   const handleSave = async () => {
-    if (!name || !amount || !category || !date) return;
-    await onSave({
+    const dataToSave: Omit<Expense, 'id'|'paidTenor'> = {
       name,
       amount: Number(amount),
       category,
-      date: format(date, 'yyyy-MM-dd'),
       note,
-    });
+    };
+
+    if (category === 'utama') {
+        dataToSave.dueDateDay = Number(dueDateDay);
+    } else {
+        dataToSave.date = date ? format(date, 'yyyy-MM-dd') : undefined;
+    }
+
+    if (category === 'angsuran') {
+        dataToSave.tenor = Number(tenor);
+    }
+    
+    await onSave(dataToSave, expense?.id);
     setOpen(false);
   };
 
@@ -132,20 +154,38 @@ const ExpenseDialog = ({
                 </div>
             </RadioGroup>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="date">Tanggal</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn('justify-start text-left font-normal', !date && 'text-muted-foreground')}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, 'PPP', { locale: localeId }) : <span>Pilih tanggal</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
-              </PopoverContent>
-            </Popover>
-          </div>
+          
+          {category === 'utama' && (
+              <div className="grid gap-2">
+                <Label htmlFor="dueDateDay">Jatuh Tempo Setiap Bulan (Tanggal)</Label>
+                <Input id="dueDateDay" type="number" value={dueDateDay} onChange={(e) => setDueDateDay(e.target.value)} placeholder="cth. 15" />
+              </div>
+          )}
+
+          {(category === 'angsuran' || category === 'lainnya') && (
+            <div className="grid gap-2">
+              <Label htmlFor="date">Tanggal {category === 'angsuran' ? 'Jatuh Tempo' : ''}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn('justify-start text-left font-normal', !date && 'text-muted-foreground')}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, 'PPP', { locale: localeId }) : <span>Pilih tanggal</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {category === 'angsuran' && (
+             <div className="grid gap-2">
+                <Label htmlFor="tenor">Tenor (Bulan)</Label>
+                <Input id="tenor" type="number" value={tenor} onChange={(e) => setTenor(e.target.value)} placeholder="cth. 12" />
+             </div>
+          )}
+
           <div className="grid gap-2">
             <Label htmlFor="note">Keterangan (Opsional)</Label>
             <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Tulis catatan singkat..." />
@@ -197,15 +237,28 @@ export default function ExpensesPage() {
         if (!date?.from || !date?.to) return;
         setLoading(true);
         try {
+            // Fetch all expenses and then filter, because Firestore can't query based on OR conditions for dates/duedays
             const expensesQuery = query(
                 collection(db, "expenses"),
-                where("date", ">=", format(date.from, 'yyyy-MM-dd')),
-                where("date", "<=", format(date.to, 'yyyy-MM-dd')),
                 orderBy("date", "desc")
             );
             const snapshot = await getDocs(expensesQuery);
-            const expensesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-            setExpenses(expensesList);
+            const allExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+            
+            const filteredExpenses = allExpenses.filter(exp => {
+                if (exp.category === 'utama') {
+                    // For now, show all recurring expenses regardless of date range.
+                    // A more advanced filter could check if the due date falls within the range.
+                    return true; 
+                }
+                if (exp.date) {
+                    const expDate = parseISO(exp.date);
+                    return expDate >= date.from! && expDate <= date.to!;
+                }
+                return false;
+            });
+
+            setExpenses(filteredExpenses);
         } catch (error) {
             console.error("Error fetching expenses:", error);
             toast({ title: "Gagal memuat data", variant: "destructive" });
@@ -218,13 +271,19 @@ export default function ExpensesPage() {
         fetchExpenses();
     }, [fetchExpenses]);
 
-    const handleSaveExpense = async (data: Omit<Expense, 'id'>, id?: string) => {
+    const handleSaveExpense = async (data: Omit<Expense, 'id'|'paidTenor'>, id?: string) => {
         try {
             if (id) {
+                // When updating, we don't reset the paidTenor
                 await updateDoc(doc(db, "expenses", id), data);
                 toast({ title: "Pengeluaran diperbarui" });
             } else {
-                await addDoc(collection(db, "expenses"), data);
+                // When adding a new one, paidTenor starts at 0 if it's an installment
+                const dataToCreate = {...data};
+                if(dataToCreate.category === 'angsuran') {
+                    (dataToCreate as Expense).paidTenor = 0;
+                }
+                await addDoc(collection(db, "expenses"), dataToCreate);
                 toast({ title: "Pengeluaran ditambahkan" });
             }
             fetchExpenses();
@@ -244,8 +303,41 @@ export default function ExpensesPage() {
             toast({ title: "Gagal menghapus", variant: "destructive" });
         }
     };
+    
+    const handlePayInstallment = async (expense: Expense) => {
+        if (expense.category !== 'angsuran' || !expense.tenor) return;
+        const currentPaidTenor = expense.paidTenor || 0;
+        if (currentPaidTenor >= expense.tenor) {
+             toast({ title: "Angsuran sudah lunas", variant: "default" });
+             return;
+        }
 
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+        try {
+            const expenseRef = doc(db, "expenses", expense.id);
+            await updateDoc(expenseRef, {
+                paidTenor: currentPaidTenor + 1
+            });
+            toast({ title: "Pembayaran angsuran berhasil", description: `Sisa tenor: ${expense.tenor - (currentPaidTenor + 1)} bulan.` });
+            fetchExpenses();
+        } catch (error) {
+             console.error("Error paying installment:", error);
+             toast({ title: "Gagal membayar angsuran", variant: "destructive" });
+        }
+    }
+
+    const totalExpenses = expenses.reduce((sum, exp) => {
+        // Only sum expenses that fall within the current month for an accurate total
+        const expDate = exp.date ? parseISO(exp.date) : new Date();
+        const fallsInRange = exp.category === 'lainnya' && expDate >= date.from! && expDate <= date.to!;
+        const isRecurringThisMonth = exp.category === 'utama'; // Simplified: assume recurring happens every month
+        const isInstallmentThisMonth = exp.category === 'angsuran' && expDate >= date.from! && expDate <= date.to!;
+
+        if (fallsInRange || isRecurringThisMonth || isInstallmentThisMonth) {
+            return sum + exp.amount;
+        }
+        return sum;
+    }, 0);
+
 
     return (
         <div className="flex flex-col gap-8">
@@ -274,7 +366,7 @@ export default function ExpensesPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Daftar Pengeluaran</CardTitle>
-                    <CardDescription>Total Pengeluaran: <span className="font-bold text-destructive">Rp{formatNumber(totalExpenses)}</span></CardDescription>
+                    <CardDescription>Total Pengeluaran (Periode Terpilih): <span className="font-bold text-destructive">Rp{formatNumber(totalExpenses)}</span></CardDescription>
                 </CardHeader>
                 <CardContent>
                     {loading ? (
@@ -295,8 +387,18 @@ export default function ExpensesPage() {
                             <TableBody>
                                 {expenses.length > 0 ? expenses.map(expense => (
                                     <TableRow key={expense.id}>
-                                        <TableCell>{format(parseISO(expense.date), 'd MMM yyyy', {locale: localeId})}</TableCell>
-                                        <TableCell className="font-medium">{expense.name}</TableCell>
+                                        <TableCell>
+                                            {expense.category === 'utama' && `Setiap Tgl. ${expense.dueDateDay}`}
+                                            {expense.category !== 'utama' && expense.date && format(parseISO(expense.date), 'd MMM yyyy', {locale: localeId})}
+                                        </TableCell>
+                                        <TableCell className="font-medium">
+                                            {expense.name}
+                                            {expense.category === 'angsuran' && expense.tenor && (
+                                                <span className="text-muted-foreground ml-2 text-xs">
+                                                   ({expense.paidTenor || 0}/{expense.tenor})
+                                                </span>
+                                            )}
+                                        </TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className={cn(categoryMap[expense.category].className)}>
                                                 {categoryMap[expense.category].label}
@@ -309,7 +411,15 @@ export default function ExpensesPage() {
                                                     <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <ExpenseDialog onSave={(data) => handleSaveExpense(data, expense.id)} expense={expense}>
+                                                    {expense.category === 'angsuran' && (
+                                                        <>
+                                                            <DropdownMenuItem onClick={() => handlePayInstallment(expense)}>
+                                                                <CreditCard className="mr-2 h-4 w-4"/> Bayar Angsuran
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                        </>
+                                                    )}
+                                                    <ExpenseDialog onSave={(data, id) => handleSaveExpense(data, id)} expense={expense}>
                                                         <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                                             <Edit className="mr-2 h-4 w-4"/> Ubah
                                                         </DropdownMenuItem>
