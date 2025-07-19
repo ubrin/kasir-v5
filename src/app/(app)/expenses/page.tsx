@@ -5,7 +5,7 @@ import * as React from 'react';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-import { collection, query, where, getDocs, doc, addDoc, updateDoc, deleteDoc, orderBy, writeBatch } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, addDoc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -238,27 +238,38 @@ export default function ExpensesPage() {
         setLoading(true);
         try {
             // Fetch all expenses and then filter, because Firestore can't query based on OR conditions for dates/duedays
-            const expensesQuery = query(
-                collection(db, "expenses"),
-                orderBy("date", "desc")
-            );
+            const expensesQuery = query(collection(db, "expenses"));
             const snapshot = await getDocs(expensesQuery);
             const allExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             
+            const fromDate = date.from;
+            const toDate = date.to;
+
             const filteredExpenses = allExpenses.filter(exp => {
                 if (exp.category === 'utama') {
                     // For now, show all recurring expenses regardless of date range.
-                    // A more advanced filter could check if the due date falls within the range.
                     return true; 
                 }
                 if (exp.date) {
                     const expDate = parseISO(exp.date);
-                    return expDate >= date.from! && expDate <= date.to!;
+                    // Check if the expense date falls within the selected range for 'angsuran' and 'lainnya'
+                    return expDate >= fromDate && expDate <= toDate;
                 }
                 return false;
             });
+            
+            // Sort expenses client-side
+            const sortedExpenses = filteredExpenses.sort((a, b) => {
+                const dateA = a.date ? parseISO(a.date).getTime() : 0;
+                const dateB = b.date ? parseISO(b.date).getTime() : 0;
+                if (dateA !== dateB) {
+                    return dateB - dateA; // Sort by date descending
+                }
+                // if dates are same or one is missing, sort by name
+                return a.name.localeCompare(b.name);
+            });
 
-            setExpenses(filteredExpenses);
+            setExpenses(sortedExpenses);
         } catch (error) {
             console.error("Error fetching expenses:", error);
             toast({ title: "Gagal memuat data", variant: "destructive" });
@@ -327,12 +338,15 @@ export default function ExpensesPage() {
 
     const totalExpenses = expenses.reduce((sum, exp) => {
         // Only sum expenses that fall within the current month for an accurate total
-        const expDate = exp.date ? parseISO(exp.date) : new Date();
-        const fallsInRange = exp.category === 'lainnya' && expDate >= date.from! && expDate <= date.to!;
-        const isRecurringThisMonth = exp.category === 'utama'; // Simplified: assume recurring happens every month
-        const isInstallmentThisMonth = exp.category === 'angsuran' && expDate >= date.from! && expDate <= date.to!;
+        const fromDate = date?.from;
+        const toDate = date?.to;
 
-        if (fallsInRange || isRecurringThisMonth || isInstallmentThisMonth) {
+        if (!fromDate || !toDate) return sum;
+
+        const isRecurringThisMonth = exp.category === 'utama';
+        const fallsInRange = exp.date && (exp.category === 'lainnya' || exp.category === 'angsuran') && parseISO(exp.date) >= fromDate && parseISO(exp.date) <= toDate;
+
+        if (isRecurringThisMonth || fallsInRange) {
             return sum + exp.amount;
         }
         return sum;
