@@ -55,6 +55,15 @@ export type AppUser = {
   role: 'admin' | 'user';
 };
 
+export type InstallmentItem = {
+    id: string; // unique id for the item in the array
+    name: string;
+    amount: number;
+    totalTenor: number; // e.g. 12
+    currentTenor: number; // e.g. 3
+    dueDate: number; // e.g. 15 (for 15th of the month)
+}
+
 export type Expense = {
   id: string; // Firestore document ID
   periodFrom: string; // 'yyyy-MM-dd'
@@ -63,15 +72,7 @@ export type Expense = {
     bandwidth: number;
     electricity: number;
   };
-  installments: {
-    bri: number;
-    briTenor: number;
-    briDueDate: number;
-    shopee: number;
-    shopeeNote: string;
-    shopeeTenor: number;
-    shopeeDueDate: number;
-  };
+  installments: InstallmentItem[];
   otherExpenses: {
     amount: number;
     note: string;
