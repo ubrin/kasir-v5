@@ -245,7 +245,7 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
                         )}
                     />
                      
-                    {(selectedCategory === 'utama' || selectedCategory === 'angsuran') && (
+                    {selectedCategory === 'utama' && (
                          <FormField
                             control={form.control}
                             name="dueDateDay"
@@ -262,19 +262,34 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
                     )}
                     
                     {selectedCategory === 'angsuran' && (
-                        <FormField
-                            control={form.control}
-                            name="tenor"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Tenor (bulan)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="cth. 12" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="dueDateDay"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Jatuh Tempo</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="Tanggal" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="tenor"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Tenor (bulan)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="cth. 12" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
                     )}
 
                     {selectedCategory === 'lainnya' && (
