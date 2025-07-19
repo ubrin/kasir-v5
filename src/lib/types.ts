@@ -77,3 +77,5 @@ export type Expense = {
   totalExpense: number;
   createdAt: string; // 'yyyy-MM-dd'
 };
+
+export type ExpenseCategory = 'main' | 'installments' | 'other';

@@ -5,9 +5,10 @@ import * as React from 'react';
 import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-import { collection, getDocs, addDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, query, where, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Expense } from '@/lib/types';
+import Link from 'next/link';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,7 @@ export default function MonthlyBookkeepingPage() {
   };
 
   const formatNumber = (value: number): string => {
-    if (isNaN(value)) return '';
+    if (isNaN(value) || value === null) return '';
     return value.toLocaleString('id-ID');
   };
 
@@ -66,57 +67,58 @@ export default function MonthlyBookkeepingPage() {
      const { id, value } = e.target;
      setExpenseInput(prev => ({ ...prev, [id]: value }));
   }
+  
+  const fetchData = React.useCallback(async () => {
+    if (!date?.from) return;
+    setLoading(true);
+    try {
+        const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
+        const toDate = date.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date(date.from.setHours(23, 59, 59, 999));
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-        if (!date?.from) return;
-        setLoading(true);
-        try {
-            const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
-            const toDate = date.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date(date.from.setHours(23, 59, 59, 999));
-
-            // Fetch Payments
-            const paymentsSnapshot = await getDocs(collection(db, "payments"));
-            const paymentsList = paymentsSnapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() } as Payment))
-                .filter(p => isWithinInterval(parseISO(p.paymentDate), { start: fromDate, end: toDate }));
-            setPayments(paymentsList);
-            
-            // Fetch Expenses
-            const expensesQuery = query(collection(db, "expenses"), where("periodFrom", "==", format(fromDate, 'yyyy-MM-dd')));
-            const expensesSnapshot = await getDocs(expensesQuery);
-            if (!expensesSnapshot.empty) {
-                const expenseData = { id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense;
-                setExpenses(expenseData);
-                setExpenseInput({
-                    bandwidth: formatNumber(expenseData.mainExpenses.bandwidth),
-                    listrik: formatNumber(expenseData.mainExpenses.electricity),
-                    angsuranBri: formatNumber(expenseData.installments.bri),
-                    angsuranBriTenor: expenseData.installments.briTenor || '',
-                    angsuranShopee: formatNumber(expenseData.installments.shopee),
-                    angsuranShopeeKet: expenseData.installments.shopeeNote || '',
-                    angsuranShopeeTenor: expenseData.installments.shopeeTenor || '',
-                    lainnyaRp: formatNumber(expenseData.otherExpenses.amount),
-                    lainnyaKet: expenseData.otherExpenses.note,
-                });
-            } else {
-                setExpenses(null);
-                setExpenseInput(initialExpenseState);
-            }
-
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            toast({
-                title: "Gagal Memuat Data",
-                description: "Tidak dapat mengambil data dari database.",
-                variant: "destructive"
+        // Fetch Payments
+        const paymentsSnapshot = await getDocs(collection(db, "payments"));
+        const paymentsList = paymentsSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Payment))
+            .filter(p => isWithinInterval(parseISO(p.paymentDate), { start: fromDate, end: toDate }));
+        setPayments(paymentsList);
+        
+        // Fetch Expenses
+        const expensesQuery = query(collection(db, "expenses"), where("periodFrom", "==", format(fromDate, 'yyyy-MM-dd')));
+        const expensesSnapshot = await getDocs(expensesQuery);
+        if (!expensesSnapshot.empty) {
+            const expenseData = { id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense;
+            setExpenses(expenseData);
+            setExpenseInput({
+                bandwidth: formatNumber(expenseData.mainExpenses.bandwidth),
+                listrik: formatNumber(expenseData.mainExpenses.electricity),
+                angsuranBri: formatNumber(expenseData.installments.bri),
+                angsuranBriTenor: expenseData.installments.briTenor || '',
+                angsuranShopee: formatNumber(expenseData.installments.shopee),
+                angsuranShopeeKet: expenseData.installments.shopeeNote || '',
+                angsuranShopeeTenor: expenseData.installments.shopeeTenor || '',
+                lainnyaRp: formatNumber(expenseData.otherExpenses.amount),
+                lainnyaKet: expenseData.otherExpenses.note,
             });
-        } finally {
-            setLoading(false);
+        } else {
+            setExpenses(null);
+            setExpenseInput(initialExpenseState);
         }
-    };
-    fetchData();
+
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({
+            title: "Gagal Memuat Data",
+            description: "Tidak dapat mengambil data dari database.",
+            variant: "destructive"
+        });
+    } finally {
+        setLoading(false);
+    }
   }, [date, toast]);
+  
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const incomeSummary = React.useMemo(() => {
     return payments.reduce(
@@ -182,20 +184,22 @@ export default function MonthlyBookkeepingPage() {
     };
     
     try {
-        // Here we should probably update if exists, but for now we just add.
-        // A more robust solution would query first and decide to add or update.
-        await addDoc(collection(db, "expenses"), expenseData);
-        toast({
-            title: "Pengeluaran Disimpan",
-            description: `Total pengeluaran sebesar Rp${totalExpense.toLocaleString('id-ID')} berhasil dicatat.`
-        });
-        // Refetch data to show summary
-        const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
-        const expensesQuery = query(collection(db, "expenses"), where("periodFrom", "==", format(fromDate, 'yyyy-MM-dd')));
-        const expensesSnapshot = await getDocs(expensesQuery);
-        if (!expensesSnapshot.empty) {
-            setExpenses({ id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense);
+        if(expenses?.id) {
+             const expenseDocRef = doc(db, "expenses", expenses.id);
+             await updateDoc(expenseDocRef, expenseData);
+             toast({
+                title: "Pengeluaran Diperbarui",
+                description: `Total pengeluaran sebesar Rp${totalExpense.toLocaleString('id-ID')} berhasil diperbarui.`
+            });
+        } else {
+             await addDoc(collection(db, "expenses"), expenseData);
+             toast({
+                title: "Pengeluaran Disimpan",
+                description: `Total pengeluaran sebesar Rp${totalExpense.toLocaleString('id-ID')} berhasil dicatat.`
+            });
         }
+       
+       fetchData();
     } catch (error) {
         console.error("Error saving expenses:", error);
         toast({
@@ -309,27 +313,27 @@ export default function MonthlyBookkeepingPage() {
                             </div>
                             <Separator />
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                <div className="flex items-center">
+                                <Link href={`/expense-report?category=main&from=${format(date!.from!, 'yyyy-MM-dd')}&to=${format(date!.to!, 'yyyy-MM-dd')}`} className="flex items-center hover:bg-muted p-2 rounded-lg transition-colors">
                                     <TrendingDown className="h-6 w-6 text-muted-foreground" />
                                     <div className="ml-4 flex-1">
                                         <p className="text-sm text-muted-foreground">Utama</p>
                                         <p className="text-lg font-bold">Rp{expenseSummary.main.toLocaleString('id-ID')}</p>
                                     </div>
-                                </div>
-                                <div className="flex items-center">
+                                </Link>
+                                <Link href={`/expense-report?category=installments&from=${format(date!.from!, 'yyyy-MM-dd')}&to=${format(date!.to!, 'yyyy-MM-dd')}`} className="flex items-center hover:bg-muted p-2 rounded-lg transition-colors">
                                     <InstallmentIcon className="h-6 w-6 text-muted-foreground" />
                                     <div className="ml-4 flex-1">
                                         <p className="text-sm text-muted-foreground">Angsuran</p>
                                         <p className="text-lg font-bold">Rp{expenseSummary.installments.toLocaleString('id-ID')}</p>
                                     </div>
-                                </div>
-                                <div className="flex items-center">
+                                </Link>
+                                <Link href={`/expense-report?category=other&from=${format(date!.from!, 'yyyy-MM-dd')}&to=${format(date!.to!, 'yyyy-MM-dd')}`} className="flex items-center hover:bg-muted p-2 rounded-lg transition-colors">
                                     <Package className="h-6 w-6 text-muted-foreground" />
                                     <div className="ml-4 flex-1">
                                         <p className="text-sm text-muted-foreground">Lainnya</p>
                                         <p className="text-lg font-bold">Rp{expenseSummary.other.toLocaleString('id-ID')}</p>
                                     </div>
-                                </div>
+                                </Link>
                             </div>
                         </CardContent>
                     </Card>
