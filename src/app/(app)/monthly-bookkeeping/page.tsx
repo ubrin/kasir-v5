@@ -12,7 +12,7 @@ import type { Payment, Expense } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon, Loader2, Wallet, Banknote, Landmark } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, Wallet, Banknote, Landmark, TrendingDown, Package, Landmark as InstallmentIcon, ShoppingBag } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -51,6 +51,7 @@ export default function MonthlyBookkeepingPage() {
   };
 
   const formatNumber = (value: number): string => {
+    if (isNaN(value)) return '';
     return value.toLocaleString('id-ID');
   };
 
@@ -93,7 +94,7 @@ export default function MonthlyBookkeepingPage() {
                     angsuranBri: formatNumber(expenseData.installments.bri),
                     angsuranBriTenor: expenseData.installments.briTenor || '',
                     angsuranShopee: formatNumber(expenseData.installments.shopee),
-                    angsuranShopeeKet: expenseData.installments.shopeeNote,
+                    angsuranShopeeKet: expenseData.installments.shopeeNote || '',
                     angsuranShopeeTenor: expenseData.installments.shopeeTenor || '',
                     lainnyaRp: formatNumber(expenseData.otherExpenses.amount),
                     lainnyaKet: expenseData.otherExpenses.note,
@@ -117,7 +118,7 @@ export default function MonthlyBookkeepingPage() {
     fetchData();
   }, [date, toast]);
 
-  const summary = React.useMemo(() => {
+  const incomeSummary = React.useMemo(() => {
     return payments.reduce(
       (acc, payment) => {
         const amount = payment.totalPayment ?? payment.paidAmount; // Fallback for older data
@@ -130,6 +131,19 @@ export default function MonthlyBookkeepingPage() {
       { total: 0, cash: 0, bri: 0, dana: 0 }
     );
   }, [payments]);
+
+  const expenseSummary = React.useMemo(() => {
+    if (!expenses) return null;
+    const main = expenses.mainExpenses.bandwidth + expenses.mainExpenses.electricity;
+    const installments = expenses.installments.bri + expenses.installments.shopee;
+    const other = expenses.otherExpenses.amount;
+    return {
+        total: expenses.totalExpense,
+        main,
+        installments,
+        other
+    }
+  }, [expenses]);
 
   const handleSaveExpenses = async () => {
     if (!date?.from) {
@@ -168,11 +182,20 @@ export default function MonthlyBookkeepingPage() {
     };
     
     try {
+        // Here we should probably update if exists, but for now we just add.
+        // A more robust solution would query first and decide to add or update.
         await addDoc(collection(db, "expenses"), expenseData);
         toast({
             title: "Pengeluaran Disimpan",
             description: `Total pengeluaran sebesar Rp${totalExpense.toLocaleString('id-ID')} berhasil dicatat.`
         });
+        // Refetch data to show summary
+        const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
+        const expensesQuery = query(collection(db, "expenses"), where("periodFrom", "==", format(fromDate, 'yyyy-MM-dd')));
+        const expensesSnapshot = await getDocs(expensesQuery);
+        if (!expensesSnapshot.empty) {
+            setExpenses({ id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense);
+        }
     } catch (error) {
         console.error("Error saving expenses:", error);
         toast({
@@ -232,44 +255,86 @@ export default function MonthlyBookkeepingPage() {
             </div>
         ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Ringkasan Pemasukan</CardTitle>
-                    <CardDescription>
-                        Total pemasukan berdasarkan periode yang dipilih.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Total Pemasukan</p>
-                        <p className="text-4xl font-bold">Rp{summary.total.toLocaleString('id-ID')}</p>
-                    </div>
-                    <Separator />
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <div className="flex items-center">
-                            <Wallet className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">Cash</p>
-                                <p className="text-lg font-bold">Rp{summary.cash.toLocaleString('id-ID')}</p>
+            <div className="flex flex-col gap-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Ringkasan Pemasukan</CardTitle>
+                        <CardDescription>
+                            Total pemasukan berdasarkan periode yang dipilih.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Total Pemasukan</p>
+                            <p className="text-4xl font-bold">Rp{incomeSummary.total.toLocaleString('id-ID')}</p>
+                        </div>
+                        <Separator />
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            <div className="flex items-center">
+                                <Wallet className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">Cash</p>
+                                    <p className="text-lg font-bold">Rp{incomeSummary.cash.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <Landmark className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">BRI</p>
+                                    <p className="text-lg font-bold">Rp{incomeSummary.bri.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <Banknote className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">DANA</p>
+                                    <p className="text-lg font-bold">Rp{incomeSummary.dana.toLocaleString('id-ID')}</p>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex items-center">
-                            <Landmark className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">BRI</p>
-                                <p className="text-lg font-bold">Rp{summary.bri.toLocaleString('id-ID')}</p>
+                    </CardContent>
+                </Card>
+                {expenseSummary && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Ringkasan Pengeluaran</CardTitle>
+                            <CardDescription>
+                                Total pengeluaran berdasarkan periode yang dipilih.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Total Pengeluaran</p>
+                                <p className="text-4xl font-bold text-destructive">Rp{expenseSummary.total.toLocaleString('id-ID')}</p>
                             </div>
-                        </div>
-                        <div className="flex items-center">
-                            <Banknote className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">DANA</p>
-                                <p className="text-lg font-bold">Rp{summary.dana.toLocaleString('id-ID')}</p>
+                            <Separator />
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                                <div className="flex items-center">
+                                    <TrendingDown className="h-6 w-6 text-muted-foreground" />
+                                    <div className="ml-4 flex-1">
+                                        <p className="text-sm text-muted-foreground">Utama</p>
+                                        <p className="text-lg font-bold">Rp{expenseSummary.main.toLocaleString('id-ID')}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <InstallmentIcon className="h-6 w-6 text-muted-foreground" />
+                                    <div className="ml-4 flex-1">
+                                        <p className="text-sm text-muted-foreground">Angsuran</p>
+                                        <p className="text-lg font-bold">Rp{expenseSummary.installments.toLocaleString('id-ID')}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <Package className="h-6 w-6 text-muted-foreground" />
+                                    <div className="ml-4 flex-1">
+                                        <p className="text-sm text-muted-foreground">Lainnya</p>
+                                        <p className="text-lg font-bold">Rp{expenseSummary.other.toLocaleString('id-ID')}</p>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
             
             <div className="flex flex-col gap-8">
                 <Card>
@@ -283,7 +348,7 @@ export default function MonthlyBookkeepingPage() {
                         <Accordion type="multiple" defaultValue={['item-1']} className="w-full">
                             <AccordionItem value="item-1">
                                 <AccordionTrigger>Pengeluaran Utama</AccordionTrigger>
-                                <AccordionContent className="space-y-4">
+                                <AccordionContent className="space-y-4 pt-4">
                                     <div className="grid gap-2">
                                         <Label htmlFor="bandwidth">Bandwidth (Rp)</Label>
                                         <Input id="bandwidth" type="text" placeholder="cth. 5.000.000" value={expenseInput.bandwidth} onChange={handleCurrencyInputChange} />
@@ -296,7 +361,7 @@ export default function MonthlyBookkeepingPage() {
                             </AccordionItem>
                             <AccordionItem value="item-2">
                                 <AccordionTrigger>Pengeluaran Lainnya</AccordionTrigger>
-                                <AccordionContent className="space-y-4">
+                                <AccordionContent className="space-y-4 pt-4">
                                     <div className="grid gap-2">
                                         <Label htmlFor="lainnyaRp">Jumlah (Rp)</Label>
                                         <Input id="lainnyaRp" type="text" placeholder="cth. 150.000" value={expenseInput.lainnyaRp} onChange={handleCurrencyInputChange} />
