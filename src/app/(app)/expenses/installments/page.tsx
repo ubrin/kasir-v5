@@ -120,7 +120,7 @@ export default function InstallmentsPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Nama Angsuran</TableHead>
-                            <TableHead className="w-[120px]">Tenor</TableHead>
+                            <TableHead className="w-[200px]">Tenor</TableHead>
                             <TableHead className="w-[150px] text-right">Jumlah</TableHead>
                             <TableHead className="w-[180px] text-center">Jatuh Tempo</TableHead>
                             <TableHead className="w-[80px]">
