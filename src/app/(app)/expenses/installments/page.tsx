@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { collection, query, where, getDocs, doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, deleteDoc, updateDoc, increment, writeBatch, addDoc } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import type { Expense } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -25,22 +25,48 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
 
 export default function InstallmentsPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [loading, setLoading] = React.useState(true);
     const [expenses, setExpenses] = React.useState<Expense[]>([]);
+    const [paidExpenseNames, setPaidExpenseNames] = React.useState<Set<string>>(new Set());
     const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
 
     const fetchExpenses = React.useCallback(async () => {
         setLoading(true);
         try {
-            const q = query(collection(db, "expenses"), where("category", "==", "angsuran"));
-            const snapshot = await getDocs(q);
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-            // Sort by due date day
-            setExpenses(data.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
+            const today = new Date();
+            const start = startOfMonth(today);
+            const end = endOfMonth(today);
+
+            const installmentsQuery = query(collection(db, "expenses"), where("category", "==", "angsuran"));
+            const otherExpensesQuery = query(collection(db, "expenses"), where("category", "==", "lainnya"));
+
+            const [installmentsSnapshot, otherSnapshot] = await Promise.all([
+                getDocs(installmentsQuery),
+                getDocs(otherExpensesQuery)
+            ]);
+
+            const installmentsData = installmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+            setExpenses(installmentsData.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
+
+            const paidNames = new Set<string>();
+            otherSnapshot.docs.forEach(doc => {
+                const expense = doc.data() as Expense;
+                 if (expense.date && expense.note?.startsWith('Pembayaran angsuran untuk ')) {
+                    const expenseDate = parseISO(expense.date);
+                    if (isWithinInterval(expenseDate, { start, end })) {
+                        const originalName = expense.note.replace('Pembayaran angsuran untuk ', '');
+                        paidNames.add(originalName);
+                    }
+                }
+            });
+            setPaidExpenseNames(paidNames);
+
         } catch (error) {
             console.error("Error fetching installments:", error);
             toast({ title: "Gagal memuat data", variant: "destructive" });
@@ -72,15 +98,29 @@ export default function InstallmentsPage() {
     
     const handlePayInstallment = async (expense: Expense) => {
         if ((expense.paidTenor ?? 0) >= (expense.tenor ?? 0)) {
-            toast({ title: "Lunas", description: "Angsuran ini sudah lunas.", variant: "default" });
+            toast({ title: "Lunas", description: "Angsuran ini sudah lunas sepenuhnya.", variant: "default" });
             return;
         }
 
         try {
+            const batch = writeBatch(db);
             const expenseRef = doc(db, 'expenses', expense.id);
-            await updateDoc(expenseRef, {
+            batch.update(expenseRef, {
                 paidTenor: increment(1)
             });
+
+            const expenseRecord: Omit<Expense, 'id'> = {
+                name: expense.name,
+                amount: expense.amount,
+                category: 'lainnya',
+                date: format(new Date(), 'yyyy-MM-dd'),
+                note: `Pembayaran angsuran untuk ${expense.name}`
+            };
+            const newRecordRef = doc(collection(db, 'expenses'));
+            batch.set(newRecordRef, expenseRecord);
+            
+            await batch.commit();
+
             toast({ title: "Pembayaran Dicatat", description: `Pembayaran angsuran untuk ${expense.name} berhasil.` });
             fetchExpenses();
         } catch (error) {
@@ -120,17 +160,18 @@ export default function InstallmentsPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Nama Angsuran</TableHead>
-                            <TableHead className="w-[200px]">Tenor</TableHead>
-                            <TableHead className="w-[150px] text-right">Jumlah</TableHead>
-                            <TableHead className="w-[180px] text-center">Jatuh Tempo</TableHead>
-                            <TableHead className="w-[80px]">
-                                <span className="sr-only">Aksi</span>
-                            </TableHead>
+                            <TableHead>Tenor</TableHead>
+                            <TableHead className="text-right">Jumlah</TableHead>
+                            <TableHead className="text-center">Jatuh Tempo</TableHead>
+                             <TableHead className="text-center">Status Bulan Ini</TableHead>
+                            <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {expenses.length > 0 ? expenses.map(expense => {
                             const progress = ((expense.paidTenor ?? 0) / (expense.tenor ?? 1)) * 100;
+                            const isPaidThisMonth = paidExpenseNames.has(expense.name);
+                            const isFullyPaid = (expense.paidTenor ?? 0) >= (expense.tenor ?? 0);
                             return (
                             <TableRow key={expense.id}>
                                 <TableCell className="font-medium">{expense.name}</TableCell>
@@ -142,35 +183,46 @@ export default function InstallmentsPage() {
                                 </TableCell>
                                 <TableCell className="text-right">Rp{expense.amount.toLocaleString('id-ID')}</TableCell>
                                 <TableCell className="text-center">Setiap Tgl. {expense.dueDateDay}</TableCell>
+                                <TableCell className="text-center">
+                                     <Badge variant={isPaidThisMonth || isFullyPaid ? "secondary" : "default"} className={isPaidThisMonth || isFullyPaid ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}>
+                                            {isFullyPaid ? "Lunas" : isPaidThisMonth ? "Sudah Dibayar" : "Belum Lunas"}
+                                     </Badge>
+                                </TableCell>
                                 <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => handlePayInstallment(expense)}>
-                                                <Receipt className="mr-2 h-4 w-4" />
-                                                <span>Bayar Angsuran Ini</span>
-                                            </DropdownMenuItem>
-                                            <ExpenseDialog expense={expense} onSaveSuccess={fetchExpenses}>
-                                                <button className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full">
-                                                    <Edit className="mr-2 h-4 w-4" />
-                                                    <span>Ubah</span>
-                                                </button>
-                                            </ExpenseDialog>
-                                            <DropdownMenuItem onClick={() => handleDeleteClick(expense)} className="text-destructive">
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                <span>Hapus</span>
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <div className="flex justify-end gap-2">
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={() => handlePayInstallment(expense)}
+                                            disabled={isPaidThisMonth || isFullyPaid}
+                                        >
+                                            <Receipt className="mr-2 h-4 w-4"/> Bayar
+                                        </Button>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <ExpenseDialog expense={expense} onSaveSuccess={fetchExpenses}>
+                                                    <button className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full">
+                                                        <Edit className="mr-2 h-4 w-4" />
+                                                        <span>Ubah</span>
+                                                    </button>
+                                                </ExpenseDialog>
+                                                <DropdownMenuItem onClick={() => handleDeleteClick(expense)} className="text-destructive">
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    <span>Hapus</span>
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         )}) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center h-24">
+                                <TableCell colSpan={6} className="text-center h-24">
                                     Belum ada data angsuran.
                                 </TableCell>
                             </TableRow>
