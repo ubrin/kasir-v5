@@ -44,10 +44,25 @@ export default function MonthlyBookkeepingPage() {
     to: endOfMonth(new Date()),
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target;
-    setExpenseInput(prev => ({ ...prev, [id]: value }));
+  const parseFormattedNumber = (value: string): number => {
+    return Number(value.replace(/\./g, ''));
   };
+
+  const formatNumber = (value: number): string => {
+    return value.toLocaleString('id-ID');
+  };
+
+  const handleCurrencyInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    const numericValue = value.replace(/[^0-9]/g, '');
+    const formattedValue = numericValue ? parseInt(numericValue, 10).toLocaleString('id-ID') : '';
+    setExpenseInput(prev => ({ ...prev, [id]: formattedValue }));
+  };
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+     const { id, value } = e.target;
+     setExpenseInput(prev => ({ ...prev, [id]: value }));
+  }
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -71,12 +86,12 @@ export default function MonthlyBookkeepingPage() {
                 const expenseData = { id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense;
                 setExpenses(expenseData);
                 setExpenseInput({
-                    bandwidth: String(expenseData.mainExpenses.bandwidth),
-                    listrik: String(expenseData.mainExpenses.electricity),
-                    angsuranBri: String(expenseData.installments.bri),
-                    angsuranShopee: String(expenseData.installments.shopee),
+                    bandwidth: formatNumber(expenseData.mainExpenses.bandwidth),
+                    listrik: formatNumber(expenseData.mainExpenses.electricity),
+                    angsuranBri: formatNumber(expenseData.installments.bri),
+                    angsuranShopee: formatNumber(expenseData.installments.shopee),
                     angsuranShopeeKet: expenseData.installments.shopeeNote,
-                    lainnyaRp: String(expenseData.otherExpenses.amount),
+                    lainnyaRp: formatNumber(expenseData.otherExpenses.amount),
                     lainnyaKet: expenseData.otherExpenses.note,
                 });
             } else {
@@ -118,11 +133,11 @@ export default function MonthlyBookkeepingPage() {
         return;
     }
 
-    const bandwidth = Number(expenseInput.bandwidth) || 0;
-    const listrik = Number(expenseInput.listrik) || 0;
-    const angsuranBri = Number(expenseInput.angsuranBri) || 0;
-    const angsuranShopee = Number(expenseInput.angsuranShopee) || 0;
-    const lainnyaRp = Number(expenseInput.lainnyaRp) || 0;
+    const bandwidth = parseFormattedNumber(expenseInput.bandwidth) || 0;
+    const listrik = parseFormattedNumber(expenseInput.listrik) || 0;
+    const angsuranBri = parseFormattedNumber(expenseInput.angsuranBri) || 0;
+    const angsuranShopee = parseFormattedNumber(expenseInput.angsuranShopee) || 0;
+    const lainnyaRp = parseFormattedNumber(expenseInput.lainnyaRp) || 0;
     
     const totalExpense = bandwidth + listrik + angsuranBri + angsuranShopee + lainnyaRp;
 
@@ -266,11 +281,11 @@ export default function MonthlyBookkeepingPage() {
                             <AccordionContent className="space-y-4">
                                 <div className="grid gap-2">
                                     <Label htmlFor="bandwidth">Bandwidth (Rp)</Label>
-                                    <Input id="bandwidth" type="number" placeholder="cth. 5000000" value={expenseInput.bandwidth} onChange={handleInputChange} />
+                                    <Input id="bandwidth" type="text" placeholder="cth. 5.000.000" value={expenseInput.bandwidth} onChange={handleCurrencyInputChange} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="listrik">Listrik (Rp)</Label>
-                                    <Input id="listrik" type="number" placeholder="cth. 1000000" value={expenseInput.listrik} onChange={handleInputChange} />
+                                    <Input id="listrik" type="text" placeholder="cth. 1.000.000" value={expenseInput.listrik} onChange={handleCurrencyInputChange} />
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
@@ -279,13 +294,13 @@ export default function MonthlyBookkeepingPage() {
                             <AccordionContent className="space-y-4">
                                 <div className="grid gap-2">
                                     <Label htmlFor="angsuranBri">BRI (Rp)</Label>
-                                    <Input id="angsuranBri" type="number" placeholder="cth. 2500000" value={expenseInput.angsuranBri} onChange={handleInputChange} />
+                                    <Input id="angsuranBri" type="text" placeholder="cth. 2.500.000" value={expenseInput.angsuranBri} onChange={handleCurrencyInputChange} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="angsuranShopee">Shopee (Rp)</Label>
-                                    <Input id="angsuranShopee" type="number" placeholder="cth. 500000" value={expenseInput.angsuranShopee} onChange={handleInputChange} />
+                                    <Input id="angsuranShopee" type="text" placeholder="cth. 500.000" value={expenseInput.angsuranShopee} onChange={handleCurrencyInputChange} />
                                      <Label htmlFor="angsuranShopeeKet" className="sr-only">Keterangan Shopee</Label>
-                                    <Input id="angsuranShopeeKet" placeholder="Keterangan (misal: Pembelian router)" value={expenseInput.angsuranShopeeKet} onChange={handleInputChange} />
+                                    <Input id="angsuranShopeeKet" placeholder="Keterangan (misal: Pembelian router)" value={expenseInput.angsuranShopeeKet} onChange={handleTextChange} />
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
@@ -294,11 +309,11 @@ export default function MonthlyBookkeepingPage() {
                              <AccordionContent className="space-y-4">
                                 <div className="grid gap-2">
                                     <Label htmlFor="lainnyaRp">Jumlah (Rp)</Label>
-                                    <Input id="lainnyaRp" type="number" placeholder="cth. 150000" value={expenseInput.lainnyaRp} onChange={handleInputChange} />
+                                    <Input id="lainnyaRp" type="text" placeholder="cth. 150.000" value={expenseInput.lainnyaRp} onChange={handleCurrencyInputChange} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="lainnyaKet">Keterangan</Label>
-                                    <Textarea id="lainnyaKet" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." value={expenseInput.lainnyaKet} onChange={handleInputChange} />
+                                    <Textarea id="lainnyaKet" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." value={expenseInput.lainnyaKet} onChange={handleTextChange} />
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
