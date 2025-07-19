@@ -54,3 +54,20 @@ export type AppUser = {
   lastName: string;
   role: 'admin' | 'user';
 };
+
+export type Expense = {
+  id: string;
+  name: string;
+  amount: number;
+  category: 'utama' | 'angsuran' | 'lainnya';
+  date?: string; // 'yyyy-MM-dd', only for transaction records, not for templates
+  
+  // Fields for recurring expenses ('utama' or 'angsuran')
+  dueDateDay?: number; // Day of the month for due date
+  
+  // Fields for installment ('angsuran')
+  tenor?: number; // Total months/installments
+  paidTenor?: number; // How many installments have been paid
+  lastPaidDate?: string; // 'yyyy-MM-dd'
+  paymentHistory?: string[]; // Array of payment dates
+};

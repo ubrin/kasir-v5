@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown, History } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown, History, Wallet } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -34,6 +34,7 @@ const menuItems = [
       { href: '/delinquency', label: 'Tagihan', icon: CreditCard, roles: ['admin', 'user'] },
       { href: '/payment-report', label: 'Laporan', icon: BarChart3, roles: ['admin'] },
       { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
+      { href: '/expenses', label: 'Pengeluaran', icon: Wallet, roles: ['admin'] },
     ]
   },
 ];
@@ -66,6 +67,10 @@ export default function AppSidebar() {
     return roles.includes(user.role);
   }
 
+  const isSubItemActive = (subItems: any[]) => {
+    return subItems.some(sub => pathname.startsWith(sub.href!));
+  }
+
   return (
     <Sidebar className="dark:bg-background border-r dark:border-slate-800">
       <SidebarHeader>
@@ -80,7 +85,7 @@ export default function AppSidebar() {
         <SidebarMenu>
           {menuItems.filter(item => hasAccess(item.roles)).map((item, index) => (
             item.subItems ? (
-              <Collapsible key={index} defaultOpen={pathname.startsWith('/delinquency') || pathname.startsWith('/payment-report') || pathname.startsWith('/customers')}>
+              <Collapsible key={index} defaultOpen={isSubItemActive(item.subItems)}>
                 <CollapsibleTrigger asChild className="w-full">
                    <SidebarMenuButton className="w-full justify-between" variant="ghost" tooltip={{children: item.label}}>
                       <div className="flex items-center gap-2">
