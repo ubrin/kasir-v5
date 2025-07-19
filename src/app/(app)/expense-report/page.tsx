@@ -60,7 +60,7 @@ const parseFormattedNumber = (value: string | number): number => {
 const calculateTotal = (exp: Expense) => {
     const main = (exp.mainExpenses || []).reduce((sum, i) => sum + i.amount, 0);
     const inst = (exp.installments || []).reduce((sum, i) => sum + i.amount, 0);
-    const other = exp.otherExpenses.amount || 0;
+    const other = exp.otherExpenses?.amount || 0;
     return main + inst + other;
 }
 
@@ -70,6 +70,10 @@ const calculateTotal = (exp: Expense) => {
 const MainExpenseManager = ({ expense, onSave, onNavigateBack, periodLabel }: { expense: Expense, onSave: (data: any) => Promise<void>, onNavigateBack: () => void, periodLabel: string }) => {
     const [mainExpenses, setMainExpenses] = React.useState<MainExpenseItem[]>(expense.mainExpenses || []);
     const { toast } = useToast();
+
+    React.useEffect(() => {
+        setMainExpenses(expense.mainExpenses || []);
+    }, [expense.mainExpenses]);
 
     const handleSaveChanges = async (updatedMainExpenses: MainExpenseItem[]) => {
         const updatedExpense = { ...expense, mainExpenses: updatedMainExpenses };
@@ -138,20 +142,25 @@ const MainExpenseManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
 
 
 const OtherExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { expense: Expense, onSave: (data: any) => Promise<void>, onNavigateBack: () => void, periodLabel: string }) => {
-    const [otherExpenses, setOtherExpenses] = React.useState(expense.otherExpenses);
-     const [loading, setLoading] = React.useState(false);
+    const [otherExpenses, setOtherExpenses] = React.useState(expense.otherExpenses || { amount: '' as any, note: '' });
+    const [loading, setLoading] = React.useState(false);
+
+    React.useEffect(() => {
+        setOtherExpenses(expense.otherExpenses || { amount: '' as any, note: '' });
+    }, [expense.otherExpenses]);
 
     const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { value } = e.target;
-        const numericValue = value.replace(/[^0-9]/g, '');
-        setOtherExpenses(prev => ({ ...prev, amount: numericValue ? parseInt(numericValue, 10) : 0 }));
+        const numericValue = parseFormattedNumber(value);
+        setOtherExpenses(prev => ({ ...prev, amount: numericValue }));
     };
 
     const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setOtherExpenses(prev => ({...prev, note: e.target.value}));
     };
     
-    const handleFormSubmit = async () => {
+    const handleFormSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
         setLoading(true);
         const updatedExpense = { ...expense, otherExpenses };
         const totalExpense = calculateTotal(updatedExpense);
@@ -161,27 +170,29 @@ const OtherExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { ex
 
     return (
         <Card>
-            <CardHeader>
-                <CardTitle>Kelola Pengeluaran Lainnya</CardTitle>
-                 <CardDescription>{periodLabel}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid gap-2">
-                    <Label htmlFor="amount">Jumlah (Rp)</Label>
-                    <Input id="amount" type="text" placeholder="cth. 150.000" value={formatNumber(otherExpenses.amount)} onChange={handleCurrencyChange} />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="note">Keterangan</Label>
-                    <Textarea id="note" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." value={otherExpenses.note} onChange={handleNoteChange} />
-                </div>
-            </CardContent>
-             <CardFooter className="justify-end gap-2">
-                <Button variant="outline" onClick={onNavigateBack}>Batal</Button>
-                <Button onClick={handleFormSubmit} disabled={loading}>
-                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Simpan Perubahan
-                </Button>
-            </CardFooter>
+            <form onSubmit={handleFormSubmit}>
+                <CardHeader>
+                    <CardTitle>Kelola Pengeluaran Lainnya</CardTitle>
+                    <CardDescription>{periodLabel}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="amount">Jumlah (Rp)</Label>
+                        <Input id="amount" type="text" placeholder="cth. 150.000" value={formatNumber(otherExpenses.amount)} onChange={handleCurrencyChange} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="note">Keterangan</Label>
+                        <Textarea id="note" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." value={otherExpenses.note} onChange={handleNoteChange} />
+                    </div>
+                </CardContent>
+                <CardFooter className="justify-between">
+                    <Button variant="outline" onClick={onNavigateBack}>Kembali</Button>
+                    <Button type="submit" disabled={loading}>
+                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Simpan Perubahan
+                    </Button>
+                </CardFooter>
+            </form>
         </Card>
     );
 };
@@ -190,10 +201,19 @@ const InstallmentManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
     const [installments, setInstallments] = React.useState<InstallmentItem[]>(expense.installments || []);
     const { toast } = useToast();
 
+    React.useEffect(() => {
+        setInstallments(expense.installments || []);
+    }, [expense.installments]);
+
+    const handleSaveChanges = async (updatedInstallments: InstallmentItem[]) => {
+        const updatedExpense = { ...expense, installments: updatedInstallments };
+        const totalExpense = calculateTotal(updatedExpense);
+        await onSave({ installments: updatedInstallments, totalExpense });
+        setInstallments(updatedInstallments);
+        toast({ title: "Perubahan Disimpan", description: "Data angsuran telah diperbarui." });
+    };
+
     const handlePayInstallment = async (installmentId: string) => {
-        const batch = writeBatch(db);
-        const expenseRef = doc(db, "expenses", expense.id);
-        
         const updatedInstallments = installments.map(item => {
             if (item.id === installmentId && item.currentTenor > 0) {
                 return { ...item, currentTenor: item.currentTenor - 1 };
@@ -204,24 +224,9 @@ const InstallmentManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
         const updatedExpense = { ...expense, installments: updatedInstallments };
         const totalExpense = calculateTotal(updatedExpense);
         
-        batch.update(expenseRef, { installments: updatedInstallments, totalExpense });
-
-        try {
-            await batch.commit();
-            setInstallments(updatedInstallments);
-            toast({ title: "Pembayaran Berhasil", description: "Tenor angsuran telah berkurang." });
-        } catch (error) {
-            console.error(error);
-            toast({ title: "Gagal Membayar", variant: "destructive" });
-        }
-    };
-
-    const handleSaveChanges = async (updatedInstallments: InstallmentItem[]) => {
-        const updatedExpense = { ...expense, installments: updatedInstallments };
-        const totalExpense = calculateTotal(updatedExpense);
         await onSave({ installments: updatedInstallments, totalExpense });
         setInstallments(updatedInstallments);
-        toast({ title: "Perubahan Disimpan", description: "Data angsuran telah diperbarui." });
+        toast({ title: "Pembayaran Berhasil", description: "Tenor angsuran telah berkurang." });
     };
 
     return (
@@ -246,7 +251,7 @@ const InstallmentManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
                             <TableRow key={item.id}>
                                 <TableCell className="font-medium">{item.name}</TableCell>
                                 <TableCell>Rp{formatNumber(item.amount)}</TableCell>
-                                <TableCell>{item.currentTenor} / {item.totalTenor} bulan</TableCell>
+                                <TableCell>{item.currentTenor > 0 ? `${item.currentTenor} / ${item.totalTenor} bulan` : 'Lunas'}</TableCell>
                                 <TableCell>Tgl {item.dueDate}</TableCell>
                                 <TableCell className="text-right space-x-2">
                                     <Button size="sm" onClick={() => handlePayInstallment(item.id)} disabled={item.currentTenor === 0}>
@@ -296,6 +301,7 @@ const AddMainExpenseDialog = ({ onSave }: { onSave: (item: MainExpenseItem) => v
     const [item, setItem] = React.useState<Omit<MainExpenseItem, 'id'>>({ name: '', amount: '' as any });
 
     const handleSave = () => {
+        if (!item.name || !item.amount) return;
         onSave({ ...item, amount: parseFormattedNumber(item.amount), id: uuidv4() });
         setOpen(false);
         setItem({ name: '', amount: '' as any });
@@ -338,6 +344,7 @@ const EditMainExpenseDialog = ({ expenseItem, onSave }: { expenseItem: MainExpen
     }, [expenseItem]);
 
     const handleSave = () => {
+        if (!item.name || !item.amount) return;
         onSave({ ...item, amount: parseFormattedNumber(item.amount) });
         setOpen(false);
     };
@@ -377,6 +384,7 @@ const AddInstallmentDialog = ({ onSave }: { onSave: (item: InstallmentItem) => v
     });
 
     const handleSave = () => {
+        if (!item.name || !item.amount || !item.totalTenor || !item.dueDate) return;
         onSave({ 
             ...item, 
             id: uuidv4(),
@@ -436,6 +444,7 @@ const EditInstallmentDialog = ({ installment, onSave }: { installment: Installme
     }, [installment]);
 
     const handleSave = () => {
+        if (!item.name || !item.amount || !item.totalTenor || !item.dueDate) return;
         onSave({ ...item, amount: parseFormattedNumber(item.amount) });
         setOpen(false);
     };
@@ -567,30 +576,32 @@ export default function ExpenseReportPage() {
     
     const handleSave = async (dataToUpdate: Partial<Expense>) => {
         if (!expense || !from || !to) return;
-
-        const expenseDocRef = expense.id ? doc(db, "expenses", expense.id) : doc(collection(db, "expenses"));
-
-        const payload = {
+    
+        const payload: any = {
             ...expense,
             ...dataToUpdate,
             periodFrom: from,
             periodTo: to,
             updatedAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
         };
-        
+    
+        // Remove id and createdAt for update operations to avoid overwriting them
+        const { id: expenseId, createdAt, ...updatePayload } = payload;
+    
         try {
             if (expense.id) {
-                await updateDoc(expenseDocRef, payload);
+                const expenseDocRef = doc(db, "expenses", expense.id);
+                await updateDoc(expenseDocRef, updatePayload);
             } else {
-                const docRef = await addDoc(collection(db, "expenses"), { ...payload, createdAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss') });
+                const expenseDocRef = doc(collection(db, "expenses"));
+                await addDoc(collection(db, "expenses"), { ...payload, createdAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss') });
                 // Update local state with the new ID so subsequent saves are updates
-                setExpense(prev => prev ? ({ ...prev, id: docRef.id }) : null);
+                setExpense(prev => prev ? ({ ...prev, id: expenseDocRef.id }) : null);
             }
-            toast({ title: "Perubahan Disimpan", description: "Data pengeluaran telah berhasil diperbarui." });
             fetchExpenseData(); // Refresh data
         } catch (error) {
             console.error("Error saving expense:", error);
-            toast({ title: "Gagal Menyimpan", variant: "destructive" });
+            toast({ title: "Gagal Menyimpan", description: `Terjadi kesalahan: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
         }
     };
 
