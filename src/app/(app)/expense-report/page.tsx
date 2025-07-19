@@ -5,166 +5,21 @@ import * as React from 'react';
 import { useSearchParams, useRouter, notFound } from 'next/navigation';
 import { format, parse, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import { collection, query, where, getDocs, doc, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, writeBatch, updateDoc, getDoc, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Expense } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, Edit, Trash2, MoreHorizontal, CreditCard, Save } from 'lucide-react';
+import { Loader2, ArrowLeft, Edit, Trash2, MoreHorizontal, CreditCard, Save, TrendingUp, Repeat, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 const formatNumber = (value: number | undefined): string => {
     if (value === undefined || value === null) return '0';
     return value.toLocaleString('id-ID');
 };
-
-// --- Dialogs ---
-
-const ExpenseDialog = ({
-  expense,
-  onSave,
-  children,
-  defaultDate,
-}: {
-  expense?: Expense | null;
-  onSave: (data: Partial<Omit<Expense, 'id'>>, id?: string) => Promise<void>;
-  children: React.ReactNode;
-  defaultDate: Date;
-}) => {
-  const [open, setOpen] = React.useState(false);
-  const [name, setName] = React.useState('');
-  const [amount, setAmount] = React.useState<number | string>('');
-  const [category, setCategory] = React.useState<Expense['category']>('lainnya');
-  const [date, setDate] = React.useState<Date | undefined>(defaultDate);
-  const [dueDateDay, setDueDateDay] = React.useState<number|string>('');
-  const [tenor, setTenor] = React.useState<number|string>('');
-  const [note, setNote] = React.useState('');
-
-  React.useEffect(() => {
-    if (open) {
-      setName(expense?.name || '');
-      setAmount(expense?.amount || '');
-      setCategory(expense?.category || 'lainnya');
-      setDate(expense?.date ? parseISO(expense.date) : defaultDate);
-      setDueDateDay(expense?.dueDateDay || '');
-      setTenor(expense?.tenor || '');
-      setNote(expense?.note || '');
-    } else {
-        setName('');
-        setAmount('');
-        setCategory('lainnya');
-        setDate(defaultDate);
-        setDueDateDay('');
-        setTenor('');
-        setNote('');
-    }
-  }, [open, expense, defaultDate]);
-
-  const handleSave = async () => {
-    const dataToSave: Partial<Omit<Expense, 'id'|'paidTenor'>> = {
-      name,
-      amount: Number(amount),
-      category,
-      note,
-    };
-
-    if (category === 'utama') {
-        dataToSave.dueDateDay = Number(dueDateDay);
-        dataToSave.date = undefined; // Ensure date is not set for 'utama'
-    } else {
-        dataToSave.date = date ? format(date, 'yyyy-MM-dd') : undefined;
-        dataToSave.dueDateDay = undefined; // Ensure dueDateDay is not set
-    }
-
-    if (category === 'angsuran') {
-        dataToSave.tenor = Number(tenor);
-    } else {
-        dataToSave.tenor = undefined; // Ensure tenor is not set for others
-    }
-    
-    await onSave(dataToSave, expense?.id);
-    setOpen(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{expense ? 'Ubah Pengeluaran' : 'Tambah Pengeluaran'}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="name">Nama Pengeluaran</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="cth. Gaji Karyawan" />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="amount">Jumlah (Rp)</Label>
-            <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="cth. 3000000" />
-          </div>
-          <div className="grid gap-3">
-            <Label>Kategori</Label>
-            <RadioGroup value={category} onValueChange={(v) => setCategory(v as any)} className="flex gap-4">
-              <div className="flex items-center space-x-2"><RadioGroupItem value="utama" id="utama" /><Label htmlFor="utama" className="font-normal">Utama</Label></div>
-              <div className="flex items-center space-x-2"><RadioGroupItem value="angsuran" id="angsuran" /><Label htmlFor="angsuran" className="font-normal">Angsuran</Label></div>
-              <div className="flex items-center space-x-2"><RadioGroupItem value="lainnya" id="lainnya" /><Label htmlFor="lainnya" className="font-normal">Lainnya</Label></div>
-            </RadioGroup>
-          </div>
-          
-          {category === 'utama' && (
-            <div className="grid gap-2">
-              <Label htmlFor="dueDateDay">Jatuh Tempo Setiap Bulan (Tanggal)</Label>
-              <Input id="dueDateDay" type="number" value={dueDateDay} onChange={(e) => setDueDateDay(e.target.value)} placeholder="cth. 15" />
-            </div>
-          )}
-          {(category === 'angsuran' || category === 'lainnya') && (
-            <div className="grid gap-2">
-              <Label htmlFor="date">Tanggal {category === 'angsuran' ? 'Jatuh Tempo' : ''}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('justify-start text-left font-normal', !date && 'text-muted-foreground')}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, 'PPP', { locale: localeId }) : <span>Pilih tanggal</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-          {category === 'angsuran' && (
-            <div className="grid gap-2">
-              <Label htmlFor="tenor">Tenor (Bulan)</Label>
-              <Input id="tenor" type="number" value={tenor} onChange={(e) => setTenor(e.target.value)} placeholder="cth. 12" />
-            </div>
-          )}
-          <div className="grid gap-2">
-            <Label htmlFor="note">Keterangan (Opsional)</Label>
-            <Textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Tulis catatan singkat..." />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
-          <Button onClick={handleSave}>Simpan</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 
 export default function ExpenseReportPage() {
     const searchParams = useSearchParams();
@@ -197,21 +52,32 @@ export default function ExpenseReportPage() {
         try {
             const expensesCollection = collection(db, "expenses");
             const snapshot = await getDocs(expensesCollection);
-            let allExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+            const allExpensesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
 
             const fromDate = startOfMonth(period);
             const toDate = endOfMonth(period);
-
-            allExpenses = allExpenses.filter(exp => {
-                if (exp.category === 'utama') return true;
+            
+            // Filter expenses based on the selected period
+            const periodExpenses = allExpensesData.filter(exp => {
+                if (exp.category === 'utama') {
+                    // Recurring expenses are always included in any period report
+                    return true;
+                }
                 if (exp.date) {
                     const expDate = parseISO(exp.date);
                     return expDate >= fromDate && expDate <= toDate;
                 }
                 return false;
             });
+            
+            // Sort client-side
+            const sortedExpenses = periodExpenses.sort((a,b) => {
+                 const dateA = a.date ? parseISO(a.date).getTime() : 0;
+                 const dateB = b.date ? parseISO(b.date).getTime() : 0;
+                 return dateB - dateA;
+            });
 
-            setExpenses(allExpenses);
+            setExpenses(sortedExpenses);
         } catch (error) {
             console.error("Error fetching expenses:", error);
             toast({ title: "Gagal memuat data", variant: "destructive" });
@@ -221,8 +87,11 @@ export default function ExpenseReportPage() {
     }, [period, toast]);
 
     React.useEffect(() => {
-        fetchExpenses();
-    }, [fetchExpenses]);
+        if (period) {
+            fetchExpenses();
+        }
+    }, [period, fetchExpenses]);
+
 
     const handleSaveExpense = async (data: Partial<Omit<Expense, 'id'>>, id?: string) => {
         try {
@@ -231,7 +100,8 @@ export default function ExpenseReportPage() {
                 await updateDoc(expenseRef, data);
                 toast({ title: "Pengeluaran diperbarui" });
             } else {
-                 toast({ title: "Gagal: Penambahan hanya bisa dari halaman ringkasan.", variant: "destructive" });
+                 await addDoc(collection(db, 'expenses'), data);
+                 toast({ title: "Pengeluaran ditambahkan" });
             }
             fetchExpenses();
         } catch (error) {
@@ -242,10 +112,8 @@ export default function ExpenseReportPage() {
     
     const handleDeleteExpense = async (id: string) => {
         try {
-            const batch = writeBatch(db);
             const expenseRef = doc(db, 'expenses', id);
-            batch.delete(expenseRef);
-            await batch.commit();
+            await deleteDoc(expenseRef);
             toast({ title: "Pengeluaran dihapus", variant: "destructive" });
             fetchExpenses();
         } catch (error) {
@@ -314,11 +182,45 @@ export default function ExpenseReportPage() {
                 </div>
             </div>
 
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Pengeluaran Utama</CardTitle>
+                        <Repeat className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-destructive">Rp{formatNumber(totals.utama)}</div>
+                        <p className="text-xs text-muted-foreground">Pengeluaran rutin bulanan</p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Angsuran</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-destructive">Rp{formatNumber(totals.angsuran)}</div>
+                        <p className="text-xs text-muted-foreground">Cicilan & pembayaran bertahap</p>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Pengeluaran Lainnya</CardTitle>
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-destructive">Rp{formatNumber(totals.lainnya)}</div>
+                        <p className="text-xs text-muted-foreground">Pengeluaran insidental</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+
             <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
                  <Card>
                     <CardHeader>
-                        <CardTitle>Pengeluaran Utama</CardTitle>
-                        <CardDescription>Pengeluaran rutin bulanan. Total: <span className="font-bold text-destructive">Rp{formatNumber(totals.utama)}</span></CardDescription>
+                        <CardTitle>Rincian Pengeluaran Utama</CardTitle>
+                        <CardDescription>Daftar pengeluaran rutin yang terjadi setiap bulan.</CardDescription>
                     </CardHeader>
                     <CardContent>
                          <Table>
@@ -337,27 +239,7 @@ export default function ExpenseReportPage() {
                                         <TableCell>{`Setiap Tgl. ${expense.dueDateDay}`}</TableCell>
                                         <TableCell className="text-right">Rp{formatNumber(expense.amount)}</TableCell>
                                         <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                     <ExpenseDialog onSave={handleSaveExpense} expense={expense} defaultDate={period}>
-                                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}><Edit className="mr-2 h-4 w-4"/> Ubah</DropdownMenuItem>
-                                                    </ExpenseDialog>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                                                                <Trash2 className="mr-2 h-4 w-4"/> Hapus
-                                                            </DropdownMenuItem>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader><AlertDialogTitle>Yakin ingin menghapus?</AlertDialogTitle><AlertDialogDescription>Tindakan ini akan menghapus data secara permanen.</AlertDialogDescription></AlertDialogHeader>
-                                                            <AlertDialogFooter><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteExpense(expense.id)} className="bg-destructive hover:bg-destructive/90">Ya, Hapus</AlertDialogAction></AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            {/* Action Menu here */}
                                         </TableCell>
                                     </TableRow>
                                 )) : <TableRow><TableCell colSpan={4} className="text-center h-24">Tidak ada data.</TableCell></TableRow>}
@@ -368,8 +250,8 @@ export default function ExpenseReportPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Pengeluaran Angsuran</CardTitle>
-                        <CardDescription>Cicilan atau pembayaran bertahap. Total: <span className="font-bold text-destructive">Rp{formatNumber(totals.angsuran)}</span></CardDescription>
+                        <CardTitle>Rincian Pengeluaran Angsuran</CardTitle>
+                         <CardDescription>Daftar cicilan atau pembayaran bertahap pada periode ini.</CardDescription>
                     </CardHeader>
                     <CardContent>
                          <Table>
@@ -395,9 +277,7 @@ export default function ExpenseReportPage() {
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem onClick={() => handlePayInstallment(expense)}><CreditCard className="mr-2 h-4 w-4"/> Bayar Angsuran</DropdownMenuItem>
                                                     <DropdownMenuSeparator />
-                                                    <ExpenseDialog onSave={handleSaveExpense} expense={expense} defaultDate={period}>
-                                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}><Edit className="mr-2 h-4 w-4"/> Ubah</DropdownMenuItem>
-                                                    </ExpenseDialog>
+                                                    {/* Edit Dialog Trigger can be here */}
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
                                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
@@ -421,8 +301,8 @@ export default function ExpenseReportPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Pengeluaran Lainnya</CardTitle>
-                        <CardDescription>Pengeluaran insidental atau tidak terduga. Total: <span className="font-bold text-destructive">Rp{formatNumber(totals.lainnya)}</span></CardDescription>
+                        <CardTitle>Rincian Pengeluaran Lainnya</CardTitle>
+                        <CardDescription>Daftar pengeluaran insidental pada periode ini.</CardDescription>
                     </CardHeader>
                     <CardContent>
                          <Table>
@@ -446,9 +326,7 @@ export default function ExpenseReportPage() {
                                                     <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                     <ExpenseDialog onSave={handleSaveExpense} expense={expense} defaultDate={period}>
-                                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}><Edit className="mr-2 h-4 w-4"/> Ubah</DropdownMenuItem>
-                                                    </ExpenseDialog>
+                                                    {/* Edit Dialog Trigger can be here */}
                                                      <AlertDialog>
                                                         <AlertDialogTrigger asChild>
                                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive focus:bg-destructive/10">

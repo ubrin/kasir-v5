@@ -2,7 +2,8 @@
 'use client';
 
 import * as React from 'react';
-import { format, parseISO, startOfMonth, addDoc as addFbDoc, collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { format, parseISO, startOfMonth } from 'date-fns';
+import { addDoc as addFbDoc, collection, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import { id as localeId } from 'date-fns/locale';
 import type { Expense } from '@/lib/types';
@@ -35,9 +36,11 @@ const formatNumber = (value: number | undefined): string => {
 const ExpenseDialog = ({
   onSave,
   children,
+  expense,
 }: {
-  onSave: (data: Omit<Expense, 'id'|'paidTenor'>, id?: string) => Promise<void>;
+  onSave: (data: Partial<Omit<Expense, 'id'>>, id?: string) => Promise<void>;
   children: React.ReactNode;
+  expense?: Expense;
 }) => {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState('');
@@ -49,7 +52,16 @@ const ExpenseDialog = ({
   const [note, setNote] = React.useState('');
 
   React.useEffect(() => {
-    if (!open) {
+    if (open) {
+      if (expense) {
+        setName(expense.name);
+        setAmount(expense.amount);
+        setCategory(expense.category);
+        setNote(expense.note || '');
+        if (expense.date) setDate(parseISO(expense.date));
+        if (expense.dueDateDay) setDueDateDay(expense.dueDateDay);
+        if (expense.tenor) setTenor(expense.tenor);
+      } else {
         setName('');
         setAmount('');
         setCategory('lainnya');
@@ -57,11 +69,12 @@ const ExpenseDialog = ({
         setDueDateDay('');
         setTenor('');
         setNote('');
+      }
     }
-  }, [open]);
+  }, [open, expense]);
 
   const handleSave = async () => {
-    const dataToSave: Omit<Expense, 'id'|'paidTenor'> = {
+    const dataToSave: Partial<Omit<Expense, 'id'>> = {
       name,
       amount: Number(amount),
       category,
@@ -70,15 +83,23 @@ const ExpenseDialog = ({
 
     if (category === 'utama') {
         dataToSave.dueDateDay = Number(dueDateDay);
+        dataToSave.date = undefined; // Ensure date is not set for recurring
     } else {
         dataToSave.date = date ? format(date, 'yyyy-MM-dd') : undefined;
+        dataToSave.dueDateDay = undefined; // Ensure dueDateDay is not set
     }
 
     if (category === 'angsuran') {
         dataToSave.tenor = Number(tenor);
+        if (!expense) { // Only set paidTenor on creation
+             dataToSave.paidTenor = 0;
+        }
+    } else {
+        dataToSave.tenor = undefined;
+        dataToSave.paidTenor = undefined;
     }
     
-    await onSave(dataToSave);
+    await onSave(dataToSave, expense?.id);
     setOpen(false);
   };
 
@@ -87,7 +108,7 @@ const ExpenseDialog = ({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tambah Pengeluaran Baru</DialogTitle>
+          <DialogTitle>{expense ? "Ubah Pengeluaran" : "Tambah Pengeluaran Baru"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
@@ -101,9 +122,9 @@ const ExpenseDialog = ({
            <div className="grid gap-3">
             <Label>Kategori</Label>
             <RadioGroup value={category} onValueChange={(v) => setCategory(v as any)} className="flex gap-4">
-                <div className="flex items-center space-x-2"><RadioGroupItem value="utama" id="utama" /><Label htmlFor="utama" className="font-normal">Utama</Label></div>
-                <div className="flex items-center space-x-2"><RadioGroupItem value="angsuran" id="angsuran" /><Label htmlFor="angsuran" className="font-normal">Angsuran</Label></div>
-                <div className="flex items-center space-x-2"><RadioGroupItem value="lainnya" id="lainnya" /><Label htmlFor="lainnya" className="font-normal">Lainnya</Label></div>
+                <div className="flex items-center space-x-2"><RadioGroupItem value="utama" id="utama" /><Label htmlFor="utama" className="font-normal cursor-pointer">Utama</Label></div>
+                <div className="flex items-center space-x-2"><RadioGroupItem value="angsuran" id="angsuran" /><Label htmlFor="angsuran" className="font-normal cursor-pointer">Angsuran</Label></div>
+                <div className="flex items-center space-x-2"><RadioGroupItem value="lainnya" id="lainnya" /><Label htmlFor="lainnya" className="font-normal cursor-pointer">Lainnya</Label></div>
             </RadioGroup>
           </div>
           
@@ -163,15 +184,18 @@ export default function ExpensesPage() {
             const allExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             
             const groupedByMonth: Record<string, number> = {};
-            const currentMonthPeriod = format(new Date(), 'yyyy-MM');
-
+            
             allExpenses.forEach(exp => {
                 let period = '';
-                if (exp.category === 'utama') {
-                    // Recurring expenses apply to the current month for summary
-                    period = currentMonthPeriod;
-                } else if (exp.date) {
+                 // All expenses are now tied to a period
+                if (exp.date) {
                     period = format(parseISO(exp.date), 'yyyy-MM');
+                } else if (exp.category === 'utama') {
+                    // For main expenses without a specific date, we can assume they apply to every month
+                    // or handle them based on app logic. Here we will display them in a general list.
+                    // For summary cards, let's create a special key or decide how to show them.
+                    // For now, let's group them into the current month for card display.
+                    period = format(new Date(), 'yyyy-MM');
                 }
 
                 if (period) {
@@ -181,6 +205,17 @@ export default function ExpensesPage() {
                     groupedByMonth[period] += exp.amount;
                 }
             });
+
+            // Let's also account for all recurring "utama" expenses in every listed month
+            const mainExpenses = allExpenses.filter(e => e.category === 'utama');
+            const mainTotal = mainExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+
+            for(const period in groupedByMonth) {
+                if (format(new Date(), 'yyyy-MM') >= period) { // Only add to past and current months
+                    groupedByMonth[period] += mainTotal;
+                }
+            }
+
 
             setMonthlyExpenses(groupedByMonth);
 
@@ -198,9 +233,9 @@ export default function ExpensesPage() {
 
     const handleSaveExpense = async (data: Omit<Expense, 'id'|'paidTenor'>) => {
         try {
-            const dataToCreate: Omit<Expense, 'id'> = {...data, paidTenor: 0};
-            if(data.category === 'angsuran') {
-                (dataToCreate as Expense).paidTenor = 0;
+            const dataToCreate: any = {...data};
+            if(data.category === 'angsuran' && !data.paidTenor) {
+                dataToCreate.paidTenor = 0;
             }
             await addFbDoc(collection(db, "expenses"), dataToCreate);
             toast({ title: "Pengeluaran ditambahkan" });
@@ -262,3 +297,5 @@ export default function ExpensesPage() {
         </div>
     );
 }
+
+    
