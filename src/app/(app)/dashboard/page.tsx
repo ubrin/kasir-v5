@@ -9,9 +9,8 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
 import { DollarSign, Users, CreditCard, Activity, Archive, Loader2, FileClock, Files } from "lucide-react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { differenceInMonths, parseISO, startOfMonth, endOfMonth, subMonths, getMonth, getYear } from "date-fns"
+import { differenceInMonths, parseISO, startOfMonth, subMonths, getMonth, getYear } from "date-fns"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +37,6 @@ export default function DashboardPage() {
     });
     const [monthlyRevenueData, setMonthlyRevenueData] = React.useState<any[]>([]);
     const [pieData, setPieData] = React.useState<any[]>([]);
-    const [paymentSummary, setPaymentSummary] = React.useState({ cash: 0, bri: 0, dana: 0, total: 0 });
 
     const fetchData = React.useCallback(async () => {
         setLoading(true);
@@ -57,7 +55,6 @@ export default function DashboardPage() {
             const currentMonth = getMonth(today);
             const currentYear = getYear(today);
             const startOfCurrentMonth = startOfMonth(today);
-            const endOfCurrentMonth = endOfMonth(today);
 
             const totalOmset = customers.reduce((acc, c) => acc + c.packagePrice, 0);
 
@@ -101,22 +98,6 @@ export default function DashboardPage() {
                 { name: 'Belum Lunas', value: unpaidInvoicesStats.amount, count: unpaidInvoicesStats.count },
             ]);
 
-            const monthlyPayments = payments.filter(payment => {
-              const paymentDate = parseISO(payment.paymentDate);
-              return paymentDate >= startOfCurrentMonth && paymentDate <= endOfCurrentMonth;
-            });
-
-            const summary = monthlyPayments.reduce(
-              (acc, payment) => {
-                const method = payment.paymentMethod || 'cash';
-                acc[method] = (acc[method] || 0) + payment.totalPayment;
-                acc.total += payment.totalPayment;
-                return acc;
-              },
-              { cash: 0, bri: 0, dana: 0, total: 0 } as any
-            );
-            setPaymentSummary(summary);
-
             const revenueDataByMonth: { [key: string]: number } = {};
             for (let i = 5; i >= 0; i--) {
                 const date = subMonths(new Date(), i);
@@ -129,7 +110,7 @@ export default function DashboardPage() {
                 if (differenceInMonths(new Date(), paymentDate) < 6) {
                     const monthName = paymentDate.toLocaleString('id-ID', { month: 'short' });
                     if (revenueDataByMonth.hasOwnProperty(monthName)) {
-                        revenueDataByMonth[monthName] += p.totalPayment;
+                        revenueDataByMonth[monthName] += (p.totalPayment || p.paidAmount); // Fallback for older data
                     }
                 }
             });
@@ -308,94 +289,53 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <div className="lg:col-span-3 flex flex-col gap-4">
-            <Card>
-            <CardHeader>
-                <CardTitle>Status Pembayaran Faktur (Bulan Ini)</CardTitle>
-                <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center items-center pb-0">
-                <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                        <Tooltip
-                            contentStyle={{
-                                background: "hsl(var(--card))",
-                                borderColor: "hsl(var(--border))",
-                            }}
-                            formatter={(value: number, name: string, props: any) => [
-                            `Rp${value.toLocaleString('id-ID')}`, 
-                            `${name} (${props.payload.count} Faktur)`
-                            ]}
-                        />
-                        <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                            const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-                            const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-                            if (!percent || percent < 0.01) return null;
-                            return (
-                            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12}>
-                                {`${(percent * 100).toFixed(0)}%`}
-                            </text>
-                            );
+        <Card className="lg:col-span-3">
+        <CardHeader>
+            <CardTitle>Status Pembayaran Faktur (Bulan Ini)</CardTitle>
+            <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center pb-0">
+            <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                    <Tooltip
+                        contentStyle={{
+                            background: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
                         }}
-                        >
-                        {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
-                        ))}
-                        </Pie>
-                        <Legend iconType="circle" wrapperStyle={{fontSize: "12px"}}/>
-                    </PieChart>
-                    </ResponsiveContainer>
-            </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Rincian Pemasukan Bulan Ini</CardTitle>
-                    <div className="text-2xl font-bold pt-2">Rp{paymentSummary.total.toLocaleString('id-ID')}</div>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableBody>
-                            <TableRow>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-gray-400" />
-                                        <span>Cash</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right font-medium">Rp{paymentSummary.cash.toLocaleString('id-ID')}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-blue-600" />
-                                        <span>BRI</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right font-medium">Rp{paymentSummary.bri.toLocaleString('id-ID')}</TableCell>
-                            </TableRow>
-                             <TableRow>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-sky-500" />
-                                        <span>DANA</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right font-medium">Rp{paymentSummary.dana.toLocaleString('id-ID')}</TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-        </div>
+                        formatter={(value: number, name: string, props: any) => [
+                        `Rp${value.toLocaleString('id-ID')}`, 
+                        `${name} (${props.payload.count} Faktur)`
+                        ]}
+                    />
+                    <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+                        const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+                        if (!percent || percent < 0.01) return null;
+                        return (
+                        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12}>
+                            {`${(percent * 100).toFixed(0)}%`}
+                        </text>
+                        );
+                    }}
+                    >
+                    {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
+                    ))}
+                    </Pie>
+                    <Legend iconType="circle" wrapperStyle={{fontSize: "12px"}}/>
+                </PieChart>
+                </ResponsiveContainer>
+        </CardContent>
+        </Card>
       </div>
     </div>
   )
