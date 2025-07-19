@@ -45,17 +45,10 @@ const categoryTitles: Record<ExpenseCategory, string> = {
     other: "Pengeluaran Lainnya"
 };
 
-const formatNumber = (value: number | string | null | undefined): string => {
-    if (value === null || value === undefined || value === '') return '';
-    return Number(value).toLocaleString('id-ID');
+const formatNumber = (value: number | undefined): string => {
+    if (value === undefined || value === null) return '0';
+    return value.toLocaleString('id-ID');
 };
-
-const parseFormattedNumber = (value: string | number): number => {
-    if (typeof value === 'number') return value;
-    if (value === '') return 0;
-    return Number(String(value).replace(/\./g, ''));
-};
-
 
 // --- Helper function to calculate total expense ---
 const calculateTotal = (exp: Expense) => {
@@ -137,14 +130,12 @@ const OtherExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { ex
         setOtherExpenses(expense.otherExpenses || { amount: '' as any, note: '' });
     }, [expense.otherExpenses]);
 
-    const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { value } = e.target;
-        const numericValue = parseFormattedNumber(value);
-        setOtherExpenses(prev => ({ ...prev, amount: numericValue }));
-    };
-
-    const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setOtherExpenses(prev => ({...prev, note: e.target.value}));
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { id, value } = e.target;
+        setOtherExpenses(prev => ({
+            ...prev,
+            [id]: id === 'amount' ? Number(value) : value,
+        }));
     };
     
     const handleFormSubmit = async (e: React.FormEvent) => {
@@ -167,11 +158,11 @@ const OtherExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { ex
                 <CardContent className="space-y-4">
                     <div className="grid gap-2">
                         <Label htmlFor="amount">Jumlah (Rp)</Label>
-                        <Input id="amount" type="text" placeholder="cth. 150.000" value={formatNumber(otherExpenses.amount)} onChange={handleCurrencyChange} />
+                        <Input id="amount" type="number" placeholder="cth. 150000" value={otherExpenses.amount} onChange={handleChange} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="note">Keterangan</Label>
-                        <Textarea id="note" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." value={otherExpenses.note} onChange={handleNoteChange} />
+                        <Textarea id="note" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." value={otherExpenses.note} onChange={handleChange} />
                     </div>
                 </CardContent>
                 <CardFooter className="justify-between">
@@ -290,8 +281,8 @@ const AddMainExpenseDialog = ({ onSave }: { onSave: (item: MainExpenseItem) => v
     const [item, setItem] = React.useState<Omit<MainExpenseItem, 'id'>>({ name: '', amount: '' as any });
 
     const handleSave = () => {
-        if (!item.name || item.amount === '' || item.amount === null) return;
-        onSave({ ...item, amount: parseFormattedNumber(item.amount), id: uuidv4() });
+        if (!item.name || !item.amount) return;
+        onSave({ ...item, amount: Number(item.amount), id: uuidv4() });
         setOpen(false);
         setItem({ name: '', amount: '' as any });
     };
@@ -312,7 +303,7 @@ const AddMainExpenseDialog = ({ onSave }: { onSave: (item: MainExpenseItem) => v
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="amount">Jumlah (Rp)</Label>
-                        <Input id="amount" type="text" value={formatNumber(item.amount)} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value }))} placeholder="cth. 3.000.000" />
+                        <Input id="amount" type="number" value={item.amount} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value }))} placeholder="cth. 3000000" />
                     </div>
                 </div>
                 <DialogFooter>
@@ -333,8 +324,8 @@ const EditMainExpenseDialog = ({ expenseItem, onSave }: { expenseItem: MainExpen
     }, [expenseItem]);
 
     const handleSave = () => {
-        if (!item.name || item.amount === '' || item.amount === null) return;
-        onSave({ ...item, amount: parseFormattedNumber(item.amount) });
+        if (!item.name || !item.amount) return;
+        onSave({ ...item, amount: Number(item.amount) });
         setOpen(false);
     };
 
@@ -354,7 +345,7 @@ const EditMainExpenseDialog = ({ expenseItem, onSave }: { expenseItem: MainExpen
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="amount">Jumlah (Rp)</Label>
-                        <Input id="amount" type="text" value={formatNumber(item.amount)} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value }))} />
+                        <Input id="amount" type="number" value={item.amount} onChange={(e) => setItem(p => ({ ...p, amount: Number(e.target.value) }))} />
                     </div>
                 </div>
                 <DialogFooter>
@@ -368,22 +359,23 @@ const EditMainExpenseDialog = ({ expenseItem, onSave }: { expenseItem: MainExpen
 
 const AddInstallmentDialog = ({ onSave }: { onSave: (item: InstallmentItem) => void }) => {
     const [open, setOpen] = React.useState(false);
-    const [item, setItem] = React.useState<Omit<InstallmentItem, 'id'>>({
-        name: '', amount: '' as any, totalTenor: '' as any, currentTenor: '' as any, dueDate: '' as any
+    const [item, setItem] = React.useState<Omit<InstallmentItem, 'id' | 'currentTenor'>>({
+        name: '', amount: '' as any, totalTenor: '' as any, dueDate: '' as any
     });
 
     const handleSave = () => {
-        if (!item.name || item.amount === '' || item.totalTenor === '' || item.dueDate === '') return;
+        if (!item.name || !item.amount || !item.totalTenor || !item.dueDate) return;
+        const totalTenorNum = Number(item.totalTenor);
         onSave({ 
             ...item, 
             id: uuidv4(),
-            amount: parseFormattedNumber(item.amount),
-            totalTenor: Number(item.totalTenor),
-            currentTenor: Number(item.totalTenor), // Current tenor starts same as total
+            amount: Number(item.amount),
+            totalTenor: totalTenorNum,
+            currentTenor: totalTenorNum,
             dueDate: Number(item.dueDate)
         });
         setOpen(false);
-        setItem({ name: '', amount: '' as any, totalTenor: '' as any, currentTenor: '' as any, dueDate: '' as any });
+        setItem({ name: '', amount: '' as any, totalTenor: '' as any, dueDate: '' as any });
     };
 
     return (
@@ -402,7 +394,7 @@ const AddInstallmentDialog = ({ onSave }: { onSave: (item: InstallmentItem) => v
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="amount">Jumlah (Rp)</Label>
-                        <Input id="amount" type="text" value={formatNumber(item.amount)} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value }))} placeholder="cth. 2.500.000"/>
+                        <Input id="amount" type="number" value={item.amount} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value }))} placeholder="cth. 2500000"/>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
@@ -433,8 +425,14 @@ const EditInstallmentDialog = ({ installment, onSave }: { installment: Installme
     }, [installment]);
 
     const handleSave = () => {
-        if (!item.name || item.amount === '' || item.totalTenor === '' || item.dueDate === '') return;
-        onSave({ ...item, amount: parseFormattedNumber(item.amount) });
+        if (!item.name || !item.amount || !item.totalTenor || !item.dueDate) return;
+        onSave({ 
+            ...item, 
+            amount: Number(item.amount),
+            currentTenor: Number(item.currentTenor),
+            totalTenor: Number(item.totalTenor),
+            dueDate: Number(item.dueDate)
+        });
         setOpen(false);
     };
 
@@ -454,7 +452,7 @@ const EditInstallmentDialog = ({ installment, onSave }: { installment: Installme
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="amount">Jumlah (Rp)</Label>
-                        <Input id="amount" type="text" value={formatNumber(item.amount)} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value }))} />
+                        <Input id="amount" type="number" value={item.amount} onChange={(e) => setItem(p => ({ ...p, amount: Number(e.target.value) }))} />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                         <div className="grid gap-2">
@@ -613,18 +611,26 @@ export default function ExpenseReportPage() {
             periodLabel
         };
 
-        const handleMainExpensesChange = async (updatedMainExpenses: MainExpenseItem[]) => {
-            const updatedExpense = { ...expense, mainExpenses: updatedMainExpenses };
-            const totalExpense = calculateTotal(updatedExpense);
-            await handleSave({ mainExpenses: updatedMainExpenses, totalExpense });
-            toast({ title: "Perubahan Disimpan", description: "Data pengeluaran utama telah diperbarui." });
+        const handleSaveChanges = async (updatedItems: MainExpenseItem[] | InstallmentItem[], type: 'main' | 'installments') => {
+            if (!expense) return;
+            let updatedExpenseData: Partial<Expense>;
+            if (type === 'main') {
+                 updatedExpenseData = { ...expense, mainExpenses: updatedItems as MainExpenseItem[] };
+            } else {
+                 updatedExpenseData = { ...expense, installments: updatedItems as InstallmentItem[] };
+            }
+
+            const totalExpense = calculateTotal(updatedExpenseData as Expense);
+            await handleSave({ ...updatedExpenseData, totalExpense });
+            toast({ title: "Perubahan Disimpan", description: `Data ${type === 'main' ? 'pengeluaran utama' : 'angsuran'} telah diperbarui.` });
         };
+
 
         switch (category) {
             case 'main':
                 return <MainExpenseManager 
                             mainExpenses={expense.mainExpenses || []} 
-                            onSaveChanges={handleMainExpensesChange}
+                            onSaveChanges={(items) => handleSaveChanges(items, 'main')}
                             onNavigateBack={() => router.back()} 
                             periodLabel={periodLabel} 
                        />;
