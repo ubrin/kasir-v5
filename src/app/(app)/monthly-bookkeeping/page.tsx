@@ -9,17 +9,18 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment } from '@/lib/types';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon, Receipt, Loader2, DollarSign, Wallet, Banknote, Landmark } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, Wallet, Banknote, Landmark } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 
 export default function MonthlyBookkeepingPage() {
@@ -76,20 +77,13 @@ export default function MonthlyBookkeepingPage() {
     );
   }, [filteredPayments]);
   
-  const getMethodBadge = (method: 'cash' | 'bri' | 'dana') => {
-    switch(method) {
-        case 'cash': return <Badge variant="secondary">Cash</Badge>;
-        case 'bri': return <Badge className="bg-blue-600 text-white hover:bg-blue-700">BRI</Badge>;
-        case 'dana': return <Badge className="bg-sky-500 text-white hover:bg-sky-600">DANA</Badge>;
-    }
-  }
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Pembukuan Bulanan</h1>
-            <p className="text-muted-foreground">Laporan penerimaan pembayaran dari pelanggan.</p>
+            <p className="text-muted-foreground">Laporan pemasukan dan pengeluaran bisnis Anda.</p>
         </div>
         <Popover>
           <PopoverTrigger asChild>
@@ -131,96 +125,105 @@ export default function MonthlyBookkeepingPage() {
                 <Loader2 className="h-16 w-16 animate-spin" />
             </div>
         ) : (
-        <>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            <div className="flex flex-col gap-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Ringkasan Pemasukan</CardTitle>
+                        <CardDescription>
+                            Total pemasukan berdasarkan periode yang dipilih.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Total Pemasukan</p>
+                            <p className="text-4xl font-bold">Rp{summary.total.toLocaleString('id-ID')}</p>
+                        </div>
+                        <Separator />
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            <div className="flex items-center">
+                                <Wallet className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">Cash</p>
+                                    <p className="text-lg font-bold">Rp{summary.cash.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <Landmark className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">BRI</p>
+                                    <p className="text-lg font-bold">Rp{summary.bri.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <Banknote className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">DANA</p>
+                                    <p className="text-lg font-bold">Rp{summary.dana.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+            
             <Card>
                 <CardHeader>
-                    <CardTitle>Ringkasan Pemasukan</CardTitle>
+                    <CardTitle>Catat Pengeluaran</CardTitle>
                     <CardDescription>
-                        Total pemasukan berdasarkan periode yang dipilih.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Total Pemasukan</p>
-                        <p className="text-4xl font-bold">Rp{summary.total.toLocaleString('id-ID')}</p>
-                    </div>
-                    <Separator />
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <div className="flex items-center">
-                            <Wallet className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">Cash</p>
-                                <p className="text-lg font-bold">Rp{summary.cash.toLocaleString('id-ID')}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center">
-                            <Landmark className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">BRI</p>
-                                <p className="text-lg font-bold">Rp{summary.bri.toLocaleString('id-ID')}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center">
-                            <Banknote className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">DANA</p>
-                                <p className="text-lg font-bold">Rp{summary.dana.toLocaleString('id-ID')}</p>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Rincian Transaksi</CardTitle>
-                    <CardDescription>
-                        Daftar semua transaksi pembayaran pada periode yang dipilih.
+                        Input semua pengeluaran operasional pada periode ini.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {filteredPayments.length > 0 ? (
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Tanggal</TableHead>
-                            <TableHead>Pelanggan</TableHead>
-                            <TableHead>Metode</TableHead>
-                            <TableHead className="text-right">Total Tagihan</TableHead>
-                            <TableHead className="text-right">Diskon</TableHead>
-                            <TableHead className="text-right">Jumlah Dibayar</TableHead>
-                            <TableHead className="text-right">Aksi</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredPayments.map(payment => (
-                                <TableRow key={payment.id}>
-                                    <TableCell>{format(parseISO(payment.paymentDate), 'd MMM yyyy', { locale: id })}</TableCell>
-                                    <TableCell className="font-medium">{payment.customerName}</TableCell>
-                                    <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
-                                    <TableCell className="text-right">Rp{payment.totalBill.toLocaleString('id-ID')}</TableCell>
-                                    <TableCell className="text-right text-green-600">Rp{payment.discount.toLocaleString('id-ID')}</TableCell>
-                                    <TableCell className="text-right font-semibold">Rp{(payment.totalPayment ?? payment.paidAmount).toLocaleString('id-ID')}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button asChild variant="outline" size="sm">
-                                            <Link href={`/receipt/${payment.id}`}>
-                                                <Receipt className="mr-2 h-4 w-4" /> Struk
-                                            </Link>
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                        </Table>
-                    ) : (
-                         <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
-                            <p className="text-lg font-medium">Tidak Ada Data</p>
-                            <p className="text-muted-foreground">Tidak ada pembayaran yang tercatat pada periode tanggal yang dipilih.</p>
-                        </div>
-                    )}
+                     <Accordion type="multiple" defaultValue={['item-1']} className="w-full">
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger>Pengeluaran Utama</AccordionTrigger>
+                            <AccordionContent className="space-y-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="bandwidth">Bandwidth (Rp)</Label>
+                                    <Input id="bandwidth" type="number" placeholder="cth. 5000000" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="listrik">Listrik (Rp)</Label>
+                                    <Input id="listrik" type="number" placeholder="cth. 1000000" />
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-2">
+                            <AccordionTrigger>Angsuran</AccordionTrigger>
+                            <AccordionContent className="space-y-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="angsuran-bri">BRI (Rp)</Label>
+                                    <Input id="angsuran-bri" type="number" placeholder="cth. 2500000" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="angsuran-shopee">Shopee (Rp)</Label>
+                                    <Input id="angsuran-shopee" type="number" placeholder="cth. 500000" />
+                                     <Label htmlFor="angsuran-shopee-ket" className="sr-only">Keterangan Shopee</Label>
+                                    <Input id="angsuran-shopee-ket" placeholder="Keterangan (misal: Pembelian router)" />
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-3">
+                            <AccordionTrigger>Pengeluaran Lainnya</AccordionTrigger>
+                             <AccordionContent className="space-y-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="lainnya-rp">Jumlah (Rp)</Label>
+                                    <Input id="lainnya-rp" type="number" placeholder="cth. 150000" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="lainnya-ket">Keterangan</Label>
+                                    <Textarea id="lainnya-ket" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." />
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
                 </CardContent>
+                <CardFooter>
+                    <Button className="w-full">Simpan Pengeluaran</Button>
+                </CardFooter>
             </Card>
-        </>
+        </div>
       )}
     </div>
   );
