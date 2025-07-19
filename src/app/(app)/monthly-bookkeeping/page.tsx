@@ -26,8 +26,8 @@ export default function MonthlyBookkeepingPage() {
   const [expenses, setExpenses] = React.useState<Expense | null>(null);
 
   const [date, setDate] = React.useState<DateRange | undefined>({
-    from: startOfMonth(new date()),
-    to: endOfMonth(new date()),
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
   });
 
   const fetchData = React.useCallback(async () => {
@@ -186,8 +186,8 @@ export default function MonthlyBookkeepingPage() {
             
             <Card>
                 <CardHeader>
-                    <CardTitle>Rincian Pengeluaran</CardTitle>
-                    <CardDescription>
+                    <CardTitle>Ringkasan Pengeluaran</CardTitle>
+                    <CardDescription className="pt-8">
                         Klik untuk melihat & mengelola rincian pengeluaran.
                     </CardDescription>
                 </CardHeader>
