@@ -281,7 +281,7 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
                             name="date"
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
-                                <FormLabel>Tanggal</FormLabel>
+                                <FormLabel>{selectedCategory === 'angsuran' ? 'Jatuh Tempo' : 'Tanggal'}</FormLabel>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                     <FormControl>
