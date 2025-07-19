@@ -51,7 +51,7 @@ const formatNumber = (value: number | undefined): string => {
 };
 
 // --- Helper function to calculate total expense ---
-const calculateTotal = (exp: Expense) => {
+const calculateTotal = (exp: Partial<Expense>) => {
     const main = (exp.mainExpenses || []).reduce((sum, i) => sum + i.amount, 0);
     const inst = (exp.installments || []).reduce((sum, i) => sum + i.amount, 0);
     const other = exp.otherExpenses?.amount || 0;
@@ -134,16 +134,20 @@ const OtherExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { ex
         const { id, value } = e.target;
         setOtherExpenses(prev => ({
             ...prev,
-            [id]: id === 'amount' ? Number(value) : value,
+            [id]: id === 'amount' ? (value === '' ? '' : Number(value)) : value,
         }));
     };
     
     const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        const updatedExpense = { ...expense, otherExpenses };
-        const totalExpense = calculateTotal(updatedExpense);
-        await onSave({ otherExpenses, totalExpense });
+        const dataToSave = { 
+            otherExpenses: {
+                amount: Number(otherExpenses.amount) || 0,
+                note: otherExpenses.note || ''
+            }
+        };
+        await onSave(dataToSave);
         setLoading(false);
         toast({ title: "Perubahan Disimpan", description: "Data pengeluaran lainnya telah diperbarui." });
     }
@@ -186,9 +190,7 @@ const InstallmentManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
     }, [expense.installments]);
 
     const handleSaveChanges = async (updatedInstallments: InstallmentItem[]) => {
-        const updatedExpense = { ...expense, installments: updatedInstallments };
-        const totalExpense = calculateTotal(updatedExpense);
-        await onSave({ installments: updatedInstallments, totalExpense });
+        await onSave({ installments: updatedInstallments });
         setInstallments(updatedInstallments);
         toast({ title: "Perubahan Disimpan", description: "Data angsuran telah diperbarui." });
     };
@@ -201,11 +203,7 @@ const InstallmentManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
             return item;
         });
 
-        const updatedExpense = { ...expense, installments: updatedInstallments };
-        const totalExpense = calculateTotal(updatedExpense);
-        
-        await onSave({ installments: updatedInstallments, totalExpense });
-        setInstallments(updatedInstallments);
+        await handleSaveChanges(updatedInstallments);
         toast({ title: "Pembayaran Berhasil", description: "Tenor angsuran telah berkurang." });
     };
 
@@ -303,7 +301,7 @@ const AddMainExpenseDialog = ({ onSave }: { onSave: (item: MainExpenseItem) => v
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="amount">Jumlah (Rp)</Label>
-                        <Input id="amount" type="number" value={item.amount} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value }))} placeholder="cth. 3000000" />
+                        <Input id="amount" type="number" value={item.amount} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value as any }))} placeholder="cth. 3000000" />
                     </div>
                 </div>
                 <DialogFooter>
@@ -394,16 +392,16 @@ const AddInstallmentDialog = ({ onSave }: { onSave: (item: InstallmentItem) => v
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="amount">Jumlah (Rp)</Label>
-                        <Input id="amount" type="number" value={item.amount} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value }))} placeholder="cth. 2500000"/>
+                        <Input id="amount" type="number" value={item.amount} onChange={(e) => setItem(p => ({ ...p, amount: e.target.value as any }))} placeholder="cth. 2500000"/>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="totalTenor">Total Tenor (Bulan)</Label>
-                            <Input id="totalTenor" type="number" value={item.totalTenor} onChange={(e) => setItem(p => ({ ...p, totalTenor: e.target.value }))} placeholder="cth. 12" />
+                            <Input id="totalTenor" type="number" value={item.totalTenor} onChange={(e) => setItem(p => ({ ...p, totalTenor: e.target.value as any }))} placeholder="cth. 12" />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="dueDate">Tgl Jatuh Tempo</Label>
-                            <Input id="dueDate" type="number" value={item.dueDate} onChange={(e) => setItem(p => ({ ...p, dueDate: e.target.value }))} placeholder="cth. 15" />
+                            <Input id="dueDate" type="number" value={item.dueDate} onChange={(e) => setItem(p => ({ ...p, dueDate: e.target.value as any }))} placeholder="cth. 15" />
                         </div>
                     </div>
                 </div>
@@ -564,9 +562,12 @@ export default function ExpenseReportPage() {
     const handleSave = async (dataToUpdate: Partial<Expense>) => {
         if (!expense || !from || !to) return;
     
-        const payload: any = {
-            ...expense,
-            ...dataToUpdate,
+        const currentState = { ...expense, ...dataToUpdate };
+        const total = calculateTotal(currentState);
+
+        const payload = {
+            ...currentState,
+            totalExpense: total,
             periodFrom: from,
             periodTo: to,
             updatedAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
@@ -578,11 +579,14 @@ export default function ExpenseReportPage() {
             if (expense.id) {
                 const expenseDocRef = doc(db, "expenses", expense.id);
                 await updateDoc(expenseDocRef, updatePayload);
-                 setExpense(prev => prev ? ({ ...prev, ...dataToUpdate }) : null);
             } else {
                 const newDocRef = await addDoc(collection(db, "expenses"), { ...updatePayload, createdAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss') });
-                setExpense(prev => prev ? ({ ...prev, id: newDocRef.id, ...dataToUpdate }) : null);
+                // Update local state with new ID
+                setExpense(prev => prev ? ({ ...prev, id: newDocRef.id }) : null);
             }
+            // Update local state with the saved data
+            setExpense(prev => prev ? ({ ...prev, ...dataToUpdate, totalExpense: total }) : null);
+
         } catch (error) {
             console.error("Error saving expense:", error);
             toast({ title: "Gagal Menyimpan", description: `Terjadi kesalahan: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
@@ -604,24 +608,14 @@ export default function ExpenseReportPage() {
             ? `${format(parseISO(from), 'd MMM yyyy', { locale: localeId })} - ${format(parseISO(to), 'd MMM yyyy', { locale: localeId })}`
             : "Periode tidak valid";
         
-        const commonProps = {
-            expense: expense,
-            onSave: handleSave,
-            onNavigateBack: () => router.back(),
-            periodLabel
-        };
-
         const handleSaveChanges = async (updatedItems: MainExpenseItem[] | InstallmentItem[], type: 'main' | 'installments') => {
-            if (!expense) return;
-            let updatedExpenseData: Partial<Expense>;
+             let dataToUpdate: Partial<Expense>;
             if (type === 'main') {
-                 updatedExpenseData = { ...expense, mainExpenses: updatedItems as MainExpenseItem[] };
+                 dataToUpdate = { mainExpenses: updatedItems as MainExpenseItem[] };
             } else {
-                 updatedExpenseData = { ...expense, installments: updatedItems as InstallmentItem[] };
+                 dataToUpdate = { installments: updatedItems as InstallmentItem[] };
             }
-
-            const totalExpense = calculateTotal(updatedExpenseData as Expense);
-            await handleSave({ ...updatedExpenseData, totalExpense });
+            await handleSave(dataToUpdate);
             toast({ title: "Perubahan Disimpan", description: `Data ${type === 'main' ? 'pengeluaran utama' : 'angsuran'} telah diperbarui.` });
         };
 
@@ -635,9 +629,19 @@ export default function ExpenseReportPage() {
                             periodLabel={periodLabel} 
                        />;
             case 'installments':
-                return <InstallmentManager {...commonProps} />;
+                return <InstallmentManager 
+                            expense={expense}
+                            onSave={handleSave}
+                            onNavigateBack={() => router.back()} 
+                            periodLabel={periodLabel} 
+                        />;
             case 'other':
-                return <OtherExpenseForm {...commonProps} />;
+                return <OtherExpenseForm
+                            expense={expense} 
+                            onSave={handleSave}
+                            onNavigateBack={() => router.back()} 
+                            periodLabel={periodLabel} 
+                        />;
             default:
                 return null;
         }
