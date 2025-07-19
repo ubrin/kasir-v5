@@ -5,10 +5,10 @@ import * as React from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense, ExpenseCategory } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -32,38 +32,65 @@ export default function ExpenseReportPage() {
     const to = searchParams.get('to');
     const category = searchParams.get('category') as ExpenseCategory | null;
     
-    React.useEffect(() => {
+    const fetchExpenseData = React.useCallback(async () => {
         if (!from || !category) {
             setLoading(false);
             return;
         }
 
-        const fetchExpenseData = async () => {
-            setLoading(true);
-            try {
-                const expensesQuery = query(collection(db, "expenses"), where("periodFrom", "==", from));
-                const expensesSnapshot = await getDocs(expensesQuery);
-                
-                if (!expensesSnapshot.empty) {
-                    const expenseData = { id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense;
-                    setExpense(expenseData);
-                } else {
-                    setExpense(null);
-                }
-            } catch (error) {
-                console.error("Error fetching expense data:", error);
-                toast({
-                    title: "Gagal memuat data",
-                    description: "Tidak dapat mengambil data pengeluaran.",
-                    variant: "destructive"
-                });
-            } finally {
-                setLoading(false);
+        setLoading(true);
+        try {
+            const expensesQuery = query(collection(db, "expenses"), where("periodFrom", "==", from));
+            const expensesSnapshot = await getDocs(expensesQuery);
+            
+            if (!expensesSnapshot.empty) {
+                const expenseData = { id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense;
+                setExpense(expenseData);
+            } else {
+                setExpense(null);
             }
-        };
-
-        fetchExpenseData();
+        } catch (error) {
+            console.error("Error fetching expense data:", error);
+            toast({
+                title: "Gagal memuat data",
+                description: "Tidak dapat mengambil data pengeluaran.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
     }, [from, category, toast]);
+
+    React.useEffect(() => {
+        fetchExpenseData();
+    }, [fetchExpenseData]);
+
+    const handlePayInstallment = async (type: 'bri' | 'shopee') => {
+        if (!expense) return;
+
+        const fieldToUpdate = type === 'bri' ? 'installments.briTenor' : 'installments.shopeeTenor';
+        
+        try {
+            const expenseDocRef = doc(db, "expenses", expense.id);
+            await updateDoc(expenseDocRef, {
+                [fieldToUpdate]: increment(-1)
+            });
+
+            toast({
+                title: "Pembayaran Berhasil",
+                description: `Tenor angsuran ${type.toUpperCase()} telah berkurang.`
+            });
+            fetchExpenseData(); // Refresh data
+        } catch (error) {
+            console.error("Error paying installment:", error);
+            toast({
+                title: "Pembayaran Gagal",
+                description: "Terjadi kesalahan saat memproses pembayaran angsuran.",
+                variant: "destructive"
+            });
+        }
+    };
+
 
     const renderCategoryDetails = () => {
         if (!expense || !category) {
@@ -98,14 +125,28 @@ export default function ExpenseReportPage() {
                         <TableRow>
                             <TableCell className="font-medium">Angsuran BRI</TableCell>
                             <TableCell className="text-right">Rp{expense.installments.bri.toLocaleString('id-ID')}</TableCell>
-                            <TableCell>Tenor: {expense.installments.briTenor} bulan</TableCell>
+                            <TableCell>
+                                <div>Tenor: {expense.installments.briTenor > 0 ? `${expense.installments.briTenor} bulan lagi` : 'Lunas'}</div>
+                                <div className="text-xs text-muted-foreground">Jatuh tempo tgl {expense.installments.briDueDate}</div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                                {expense.installments.briTenor > 0 && (
+                                    <Button size="sm" onClick={() => handlePayInstallment('bri')}>Bayar Angsuran Ini</Button>
+                                )}
+                            </TableCell>
                         </TableRow>
                         <TableRow>
                             <TableCell className="font-medium">Angsuran Shopee</TableCell>
                             <TableCell className="text-right">Rp{expense.installments.shopee.toLocaleString('id-ID')}</TableCell>
                             <TableCell>
-                                <div>Tenor: {expense.installments.shopeeTenor} bulan</div>
+                                <div>Tenor: {expense.installments.shopeeTenor > 0 ? `${expense.installments.shopeeTenor} bulan lagi` : 'Lunas'}</div>
+                                <div className="text-xs text-muted-foreground">Jatuh tempo tgl {expense.installments.shopeeDueDate}</div>
                                 <div className="text-xs text-muted-foreground">{expense.installments.shopeeNote}</div>
+                            </TableCell>
+                             <TableCell className="text-right">
+                                {expense.installments.shopeeTenor > 0 && (
+                                    <Button size="sm" onClick={() => handlePayInstallment('shopee')}>Bayar Angsuran Ini</Button>
+                                )}
                             </TableCell>
                         </TableRow>
                     </>
@@ -115,7 +156,7 @@ export default function ExpenseReportPage() {
                      <TableRow>
                         <TableCell className="font-medium">Biaya Lain-lain</TableCell>
                         <TableCell className="text-right">Rp{expense.otherExpenses.amount.toLocaleString('id-ID')}</TableCell>
-                        <TableCell>{expense.otherExpenses.note}</TableCell>
+                        <TableCell colSpan={2}>{expense.otherExpenses.note}</TableCell>
                     </TableRow>
                 );
             default:
@@ -162,6 +203,7 @@ export default function ExpenseReportPage() {
                                 <TableHead>Deskripsi</TableHead>
                                 <TableHead className="text-right">Jumlah</TableHead>
                                 <TableHead>Keterangan</TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>

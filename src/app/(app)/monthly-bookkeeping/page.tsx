@@ -28,9 +28,11 @@ const initialExpenseState = {
     listrik: '',
     angsuranBri: '',
     angsuranBriTenor: '',
+    angsuranBriDueDate: '',
     angsuranShopee: '',
     angsuranShopeeKet: '',
     angsuranShopeeTenor: '',
+    angsuranShopeeDueDate: '',
     lainnyaRp: '',
     lainnyaKet: '',
 };
@@ -93,9 +95,11 @@ export default function MonthlyBookkeepingPage() {
                 listrik: formatNumber(expenseData.mainExpenses.electricity),
                 angsuranBri: formatNumber(expenseData.installments.bri),
                 angsuranBriTenor: String(expenseData.installments.briTenor || ''),
+                angsuranBriDueDate: String(expenseData.installments.briDueDate || ''),
                 angsuranShopee: formatNumber(expenseData.installments.shopee),
                 angsuranShopeeKet: expenseData.installments.shopeeNote || '',
                 angsuranShopeeTenor: String(expenseData.installments.shopeeTenor || ''),
+                angsuranShopeeDueDate: String(expenseData.installments.shopeeDueDate || ''),
                 lainnyaRp: formatNumber(expenseData.otherExpenses.amount),
                 lainnyaKet: expenseData.otherExpenses.note,
             });
@@ -161,7 +165,7 @@ export default function MonthlyBookkeepingPage() {
     
     const totalExpense = bandwidth + listrik + angsuranBri + angsuranShopee + lainnyaRp;
 
-    const expenseDataPayload = {
+    const expenseDataPayload: Omit<Expense, 'id' | 'createdAt'> = {
         periodFrom: format(date.from, 'yyyy-MM-dd'),
         periodTo: format(date.to || date.from, 'yyyy-MM-dd'),
         mainExpenses: {
@@ -171,9 +175,11 @@ export default function MonthlyBookkeepingPage() {
         installments: {
             bri: angsuranBri,
             briTenor: Number(expenseInput.angsuranBriTenor) || 0,
+            briDueDate: Number(expenseInput.angsuranBriDueDate) || 0,
             shopee: angsuranShopee,
             shopeeNote: expenseInput.angsuranShopeeKet,
             shopeeTenor: Number(expenseInput.angsuranShopeeTenor) || 0,
+            shopeeDueDate: Number(expenseInput.angsuranShopeeDueDate) || 0,
         },
         otherExpenses: {
             amount: lainnyaRp,
@@ -394,14 +400,16 @@ export default function MonthlyBookkeepingPage() {
                             <Label htmlFor="angsuranBri">BRI</Label>
                             <div className="flex gap-2">
                                 <Input id="angsuranBri" type="text" placeholder="Jumlah (Rp)" value={expenseInput.angsuranBri} onChange={handleCurrencyInputChange} className="flex-1"/>
-                                <Input id="angsuranBriTenor" type="number" placeholder="Jumlah bulan" value={expenseInput.angsuranBriTenor} onChange={handleTextChange} className="w-[120px]" />
+                                <Input id="angsuranBriTenor" type="number" placeholder="Tenor (bln)" value={expenseInput.angsuranBriTenor} onChange={handleTextChange} className="w-[100px]" />
+                                <Input id="angsuranBriDueDate" type="number" placeholder="Tgl Tempo" value={expenseInput.angsuranBriDueDate} onChange={handleTextChange} className="w-[100px]" />
                             </div>
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="angsuranShopee">Shopee</Label>
                              <div className="flex gap-2">
                                 <Input id="angsuranShopee" type="text" placeholder="Jumlah (Rp)" value={expenseInput.angsuranShopee} onChange={handleCurrencyInputChange} className="flex-1"/>
-                                <Input id="angsuranShopeeTenor" type="number" placeholder="Jumlah bulan" value={expenseInput.angsuranShopeeTenor} onChange={handleTextChange} className="w-[120px]" />
+                                <Input id="angsuranShopeeTenor" type="number" placeholder="Tenor (bln)" value={expenseInput.angsuranShopeeTenor} onChange={handleTextChange} className="w-[100px]" />
+                                <Input id="angsuranShopeeDueDate" type="number" placeholder="Tgl Tempo" value={expenseInput.angsuranShopeeDueDate} onChange={handleTextChange} className="w-[100px]" />
                             </div>
                             <Input id="angsuranShopeeKet" placeholder="Keterangan (misal: Pembelian router)" value={expenseInput.angsuranShopeeKet} onChange={handleTextChange} />
                         </div>
