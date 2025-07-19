@@ -34,9 +34,9 @@ const menuItems = [
       { href: '/delinquency', label: 'Tagihan', icon: CreditCard, roles: ['admin', 'user'] },
       { href: '/payment-report', label: 'Laporan', icon: BarChart3, roles: ['admin'] },
       { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
-      { href: '/expenses', label: 'Pengeluaran', icon: Wallet, roles: ['admin'] },
     ]
   },
+  { href: '/expenses', label: 'Pengeluaran', icon: Wallet, roles: ['admin'] },
 ];
 
 export default function AppSidebar() {
