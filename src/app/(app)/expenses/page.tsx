@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -68,7 +68,7 @@ const ExpenseDialog = ({
 }) => {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(expense?.name || '');
-  const [amount, setAmount] = React.useState(expense?.amount || '');
+  const [amount, setAmount] = React.useState<number | string>(expense?.amount || '');
   const [category, setCategory] = React.useState<Expense['category']>(expense?.category || 'utama');
   const [date, setDate] = React.useState<Date>(expense ? parseISO(expense.date) : new Date());
   const [note, setNote] = React.useState(expense?.note || '');
@@ -107,24 +107,30 @@ const ExpenseDialog = ({
             <Label htmlFor="name">Nama Pengeluaran</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="cth. Gaji Karyawan" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
+          <div className="grid gap-2">
               <Label htmlFor="amount">Jumlah (Rp)</Label>
               <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="cth. 3000000" />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="category">Kategori</Label>
-              <Select value={category} onValueChange={(v) => setCategory(v as any)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih kategori" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="utama">Utama</SelectItem>
-                  <SelectItem value="angsuran">Angsuran</SelectItem>
-                  <SelectItem value="lainnya">Lainnya</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+           <div className="grid gap-3">
+            <Label htmlFor="category">Kategori</Label>
+            <RadioGroup
+                value={category}
+                onValueChange={(v) => setCategory(v as any)}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="utama" id="utama" />
+                  <Label htmlFor="utama" className="font-normal">Utama</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="angsuran" id="angsuran" />
+                  <Label htmlFor="angsuran" className="font-normal">Angsuran</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="lainnya" id="lainnya" />
+                  <Label htmlFor="lainnya" className="font-normal">Lainnya</Label>
+                </div>
+            </RadioGroup>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="date">Tanggal</Label>
@@ -251,9 +257,9 @@ export default function ExpensesPage() {
                 <div className="flex items-center gap-2">
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={cn('w-[300px] justify-start text-left font-normal', !date && 'text-muted-foreground')}>
+                            <Button variant="outline" className={cn('w-full sm:w-[300px] justify-start text-left font-normal', !date && 'text-muted-foreground')}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {date?.from ? (date.to ? `${format(date.from, 'd MMM yyyy')} - ${format(date.to, 'd MMM yyyy')}` : format(date.from, 'd MMM yyyy')) : <span>Pilih tanggal</span>}
+                                {date?.from ? (date.to ? `${format(date.from, 'd MMM yyyy', {locale: localeId})} - ${format(date.to, 'd MMM yyyy', {locale: localeId})}` : format(date.from, 'd MMM yyyy', {locale: localeId})) : <span>Pilih tanggal</span>}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
