@@ -92,10 +92,10 @@ export default function MonthlyBookkeepingPage() {
                 bandwidth: formatNumber(expenseData.mainExpenses.bandwidth),
                 listrik: formatNumber(expenseData.mainExpenses.electricity),
                 angsuranBri: formatNumber(expenseData.installments.bri),
-                angsuranBriTenor: expenseData.installments.briTenor || '',
+                angsuranBriTenor: String(expenseData.installments.briTenor || ''),
                 angsuranShopee: formatNumber(expenseData.installments.shopee),
                 angsuranShopeeKet: expenseData.installments.shopeeNote || '',
-                angsuranShopeeTenor: expenseData.installments.shopeeTenor || '',
+                angsuranShopeeTenor: String(expenseData.installments.shopeeTenor || ''),
                 lainnyaRp: formatNumber(expenseData.otherExpenses.amount),
                 lainnyaKet: expenseData.otherExpenses.note,
             });
@@ -170,10 +170,10 @@ export default function MonthlyBookkeepingPage() {
         },
         installments: {
             bri: angsuranBri,
-            briTenor: expenseInput.angsuranBriTenor,
+            briTenor: Number(expenseInput.angsuranBriTenor) || 0,
             shopee: angsuranShopee,
             shopeeNote: expenseInput.angsuranShopeeKet,
-            shopeeTenor: expenseInput.angsuranShopeeTenor,
+            shopeeTenor: Number(expenseInput.angsuranShopeeTenor) || 0,
         },
         otherExpenses: {
             amount: lainnyaRp,
@@ -390,14 +390,14 @@ export default function MonthlyBookkeepingPage() {
                             <Label htmlFor="angsuranBri">BRI</Label>
                             <div className="flex gap-2">
                                 <Input id="angsuranBri" type="text" placeholder="Jumlah (Rp)" value={expenseInput.angsuranBri} onChange={handleCurrencyInputChange} className="flex-1"/>
-                                <Input id="angsuranBriTenor" placeholder="Tenor (cth. 3/12)" value={expenseInput.angsuranBriTenor} onChange={handleTextChange} className="w-[120px]" />
+                                <Input id="angsuranBriTenor" type="number" placeholder="Jumlah bulan" value={expenseInput.angsuranBriTenor} onChange={handleTextChange} className="w-[120px]" />
                             </div>
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="angsuranShopee">Shopee</Label>
                              <div className="flex gap-2">
                                 <Input id="angsuranShopee" type="text" placeholder="Jumlah (Rp)" value={expenseInput.angsuranShopee} onChange={handleCurrencyInputChange} className="flex-1"/>
-                                <Input id="angsuranShopeeTenor" placeholder="Tenor (cth. 3/12)" value={expenseInput.angsuranShopeeTenor} onChange={handleTextChange} className="w-[120px]" />
+                                <Input id="angsuranShopeeTenor" type="number" placeholder="Jumlah bulan" value={expenseInput.angsuranShopeeTenor} onChange={handleTextChange} className="w-[120px]" />
                             </div>
                             <Input id="angsuranShopeeKet" placeholder="Keterangan (misal: Pembelian router)" value={expenseInput.angsuranShopeeKet} onChange={handleTextChange} />
                         </div>

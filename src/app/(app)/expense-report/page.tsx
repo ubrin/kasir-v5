@@ -98,12 +98,15 @@ export default function ExpenseReportPage() {
                         <TableRow>
                             <TableCell className="font-medium">Angsuran BRI</TableCell>
                             <TableCell className="text-right">Rp{expense.installments.bri.toLocaleString('id-ID')}</TableCell>
-                            <TableCell>{expense.installments.briTenor}</TableCell>
+                            <TableCell>Tenor: {expense.installments.briTenor} bulan</TableCell>
                         </TableRow>
                         <TableRow>
                             <TableCell className="font-medium">Angsuran Shopee</TableCell>
                             <TableCell className="text-right">Rp{expense.installments.shopee.toLocaleString('id-ID')}</TableCell>
-                            <TableCell>{expense.installments.shopeeTenor} ({expense.installments.shopeeNote})</TableCell>
+                            <TableCell>
+                                <div>Tenor: {expense.installments.shopeeTenor} bulan</div>
+                                <div className="text-xs text-muted-foreground">{expense.installments.shopeeNote}</div>
+                            </TableCell>
                         </TableRow>
                     </>
                 );
@@ -158,7 +161,7 @@ export default function ExpenseReportPage() {
                             <TableRow>
                                 <TableHead>Deskripsi</TableHead>
                                 <TableHead className="text-right">Jumlah</TableHead>
-                                <TableHead>Keterangan/Tenor</TableHead>
+                                <TableHead>Keterangan</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
