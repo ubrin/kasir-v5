@@ -60,9 +60,10 @@ export type Expense = {
   name: string;
   amount: number;
   category: 'utama' | 'angsuran' | 'lainnya';
-  date?: string; // 'yyyy-MM-dd'
-  dueDateDay?: number; // 1-31
+  date?: string; // 'yyyy-MM-dd', for transaction records
+  dueDateDay?: number; // 1-31, for templates
   tenor?: number;
   paidTenor?: number;
   note?: string;
+  lastPaidDate?: string; // 'yyyy-MM-dd', to track last payment on installment templates
 };
