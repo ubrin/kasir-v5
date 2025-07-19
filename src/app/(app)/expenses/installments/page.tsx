@@ -49,34 +49,22 @@ export default function InstallmentsPage() {
             const allInstallments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             
             // Filter logic:
-            // 1. Show if not fully paid (paidTenor < tenor).
-            // 2. If fully paid, show only if the last payment was made this month.
-            const activeInstallments = allInstallments.filter(exp => {
-                const isFullyPaid = (exp.paidTenor ?? 0) >= (exp.tenor ?? 0);
-                if (!isFullyPaid) {
-                    return true; // Always show active installments.
-                }
-                // If fully paid, check if last payment was this month.
-                if (exp.lastPaidDate) {
-                    const lastPaid = parseISO(exp.lastPaidDate);
-                    return getMonth(lastPaid) === getMonth(today) && getYear(lastPaid) === getYear(today);
-                }
-                return false; // Hide if fully paid and no lastPaidDate is found
-            });
+            // 1. We show the installment templates (those without a date).
+            // 2. We also check which ones have been paid this month from transaction records.
+            const expenseTemplates = allInstallments.filter(exp => !exp.date);
+            const expenseTransactions = allInstallments.filter(exp => exp.date);
 
-            setExpenses(activeInstallments.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
+            setExpenses(expenseTemplates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
             
             // Check for payments made this month to update the "Status Bulan Ini" badge
             const paidNames = new Set<string>();
-            const transactionQuery = query(collection(db, "expenses"), 
-                where("category", "==", "angsuran"),
-                where("date", ">=", format(startOfCurrentMonth, 'yyyy-MM-dd')),
-                where("date", "<=", format(endOfCurrentMonth, 'yyyy-MM-dd'))
-            );
-            const transactionSnapshot = await getDocs(transactionQuery);
-            transactionSnapshot.docs.forEach(doc => {
-                const expense = doc.data() as Expense;
-                paidNames.add(expense.name);
+            expenseTransactions.forEach(transaction => {
+                if (transaction.date) {
+                    const transactionDate = parseISO(transaction.date);
+                     if (isWithinInterval(transactionDate, { start: startOfCurrentMonth, end: endOfCurrentMonth })) {
+                        paidNames.add(transaction.name);
+                    }
+                }
             });
             setPaidExpenseNames(paidNames);
 
@@ -110,38 +98,46 @@ export default function InstallmentsPage() {
     };
     
     const handlePayInstallment = async (expense: Expense) => {
-        if ((expense.paidTenor ?? 0) >= (expense.tenor ?? 0)) {
+        const currentPaidTenor = expense.paidTenor ?? 0;
+        const totalTenor = expense.tenor ?? 0;
+
+        if (currentPaidTenor >= totalTenor) {
             toast({ title: "Lunas", description: "Angsuran ini sudah lunas sepenuhnya.", variant: "default" });
             return;
         }
 
         try {
             const batch = writeBatch(db);
-            const expenseRef = doc(db, 'expenses', expense.id);
             const todayStr = format(new Date(), 'yyyy-MM-dd');
-            
-            // Update the template with the new paid tenor and last payment date
-            batch.update(expenseRef, {
-                paidTenor: increment(1),
-                lastPaidDate: todayStr
-            });
-            
-            // Create a new expense record with a date to mark it as a transaction for history
+
+            // Create a new expense record for history
             const expenseRecord: Omit<Expense, 'id'> = {
                 ...expense,
                 date: todayStr,
-                note: `Pembayaran angsuran ke-${(expense.paidTenor ?? 0) + 1} untuk ${expense.name}`
+                note: `Pembayaran angsuran ke-${currentPaidTenor + 1} untuk ${expense.name}`
             };
-            // Remove fields that are not relevant for a transaction record
-            delete expenseRecord.id;
-            delete expenseRecord.lastPaidDate;
+            delete expenseRecord.id; // remove id to create new doc
             
             const newRecordRef = doc(collection(db, 'expenses'));
             batch.set(newRecordRef, expenseRecord);
+
+            const isFinalPayment = currentPaidTenor + 1 === totalTenor;
+
+            if (isFinalPayment) {
+                // If it's the last payment, delete the template.
+                const expenseTemplateRef = doc(db, 'expenses', expense.id);
+                batch.delete(expenseTemplateRef);
+                toast({ title: "Angsuran Lunas!", description: `Pembayaran untuk ${expense.name} selesai dan telah dihapus dari daftar.` });
+            } else {
+                // If not the last payment, just update the tenor.
+                const expenseTemplateRef = doc(db, 'expenses', expense.id);
+                batch.update(expenseTemplateRef, {
+                    paidTenor: increment(1)
+                });
+                toast({ title: "Pembayaran Dicatat", description: `Pembayaran angsuran ke-${currentPaidTenor + 1} untuk ${expense.name} berhasil.` });
+            }
             
             await batch.commit();
-
-            toast({ title: "Pembayaran Dicatat", description: `Pembayaran angsuran untuk ${expense.name} berhasil.` });
             fetchExpenses();
         } catch (error) {
             console.error("Error paying installment:", error);
