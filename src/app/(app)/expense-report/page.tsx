@@ -144,6 +144,7 @@ const MainExpenseManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
 const OtherExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { expense: Expense, onSave: (data: any) => Promise<void>, onNavigateBack: () => void, periodLabel: string }) => {
     const [otherExpenses, setOtherExpenses] = React.useState(expense.otherExpenses || { amount: '' as any, note: '' });
     const [loading, setLoading] = React.useState(false);
+    const { toast } = useToast();
 
     React.useEffect(() => {
         setOtherExpenses(expense.otherExpenses || { amount: '' as any, note: '' });
@@ -166,6 +167,7 @@ const OtherExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { ex
         const totalExpense = calculateTotal(updatedExpense);
         await onSave({ otherExpenses, totalExpense });
         setLoading(false);
+        toast({ title: "Perubahan Disimpan", description: "Data pengeluaran lainnya telah diperbarui." });
     }
 
     return (
@@ -593,12 +595,12 @@ export default function ExpenseReportPage() {
                 const expenseDocRef = doc(db, "expenses", expense.id);
                 await updateDoc(expenseDocRef, updatePayload);
             } else {
-                const expenseDocRef = doc(collection(db, "expenses"));
-                await addDoc(collection(db, "expenses"), { ...payload, createdAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss') });
+                const newDocRef = await addDoc(collection(db, "expenses"), { ...updatePayload, createdAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss') });
                 // Update local state with the new ID so subsequent saves are updates
-                setExpense(prev => prev ? ({ ...prev, id: expenseDocRef.id }) : null);
+                setExpense(prev => prev ? ({ ...prev, id: newDocRef.id }) : null);
             }
-            fetchExpenseData(); // Refresh data
+            // No full refresh to avoid losing focus, local state is managed by components
+            // await fetchExpenseData(); 
         } catch (error) {
             console.error("Error saving expense:", error);
             toast({ title: "Gagal Menyimpan", description: `Terjadi kesalahan: ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
@@ -664,3 +666,5 @@ export default function ExpenseReportPage() {
         </div>
     );
 }
+
+    
