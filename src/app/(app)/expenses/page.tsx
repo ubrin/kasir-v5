@@ -9,7 +9,7 @@ import { id as localeId } from 'date-fns/locale';
 import type { Expense } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, PlusCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, PlusCircle, Calendar as CalendarIcon, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -27,11 +27,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-
-const formatNumber = (value: number | undefined): string => {
-    if (value === undefined || value === null) return '0';
-    return value.toLocaleString('id-ID');
-};
 
 const ExpenseDialog = ({
   onSave,
@@ -83,15 +78,15 @@ const ExpenseDialog = ({
 
     if (category === 'utama') {
         dataToSave.dueDateDay = Number(dueDateDay);
-        dataToSave.date = undefined; // Ensure date is not set for recurring
+        dataToSave.date = undefined;
     } else {
         dataToSave.date = date ? format(date, 'yyyy-MM-dd') : undefined;
-        dataToSave.dueDateDay = undefined; // Ensure dueDateDay is not set
+        dataToSave.dueDateDay = undefined;
     }
 
     if (category === 'angsuran') {
         dataToSave.tenor = Number(tenor);
-        if (!expense) { // Only set paidTenor on creation
+        if (!expense) {
              dataToSave.paidTenor = 0;
         }
     } else {
@@ -170,7 +165,6 @@ const ExpenseDialog = ({
   );
 };
 
-
 export default function ExpensesPage() {
     const { toast } = useToast();
     const [loading, setLoading] = React.useState(true);
@@ -184,21 +178,13 @@ export default function ExpensesPage() {
             const allExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             
             const groupedByMonth: Record<string, number> = {};
-            
-            allExpenses.forEach(exp => {
-                let period = '';
-                 // All expenses are now tied to a period
-                if (exp.date) {
-                    period = format(parseISO(exp.date), 'yyyy-MM');
-                } else if (exp.category === 'utama') {
-                    // For main expenses without a specific date, we can assume they apply to every month
-                    // or handle them based on app logic. Here we will display them in a general list.
-                    // For summary cards, let's create a special key or decide how to show them.
-                    // For now, let's group them into the current month for card display.
-                    period = format(new Date(), 'yyyy-MM');
-                }
+            const mainExpensesTotal = allExpenses
+                .filter(e => e.category === 'utama')
+                .reduce((sum, exp) => sum + exp.amount, 0);
 
-                if (period) {
+            allExpenses.forEach(exp => {
+                if (exp.category !== 'utama') {
+                    const period = format(parseISO(exp.date!), 'yyyy-MM');
                     if (!groupedByMonth[period]) {
                         groupedByMonth[period] = 0;
                     }
@@ -206,15 +192,23 @@ export default function ExpensesPage() {
                 }
             });
 
-            // Let's also account for all recurring "utama" expenses in every listed month
-            const mainExpenses = allExpenses.filter(e => e.category === 'utama');
-            const mainTotal = mainExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-
             for(const period in groupedByMonth) {
-                if (format(new Date(), 'yyyy-MM') >= period) { // Only add to past and current months
-                    groupedByMonth[period] += mainTotal;
-                }
+                groupedByMonth[period] += mainExpensesTotal;
             }
+
+            const currentMonthPeriod = format(new Date(), 'yyyy-MM');
+            if (!groupedByMonth[currentMonthPeriod] && mainExpensesTotal > 0) {
+                 groupedByMonth[currentMonthPeriod] = mainExpensesTotal;
+            }
+            
+            const uniquePeriods = new Set(Object.keys(groupedByMonth));
+            const allInvoicesSnapshot = await getDocs(collection(db, "invoices"));
+            allInvoicesSnapshot.docs.forEach(doc => {
+                 const period = format(parseISO(doc.data().date), 'yyyy-MM');
+                 if(!uniquePeriods.has(period)) {
+                     groupedByMonth[period] = mainExpensesTotal;
+                 }
+            });
 
 
             setMonthlyExpenses(groupedByMonth);
@@ -231,14 +225,19 @@ export default function ExpensesPage() {
         fetchExpenses();
     }, [fetchExpenses]);
 
-    const handleSaveExpense = async (data: Omit<Expense, 'id'|'paidTenor'>) => {
+    const handleSaveExpense = async (data: Omit<Expense, 'id'|'paidTenor'>, id?: string) => {
         try {
-            const dataToCreate: any = {...data};
-            if(data.category === 'angsuran' && !data.paidTenor) {
-                dataToCreate.paidTenor = 0;
+            if (id) {
+                await updateDoc(doc(db, "expenses", id), data);
+                toast({ title: "Pengeluaran diperbarui" });
+            } else {
+                const dataToCreate: any = {...data};
+                if(data.category === 'angsuran' && !data.paidTenor) {
+                    dataToCreate.paidTenor = 0;
+                }
+                await addFbDoc(collection(db, "expenses"), dataToCreate);
+                toast({ title: "Pengeluaran ditambahkan" });
             }
-            await addFbDoc(collection(db, "expenses"), dataToCreate);
-            toast({ title: "Pengeluaran ditambahkan" });
             fetchExpenses();
         } catch (error) {
             console.error("Error saving expense:", error);
@@ -250,7 +249,6 @@ export default function ExpensesPage() {
         return Object.keys(monthlyExpenses).sort((a, b) => b.localeCompare(a));
     }, [monthlyExpenses]);
 
-
     return (
         <div className="flex flex-col gap-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -258,7 +256,7 @@ export default function ExpensesPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Laporan Pengeluaran</h1>
                     <p className="text-muted-foreground">Catat dan kelola semua pengeluaran bisnis Anda.</p>
                 </div>
-                <ExpenseDialog onSave={(data) => handleSaveExpense(data)}>
+                <ExpenseDialog onSave={handleSaveExpense}>
                     <Button><PlusCircle className="mr-2 h-4 w-4" /> Tambah</Button>
                 </ExpenseDialog>
             </div>
@@ -279,7 +277,7 @@ export default function ExpensesPage() {
                                     </CardHeader>
                                     <CardContent>
                                         <p className="text-sm text-muted-foreground">Total Pengeluaran</p>
-                                        <p className="text-2xl font-bold text-destructive">Rp{formatNumber(monthlyExpenses[period])}</p>
+                                        <p className="text-2xl font-bold text-destructive">Rp{monthlyExpenses[period].toLocaleString('id-ID')}</p>
                                     </CardContent>
                                 </Card>
                             </Link>
@@ -297,5 +295,3 @@ export default function ExpensesPage() {
         </div>
     );
 }
-
-    

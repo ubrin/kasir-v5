@@ -5,12 +5,12 @@ import * as React from 'react';
 import { useSearchParams, useRouter, notFound } from 'next/navigation';
 import { format, parse, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import { collection, query, where, getDocs, doc, writeBatch, updateDoc, getDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, writeBatch, updateDoc, getDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Expense } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, Edit, Trash2, MoreHorizontal, CreditCard, Save, TrendingUp, Repeat, Package } from 'lucide-react';
+import { Loader2, ArrowLeft, MoreHorizontal, CreditCard, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -50,19 +50,16 @@ export default function ExpenseReportPage() {
         if (!period) return;
         setLoading(true);
         try {
-            const expensesCollection = collection(db, "expenses");
-            const snapshot = await getDocs(expensesCollection);
-            const allExpensesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-
             const fromDate = startOfMonth(period);
             const toDate = endOfMonth(period);
             
-            // Filter expenses based on the selected period
+            const expensesCollection = collection(db, "expenses");
+            const snapshot = await getDocs(expensesCollection);
+            
+            const allExpensesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+            
             const periodExpenses = allExpensesData.filter(exp => {
-                if (exp.category === 'utama') {
-                    // Recurring expenses are always included in any period report
-                    return true;
-                }
+                if (exp.category === 'utama') return true;
                 if (exp.date) {
                     const expDate = parseISO(exp.date);
                     return expDate >= fromDate && expDate <= toDate;
@@ -70,10 +67,11 @@ export default function ExpenseReportPage() {
                 return false;
             });
             
-            // Sort client-side
             const sortedExpenses = periodExpenses.sort((a,b) => {
                  const dateA = a.date ? parseISO(a.date).getTime() : 0;
                  const dateB = b.date ? parseISO(b.date).getTime() : 0;
+                 if(a.category === 'utama') return -1;
+                 if(b.category === 'utama') return 1;
                  return dateB - dateA;
             });
 
@@ -92,28 +90,9 @@ export default function ExpenseReportPage() {
         }
     }, [period, fetchExpenses]);
 
-
-    const handleSaveExpense = async (data: Partial<Omit<Expense, 'id'>>, id?: string) => {
-        try {
-            if (id) {
-                const expenseRef = doc(db, 'expenses', id);
-                await updateDoc(expenseRef, data);
-                toast({ title: "Pengeluaran diperbarui" });
-            } else {
-                 await addDoc(collection(db, 'expenses'), data);
-                 toast({ title: "Pengeluaran ditambahkan" });
-            }
-            fetchExpenses();
-        } catch (error) {
-            console.error("Error saving expense:", error);
-            toast({ title: "Gagal menyimpan", variant: "destructive" });
-        }
-    };
-    
     const handleDeleteExpense = async (id: string) => {
         try {
-            const expenseRef = doc(db, 'expenses', id);
-            await deleteDoc(expenseRef);
+            await deleteDoc(doc(db, 'expenses', id));
             toast({ title: "Pengeluaran dihapus", variant: "destructive" });
             fetchExpenses();
         } catch (error) {
@@ -149,16 +128,6 @@ export default function ExpenseReportPage() {
             return acc;
         }, {} as Record<Expense['category'], Expense[]>);
     }, [expenses]);
-    
-    const totals = React.useMemo(() => {
-        return {
-            utama: groupedExpenses.utama?.reduce((sum, exp) => sum + exp.amount, 0) || 0,
-            angsuran: groupedExpenses.angsuran?.reduce((sum, exp) => sum + exp.amount, 0) || 0,
-            lainnya: groupedExpenses.lainnya?.reduce((sum, exp) => sum + exp.amount, 0) || 0,
-        };
-    }, [groupedExpenses]);
-
-    const totalExpenseAmount = totals.utama + totals.angsuran + totals.lainnya;
 
     if (loading || !period) {
         return (
@@ -177,44 +146,10 @@ export default function ExpenseReportPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Rincian Pengeluaran</h1>
                     <p className="text-muted-foreground">
-                        Periode: {format(period, 'MMMM yyyy', { locale: localeId })}. Total: <span className="font-bold">Rp{formatNumber(totalExpenseAmount)}</span>
+                        Periode: {format(period, 'MMMM yyyy', { locale: localeId })}
                     </p>
                 </div>
             </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Pengeluaran Utama</CardTitle>
-                        <Repeat className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-destructive">Rp{formatNumber(totals.utama)}</div>
-                        <p className="text-xs text-muted-foreground">Pengeluaran rutin bulanan</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Angsuran</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-destructive">Rp{formatNumber(totals.angsuran)}</div>
-                        <p className="text-xs text-muted-foreground">Cicilan & pembayaran bertahap</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Pengeluaran Lainnya</CardTitle>
-                        <Package className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-destructive">Rp{formatNumber(totals.lainnya)}</div>
-                        <p className="text-xs text-muted-foreground">Pengeluaran insidental</p>
-                    </CardContent>
-                </Card>
-            </div>
-
 
             <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
                  <Card>
@@ -239,7 +174,7 @@ export default function ExpenseReportPage() {
                                         <TableCell>{`Setiap Tgl. ${expense.dueDateDay}`}</TableCell>
                                         <TableCell className="text-right">Rp{formatNumber(expense.amount)}</TableCell>
                                         <TableCell className="text-right">
-                                            {/* Action Menu here */}
+                                           {/* Action Menu here */}
                                         </TableCell>
                                     </TableRow>
                                 )) : <TableRow><TableCell colSpan={4} className="text-center h-24">Tidak ada data.</TableCell></TableRow>}
@@ -275,7 +210,7 @@ export default function ExpenseReportPage() {
                                                     <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => handlePayInstallment(expense)}><CreditCard className="mr-2 h-4 w-4"/> Bayar Angsuran</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handlePayInstallment(expense)} disabled={expense.paidTenor === expense.tenor}><CreditCard className="mr-2 h-4 w-4"/> Bayar Angsuran</DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     {/* Edit Dialog Trigger can be here */}
                                                     <AlertDialog>

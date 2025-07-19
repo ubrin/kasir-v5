@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon, Loader2, Wallet, Banknote, Landmark, TrendingDown, Package, Landmark as InstallmentIcon, ShoppingBag } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, Wallet, Banknote, Landmark, TrendingDown, Package, Repeat, Receipt } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -37,26 +37,23 @@ export default function MonthlyBookkeepingPage() {
         const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
         const toDate = date.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date(date.from.setHours(23, 59, 59, 999));
 
-        // Fetch Payments
         const paymentsSnapshot = await getDocs(collection(db, "payments"));
         const paymentsList = paymentsSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as Payment))
             .filter(p => isWithinInterval(parseISO(p.paymentDate), { start: fromDate, end: toDate }));
         setPayments(paymentsList);
         
-        // Fetch Expenses
         const expensesSnapshot = await getDocs(collection(db, "expenses"));
         const expenseList = expensesSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as Expense))
             .filter(exp => {
-                if (exp.category === 'utama' && exp.dueDateDay) return true; // Include recurring
+                if (exp.category === 'utama') return true; // Always include recurring
                 if (exp.date) {
                     return isWithinInterval(parseISO(exp.date), { start: fromDate, end: toDate });
                 }
                 return false;
             });
         setExpenses(expenseList);
-
 
     } catch (error) {
         console.error("Error fetching data:", error);
@@ -89,14 +86,13 @@ export default function MonthlyBookkeepingPage() {
   }, [payments]);
 
   const expenseSummary = React.useMemo(() => {
-    const summary = { total: 0, main: 0, installments: 0, other: 0 };
-    expenses.forEach(exp => {
-        summary.total += exp.amount;
-        if (exp.category === 'utama') summary.main += exp.amount;
-        if (exp.category === 'angsuran') summary.installments += exp.amount;
-        if (exp.category === 'lainnya') summary.other += exp.amount;
-    });
-    return summary;
+    return expenses.reduce((acc, exp) => {
+        acc.total += exp.amount;
+        if (exp.category === 'utama') acc.main += exp.amount;
+        if (exp.category === 'angsuran') acc.installments += exp.amount;
+        if (exp.category === 'lainnya') acc.other += exp.amount;
+        return acc;
+    }, { total: 0, main: 0, installments: 0, other: 0 });
   }, [expenses]);
   
   const netIncome = incomeSummary.total - expenseSummary.total;
@@ -180,9 +176,12 @@ export default function MonthlyBookkeepingPage() {
                  <Card>
                     <CardHeader>
                         <CardTitle>Rincian Pemasukan</CardTitle>
+                         <CardDescription>
+                            Total penerimaan dari semua metode pembayaran.
+                        </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <CardContent className="space-y-4">
+                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                             <div className="flex items-center">
                                 <Wallet className="h-6 w-6 text-muted-foreground" />
                                 <div className="ml-4 flex-1">
@@ -211,18 +210,19 @@ export default function MonthlyBookkeepingPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Rincian Pengeluaran</CardTitle>
+                        <CardDescription>Total pengeluaran dari setiap kategori.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="space-y-4">
                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                             <div className="flex items-center">
-                                <TrendingDown className="h-6 w-6 text-muted-foreground" />
+                                <Repeat className="h-6 w-6 text-muted-foreground" />
                                 <div className="ml-4 flex-1">
                                     <p className="text-sm text-muted-foreground">Utama</p>
                                     <p className="text-lg font-bold">Rp{expenseSummary.main.toLocaleString('id-ID')}</p>
                                 </div>
                             </div>
                             <div className="flex items-center">
-                                <InstallmentIcon className="h-6 w-6 text-muted-foreground" />
+                                <Receipt className="h-6 w-6 text-muted-foreground" />
                                 <div className="ml-4 flex-1">
                                     <p className="text-sm text-muted-foreground">Angsuran</p>
                                     <p className="text-lg font-bold">Rp{expenseSummary.installments.toLocaleString('id-ID')}</p>
