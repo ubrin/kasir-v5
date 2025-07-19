@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
 export default function MainExpensesPage() {
@@ -43,12 +43,7 @@ export default function MainExpensesPage() {
             const end = endOfMonth(today);
 
             const mainExpensesQuery = query(collection(db, "expenses"), where("category", "==", "utama"));
-            
-            const otherExpensesQuery = query(collection(db, "expenses"), 
-                where("category", "==", "lainnya"),
-                where("date", ">=", format(start, 'yyyy-MM-dd')),
-                where("date", "<=", format(end, 'yyyy-MM-dd'))
-            );
+            const otherExpensesQuery = query(collection(db, "expenses"), where("category", "==", "lainnya"));
 
             const [mainSnapshot, otherSnapshot] = await Promise.all([
                 getDocs(mainExpensesQuery),
@@ -56,14 +51,17 @@ export default function MainExpensesPage() {
             ]);
             
             const mainData = mainSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-            setExpenses(mainData);
+            setExpenses(mainData.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
 
-            const otherData = otherSnapshot.docs.map(doc => doc.data() as Expense);
             const paidNames = new Set<string>();
-            otherData.forEach(exp => {
-                if (exp.note?.startsWith('Pembayaran rutin untuk ')) {
-                    const originalName = exp.note.replace('Pembayaran rutin untuk ', '');
-                    paidNames.add(originalName);
+            otherSnapshot.docs.forEach(doc => {
+                const expense = doc.data() as Expense;
+                 if (expense.date && expense.note?.startsWith('Pembayaran rutin untuk ')) {
+                    const expenseDate = parseISO(expense.date);
+                    if (isWithinInterval(expenseDate, { start, end })) {
+                        const originalName = expense.note.replace('Pembayaran rutin untuk ', '');
+                        paidNames.add(originalName);
+                    }
                 }
             });
             setPaidExpenseNames(paidNames);
