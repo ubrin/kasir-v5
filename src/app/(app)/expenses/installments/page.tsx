@@ -48,13 +48,15 @@ export default function InstallmentsPage() {
 
             const allInstallments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             
-            // Templates are expenses without a date
-            const expenseTemplates = allInstallments.filter(exp => !exp.date);
+            // Filter for templates (active installments) where paidTenor < tenor
+            const expenseTemplates = allInstallments.filter(exp => (exp.paidTenor ?? 0) < (exp.tenor ?? 0));
             setExpenses(expenseTemplates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
 
-            // Check for payments made this month
+            // Check for payments made this month by looking at transaction records (those with a date)
             const paidNames = new Set<string>();
-            allInstallments.forEach(expense => {
+            const transactionRecords = allInstallments.filter(exp => exp.date);
+
+            transactionRecords.forEach(expense => {
                  if (expense.date) {
                     const expenseDate = parseISO(expense.date);
                     if (isWithinInterval(expenseDate, { start, end })) {
@@ -112,10 +114,11 @@ export default function InstallmentsPage() {
                 date: format(new Date(), 'yyyy-MM-dd'),
                 note: `Pembayaran angsuran ke-${(expense.paidTenor ?? 0) + 1} untuk ${expense.name}`
             };
-            const { id, ...recordToSave } = expenseRecord;
+            // Remove fields that are not relevant for a transaction record
+            delete expenseRecord.id;
             
             const newRecordRef = doc(collection(db, 'expenses'));
-            batch.set(newRecordRef, recordToSave);
+            batch.set(newRecordRef, expenseRecord);
             
             await batch.commit();
 
