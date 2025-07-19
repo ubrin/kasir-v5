@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown, History } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -38,6 +38,7 @@ const menuItems = [
       { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
     ]
   },
+   { href: '/expenses/history', label: 'Riwayat Pengeluaran', icon: History, roles: ['admin'] },
 ];
 
 export default function AppSidebar() {

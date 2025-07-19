@@ -2,16 +2,15 @@
 'use client';
 
 import * as React from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import type { Expense } from '@/lib/types';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, PlusCircle, Repeat, Receipt, Package, ChevronRight } from 'lucide-react';
+import { Loader2, PlusCircle, Repeat, Receipt, Package, ChevronRight, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ExpenseDialog } from './expense-dialog';
 import Link from 'next/link';
-import { format, parseISO } from 'date-fns';
 
 export default function ExpensesPage() {
     const { toast } = useToast();
@@ -52,6 +51,25 @@ export default function ExpensesPage() {
             return acc;
         }, {} as Record<Expense['category'], { total: number, count: number }>);
     }, [expenses]);
+
+    const historySummary = React.useMemo(() => {
+        const recordedExpenses = expenses.filter(exp => exp.category === 'lainnya' || (exp.category === 'angsuran' && exp.paidTenor && exp.paidTenor > 0));
+        const total = recordedExpenses.reduce((sum, exp) => {
+             if (exp.category === 'angsuran') {
+                return sum + (exp.paidTenor! * exp.amount);
+            }
+            return sum + exp.amount
+        }, 0);
+        const count = recordedExpenses.reduce((sum, exp) => {
+            if (exp.category === 'angsuran') {
+                return sum + (exp.paidTenor!);
+            }
+            return sum + 1;
+        }, 0);
+
+        return { total, count };
+    }, [expenses]);
+
 
     const categories = [
         { name: 'Utama', key: 'utama', icon: Repeat, href: '/expenses/main' },
@@ -104,6 +122,25 @@ export default function ExpensesPage() {
                         </Link>
                     )
                 })}
+                 <Link href="/expenses/history" key="history">
+                    <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 rounded-md bg-muted text-muted-foreground">
+                                    <History className="h-6 w-6"/>
+                                </div>
+                                <div>
+                                    <CardTitle>Riwayat</CardTitle>
+                                    <CardDescription>{historySummary.count} transaksi tercatat</CardDescription>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                    <p className="text-lg font-bold text-destructive">Rp{historySummary.total.toLocaleString('id-ID')}</p>
+                                <ChevronRight className="h-5 w-5 text-muted-foreground"/>
+                            </div>
+                        </CardHeader>
+                    </Card>
+                </Link>
             </div>
         </div>
     );
