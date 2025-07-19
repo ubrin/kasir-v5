@@ -26,47 +26,59 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval, getMonth, getYear } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval, getMonth, getYear, isSameMonth } from 'date-fns';
 
 export default function InstallmentsPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [loading, setLoading] = React.useState(true);
     const [expenses, setExpenses] = React.useState<Expense[]>([]);
-    const [paidExpenseNames, setPaidExpenseNames] = React.useState<Set<string>>(new Set());
+    const [paidExpenseInfo, setPaidExpenseInfo] = React.useState<Map<string, boolean>>(new Map());
     const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
 
     const fetchExpenses = React.useCallback(async () => {
         setLoading(true);
         try {
             const today = new Date();
-            const startOfCurrentMonth = startOfMonth(today);
-            const endOfCurrentMonth = endOfMonth(today);
-
             const installmentsQuery = query(collection(db, "expenses"), where("category", "==", "angsuran"));
             const snapshot = await getDocs(installmentsQuery);
-
             const allInstallments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             
-            // Filter logic:
-            // 1. We show the installment templates (those without a date).
-            // 2. We also check which ones have been paid this month from transaction records.
-            const expenseTemplates = allInstallments.filter(exp => !exp.date);
-            const expenseTransactions = allInstallments.filter(exp => exp.date);
+            const batch = writeBatch(db);
+            const expensesToKeep: Expense[] = [];
+            let deletedCount = 0;
 
-            setExpenses(expenseTemplates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
-            
-            // Check for payments made this month to update the "Status Bulan Ini" badge
-            const paidNames = new Set<string>();
-            expenseTransactions.forEach(transaction => {
-                if (transaction.date) {
-                    const transactionDate = parseISO(transaction.date);
-                     if (isWithinInterval(transactionDate, { start: startOfCurrentMonth, end: endOfCurrentMonth })) {
-                        paidNames.add(transaction.name);
+            for (const exp of allInstallments) {
+                const isFullyPaid = (exp.paidTenor ?? 0) >= (exp.tenor ?? 0);
+                if (isFullyPaid && exp.lastPaidDate) {
+                    const lastPaidDate = parseISO(exp.lastPaidDate);
+                    // If paid in a previous month, delete it.
+                    if (!isSameMonth(lastPaidDate, today)) {
+                        const expenseDocRef = doc(db, 'expenses', exp.id);
+                        batch.delete(expenseDocRef);
+                        deletedCount++;
+                    } else {
+                        expensesToKeep.push(exp);
                     }
+                } else {
+                    expensesToKeep.push(exp);
                 }
+            }
+            
+            if (deletedCount > 0) {
+                await batch.commit();
+                toast({ title: "Pembersihan Selesai", description: `${deletedCount} angsuran lunas telah dihapus.`});
+            }
+
+            // Determine payment status for the current month
+            const paidInfo = new Map<string, boolean>();
+            expensesToKeep.forEach(exp => {
+                const isPaidThisMonth = exp.lastPaidDate ? isSameMonth(parseISO(exp.lastPaidDate), today) : false;
+                paidInfo.set(exp.id, isPaidThisMonth);
             });
-            setPaidExpenseNames(paidNames);
+            
+            setPaidExpenseInfo(paidInfo);
+            setExpenses(expensesToKeep.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
 
         } catch (error) {
             console.error("Error fetching installments:", error);
@@ -75,6 +87,7 @@ export default function InstallmentsPage() {
             setLoading(false);
         }
     }, [toast]);
+
 
     React.useEffect(() => {
         fetchExpenses();
@@ -101,7 +114,7 @@ export default function InstallmentsPage() {
         const currentPaidTenor = expense.paidTenor ?? 0;
         const totalTenor = expense.tenor ?? 0;
 
-        if (currentPaidTenor >= totalTenor) {
+        if (currentPaidTenor >= totalTenor && paidExpenseInfo.get(expense.id)) {
             toast({ title: "Lunas", description: "Angsuran ini sudah lunas sepenuhnya.", variant: "default" });
             return;
         }
@@ -110,34 +123,27 @@ export default function InstallmentsPage() {
             const batch = writeBatch(db);
             const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-            // Create a new expense record for history
+            // 1. Create a transaction record for history
             const expenseRecord: Omit<Expense, 'id'> = {
                 ...expense,
                 date: todayStr,
                 note: `Pembayaran angsuran ke-${currentPaidTenor + 1} untuk ${expense.name}`
             };
-            delete expenseRecord.id; // remove id to create new doc
+            if(expenseRecord.id) delete expenseRecord.id;
             
             const newRecordRef = doc(collection(db, 'expenses'));
             batch.set(newRecordRef, expenseRecord);
 
-            const isFinalPayment = currentPaidTenor + 1 === totalTenor;
+            // 2. Update the installment template
+            const expenseTemplateRef = doc(db, 'expenses', expense.id);
+            batch.update(expenseTemplateRef, {
+                paidTenor: increment(1),
+                lastPaidDate: todayStr
+            });
 
-            if (isFinalPayment) {
-                // If it's the last payment, delete the template.
-                const expenseTemplateRef = doc(db, 'expenses', expense.id);
-                batch.delete(expenseTemplateRef);
-                toast({ title: "Angsuran Lunas!", description: `Pembayaran untuk ${expense.name} selesai dan telah dihapus dari daftar.` });
-            } else {
-                // If not the last payment, just update the tenor.
-                const expenseTemplateRef = doc(db, 'expenses', expense.id);
-                batch.update(expenseTemplateRef, {
-                    paidTenor: increment(1)
-                });
-                toast({ title: "Pembayaran Dicatat", description: `Pembayaran angsuran ke-${currentPaidTenor + 1} untuk ${expense.name} berhasil.` });
-            }
-            
             await batch.commit();
+
+            toast({ title: "Pembayaran Dicatat", description: `Pembayaran angsuran ke-${currentPaidTenor + 1} untuk ${expense.name} berhasil.` });
             fetchExpenses();
         } catch (error) {
             console.error("Error paying installment:", error);
@@ -185,15 +191,18 @@ export default function InstallmentsPage() {
                     </TableHeader>
                     <TableBody>
                         {expenses.length > 0 ? expenses.map(expense => {
-                            const progress = ((expense.paidTenor ?? 0) / (expense.tenor ?? 1)) * 100;
-                            const isPaidThisMonth = paidExpenseNames.has(expense.name);
-                            const isFullyPaid = (expense.paidTenor ?? 0) >= (expense.tenor ?? 0);
+                            const paidTenor = expense.paidTenor ?? 0;
+                            const totalTenor = expense.tenor ?? 1;
+                            const progress = (paidTenor / totalTenor) * 100;
+                            const isFullyPaid = paidTenor >= totalTenor;
+                            const isPaidThisMonth = paidExpenseInfo.get(expense.id) ?? false;
+                            
                             return (
                             <TableRow key={expense.id}>
                                 <TableCell className="font-medium">{expense.name}</TableCell>
                                 <TableCell>
                                     <div className="flex flex-col gap-1">
-                                        <span>{expense.paidTenor || 0} / {expense.tenor} bulan</span>
+                                        <span>{paidTenor} / {totalTenor} bulan</span>
                                         <Progress value={progress} />
                                     </div>
                                 </TableCell>
