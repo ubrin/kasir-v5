@@ -75,7 +75,8 @@ export type Expense = {
     note: string;
   };
   totalExpense: number;
-  createdAt: string; // 'yyyy-MM-dd'
+  createdAt: string; // 'yyyy-MM-dd HH:mm:ss'
+  updatedAt?: string; // 'yyyy-MM-dd HH:mm:ss'
 };
 
 export type ExpenseCategory = 'main' | 'installments' | 'other';

@@ -5,7 +5,7 @@ import * as React from 'react';
 import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-import { collection, getDocs, addDoc, query, where, updateDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, query, where, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Expense } from '@/lib/types';
 import Link from 'next/link';
@@ -161,7 +161,7 @@ export default function MonthlyBookkeepingPage() {
     
     const totalExpense = bandwidth + listrik + angsuranBri + angsuranShopee + lainnyaRp;
 
-    const expenseData: Omit<Expense, 'id'> = {
+    const expenseDataPayload = {
         periodFrom: format(date.from, 'yyyy-MM-dd'),
         periodTo: format(date.to || date.from, 'yyyy-MM-dd'),
         mainExpenses: {
@@ -180,19 +180,23 @@ export default function MonthlyBookkeepingPage() {
             note: expenseInput.lainnyaKet,
         },
         totalExpense: totalExpense,
-        createdAt: format(new Date(), 'yyyy-MM-dd'),
+        updatedAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
     };
     
     try {
         if(expenses?.id) {
              const expenseDocRef = doc(db, "expenses", expenses.id);
-             await updateDoc(expenseDocRef, expenseData);
+             await updateDoc(expenseDocRef, expenseDataPayload);
              toast({
                 title: "Pengeluaran Diperbarui",
                 description: `Total pengeluaran sebesar Rp${totalExpense.toLocaleString('id-ID')} berhasil diperbarui.`
             });
         } else {
-             await addDoc(collection(db, "expenses"), expenseData);
+             const newExpenseData = {
+                 ...expenseDataPayload,
+                 createdAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
+             };
+             await addDoc(collection(db, "expenses"), newExpenseData);
              toast({
                 title: "Pengeluaran Disimpan",
                 description: `Total pengeluaran sebesar Rp${totalExpense.toLocaleString('id-ID')} berhasil dicatat.`
