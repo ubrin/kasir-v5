@@ -24,6 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
 
@@ -307,58 +308,95 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Status Pembayaran Faktur (Bulan Ini)</CardTitle>
-            <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center items-center">
-             <ResponsiveContainer width="100%" height={350}>
-                <PieChart>
-                    <Tooltip
-                        contentStyle={{
-                            background: "hsl(var(--card))",
-                            borderColor: "hsl(var(--border))",
+        <div className="lg:col-span-3 flex flex-col gap-4">
+            <Card>
+            <CardHeader>
+                <CardTitle>Status Pembayaran Faktur (Bulan Ini)</CardTitle>
+                <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center items-center pb-0">
+                <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                        <Tooltip
+                            contentStyle={{
+                                background: "hsl(var(--card))",
+                                borderColor: "hsl(var(--border))",
+                            }}
+                            formatter={(value: number, name: string, props: any) => [
+                            `Rp${value.toLocaleString('id-ID')}`, 
+                            `${name} (${props.payload.count} Faktur)`
+                            ]}
+                        />
+                        <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                            const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+                            const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+                            if (!percent || percent < 0.01) return null;
+                            return (
+                            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12}>
+                                {`${(percent * 100).toFixed(0)}%`}
+                            </text>
+                            );
                         }}
-                        formatter={(value: number, name: string, props: any) => [
-                          `Rp${value.toLocaleString('id-ID')}`, 
-                          `${name} (${props.payload.count} Faktur)`
-                        ]}
-                    />
-                    <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={120}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                        const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-                        const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-                        if (!percent || percent < 0.01) return null;
-                        return (
-                        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central">
-                            {`${(percent * 100).toFixed(0)}%`}
-                        </text>
-                        );
-                    }}
-                    >
-                    {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
-                    ))}
-                    </Pie>
-                    <Legend iconType="circle" />
-                </PieChart>
-                </ResponsiveContainer>
-          </CardContent>
-        </Card>
+                        >
+                        {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
+                        ))}
+                        </Pie>
+                        <Legend iconType="circle" wrapperStyle={{fontSize: "12px"}}/>
+                    </PieChart>
+                    </ResponsiveContainer>
+            </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Rincian Pemasukan Bulan Ini</CardTitle>
+                    <div className="text-2xl font-bold pt-2">Rp{paymentSummary.total.toLocaleString('id-ID')}</div>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableBody>
+                            <TableRow>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-2 w-2 rounded-full bg-gray-400" />
+                                        <span>Cash</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right font-medium">Rp{paymentSummary.cash.toLocaleString('id-ID')}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-2 w-2 rounded-full bg-blue-600" />
+                                        <span>BRI</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right font-medium">Rp{paymentSummary.bri.toLocaleString('id-ID')}</TableCell>
+                            </TableRow>
+                             <TableRow>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-2 w-2 rounded-full bg-sky-500" />
+                                        <span>DANA</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right font-medium">Rp{paymentSummary.dana.toLocaleString('id-ID')}</TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
       </div>
     </div>
   )
 }
-
-    
-
-    
