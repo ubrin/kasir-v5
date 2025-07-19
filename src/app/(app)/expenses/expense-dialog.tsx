@@ -61,25 +61,39 @@ const expenseSchema = z.object({
     (val) => (String(val).trim() === '' ? undefined : Number(val)),
     z.number().min(1, "Tenor minimal 1 bulan").optional()
   ),
+  paidTenor: z.preprocess(
+    (val) => (String(val).trim() === '' ? undefined : Number(val)),
+    z.number().optional()
+  ),
   note: z.string().optional(),
-}).refine(data => {
-    if (data.category === 'utama' || data.category === 'angsuran') return !!data.dueDateDay;
-    return true;
-}, {
-    message: "Tanggal jatuh tempo harus diisi.",
-    path: ['dueDateDay']
-}).refine(data => {
-    if (data.category === 'angsuran') return !!data.tenor;
-    return true;
-}, {
-    message: "Tenor harus diisi untuk angsuran.",
-    path: ['tenor']
-}).refine(data => {
-    if (data.category === 'lainnya') return !!data.date;
-    return true;
-}, {
-    message: "Tanggal harus diisi.",
-    path: ['date']
+}).superRefine((data, ctx) => {
+    if (data.category === 'utama' || data.category === 'angsuran') {
+        if (!data.dueDateDay) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Jatuh tempo harus diisi.",
+                path: ['dueDateDay'],
+            });
+        }
+    }
+    if (data.category === 'angsuran') {
+        if (!data.tenor) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Tenor harus diisi.",
+                path: ['tenor'],
+            });
+        }
+    }
+    if (data.category === 'lainnya') {
+        if (!data.date) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Tanggal harus diisi.",
+                path: ['date'],
+            });
+        }
+    }
 });
 
 
@@ -107,6 +121,7 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
       category: 'lainnya',
       date: new Date(),
       note: '',
+      paidTenor: 0,
     },
   });
   
@@ -116,7 +131,7 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
     if (expense) {
       form.reset({
         ...expense,
-        date: expense.date ? new Date(expense.date) : undefined
+        date: expense.date ? new Date(expense.date) : undefined,
       });
     } else {
       form.reset({
@@ -126,6 +141,7 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
         date: new Date(),
         dueDateDay: undefined,
         tenor: undefined,
+        paidTenor: 0,
         note: '',
       });
     }
@@ -145,14 +161,16 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
             expenseData.dueDateDay = data.dueDateDay;
         }
 
-        if (data.category === 'lainnya') {
-            expenseData.date = data.date ? format(data.date, 'yyyy-MM-dd') : undefined;
+        if (data.category === 'lainnya' && data.date) {
+            expenseData.date = format(data.date, 'yyyy-MM-dd');
         }
 
         if (data.category === 'angsuran') {
             expenseData.tenor = data.tenor;
-            if (!expense?.id) { // Only set paidTenor for new installments
-                 expenseData.paidTenor = 0;
+             if (expense?.id) {
+                expenseData.paidTenor = data.paidTenor || 0;
+            } else {
+                expenseData.paidTenor = 0;
             }
         }
 
@@ -245,25 +263,9 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
                         )}
                     />
                      
-                    {selectedCategory === 'utama' && (
-                         <FormField
-                            control={form.control}
-                            name="dueDateDay"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Jatuh Tempo Setiap Bulan</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="Tanggal (1-31)" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    )}
-                    
-                    {selectedCategory === 'angsuran' && (
+                    {(selectedCategory === 'utama' || selectedCategory === 'angsuran') && (
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField
+                             <FormField
                                 control={form.control}
                                 name="dueDateDay"
                                 render={({ field }) => (
@@ -276,19 +278,21 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
                                     </FormItem>
                                 )}
                             />
-                             <FormField
-                                control={form.control}
-                                name="tenor"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Tenor (bulan)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="cth. 12" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            {selectedCategory === 'angsuran' && (
+                                <FormField
+                                    control={form.control}
+                                    name="tenor"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Tenor (bulan)</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="cth. 12" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
                         </div>
                     )}
 
