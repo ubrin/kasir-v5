@@ -44,24 +44,21 @@ export default function InstallmentsPage() {
             const end = endOfMonth(today);
 
             const installmentsQuery = query(collection(db, "expenses"), where("category", "==", "angsuran"));
-            const otherExpensesQuery = query(collection(db, "expenses"), where("category", "==", "lainnya"));
+            const snapshot = await getDocs(installmentsQuery);
 
-            const [installmentsSnapshot, otherSnapshot] = await Promise.all([
-                getDocs(installmentsQuery),
-                getDocs(otherExpensesQuery)
-            ]);
+            const allInstallments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+            
+            // Templates are expenses without a date
+            const expenseTemplates = allInstallments.filter(exp => !exp.date);
+            setExpenses(expenseTemplates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
 
-            const installmentsData = installmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-            setExpenses(installmentsData.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
-
+            // Check for payments made this month
             const paidNames = new Set<string>();
-            otherSnapshot.docs.forEach(doc => {
-                const expense = doc.data() as Expense;
-                 if (expense.date && expense.note?.startsWith('Pembayaran angsuran untuk ')) {
+            allInstallments.forEach(expense => {
+                 if (expense.date) {
                     const expenseDate = parseISO(expense.date);
                     if (isWithinInterval(expenseDate, { start, end })) {
-                        const originalName = expense.note.replace('Pembayaran angsuran untuk ', '');
-                        paidNames.add(originalName);
+                        paidNames.add(expense.name);
                     }
                 }
             });
@@ -108,16 +105,17 @@ export default function InstallmentsPage() {
             batch.update(expenseRef, {
                 paidTenor: increment(1)
             });
-
+            
+            // Create a new expense record with a date to mark it as a transaction
             const expenseRecord: Omit<Expense, 'id'> = {
-                name: expense.name,
-                amount: expense.amount,
-                category: 'lainnya',
+                ...expense,
                 date: format(new Date(), 'yyyy-MM-dd'),
-                note: `Pembayaran angsuran untuk ${expense.name}`
+                note: `Pembayaran angsuran ke-${(expense.paidTenor ?? 0) + 1} untuk ${expense.name}`
             };
+            const { id, ...recordToSave } = expenseRecord;
+            
             const newRecordRef = doc(collection(db, 'expenses'));
-            batch.set(newRecordRef, expenseRecord);
+            batch.set(newRecordRef, recordToSave);
             
             await batch.commit();
 

@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { collection, query, where, getDocs, doc, deleteDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import type { Expense } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -43,24 +43,21 @@ export default function MainExpensesPage() {
             const end = endOfMonth(today);
 
             const mainExpensesQuery = query(collection(db, "expenses"), where("category", "==", "utama"));
-            const otherExpensesQuery = query(collection(db, "expenses"), where("category", "==", "lainnya"));
-
-            const [mainSnapshot, otherSnapshot] = await Promise.all([
-                getDocs(mainExpensesQuery),
-                getDocs(otherExpensesQuery)
-            ]);
+            const snapshot = await getDocs(mainExpensesQuery);
             
-            const mainData = mainSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-            setExpenses(mainData.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
+            const allMainExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+            
+            // Templates are expenses without a date
+            const expenseTemplates = allMainExpenses.filter(exp => !exp.date);
+            setExpenses(expenseTemplates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
 
+            // Paid expenses are those with a date in the current month
             const paidNames = new Set<string>();
-            otherSnapshot.docs.forEach(doc => {
-                const expense = doc.data() as Expense;
-                 if (expense.date && expense.note?.startsWith('Pembayaran rutin untuk ')) {
+            allMainExpenses.forEach(expense => {
+                 if (expense.date) {
                     const expenseDate = parseISO(expense.date);
                     if (isWithinInterval(expenseDate, { start, end })) {
-                        const originalName = expense.note.replace('Pembayaran rutin untuk ', '');
-                        paidNames.add(originalName);
+                        paidNames.add(expense.name);
                     }
                 }
             });
@@ -97,20 +94,22 @@ export default function MainExpensesPage() {
     
     const handlePayMainExpense = async (expense: Expense) => {
         try {
+            // Create a new expense record with a date to mark it as a transaction
             const expenseRecord: Omit<Expense, 'id'> = {
-                name: expense.name,
-                amount: expense.amount,
-                category: 'lainnya',
+                ...expense, // copy name, amount, category, etc.
                 date: format(new Date(), 'yyyy-MM-dd'),
                 note: `Pembayaran rutin untuk ${expense.name}`
             };
-            await addDoc(collection(db, 'expenses'), expenseRecord);
+            // remove id if it exists
+            const {id, ...recordToSave} = expenseRecord;
+
+            await addDoc(collection(db, 'expenses'), recordToSave);
             toast({
                 title: 'Pembayaran Dicatat',
-                description: `Pengeluaran untuk ${expense.name} sejumlah Rp${expense.amount.toLocaleString('id-ID')} telah dicatat sebagai pengeluaran 'Lainnya'.`,
+                description: `Pengeluaran untuk ${expense.name} sejumlah Rp${expense.amount.toLocaleString('id-ID')} telah dicatat.`,
                 action: (
-                   <Button variant="secondary" size="sm" onClick={() => router.push('/expenses/other')}>
-                        Lihat
+                   <Button variant="secondary" size="sm" onClick={() => router.push('/expenses/history')}>
+                        Lihat Riwayat
                    </Button>
                 )
             });

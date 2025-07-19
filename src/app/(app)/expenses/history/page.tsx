@@ -48,12 +48,11 @@ export default function HistoryPage() {
     const fetchExpenses = React.useCallback(async () => {
         setLoading(true);
         try {
-            const q = query(collection(db, "expenses"));
+            // Query all expenses that have a date, as these are actual transactions
+            const q = query(collection(db, "expenses"), where("date", "!=", null));
             const snapshot = await getDocs(q);
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-            // Filter to only include expenses that represent a transaction (have a date)
-            const transactionExpenses = data.filter(exp => !!exp.date);
-            setExpenses(transactionExpenses.sort((a,b) => (b.date && a.date) ? new Date(b.date).getTime() - new Date(a.date).getTime() : 0));
+            setExpenses(data.sort((a,b) => (b.date && a.date) ? new Date(b.date).getTime() - new Date(a.date).getTime() : 0));
         } catch (error) {
             console.error("Error fetching expense history:", error);
             toast({ title: "Gagal memuat data", variant: "destructive" });
