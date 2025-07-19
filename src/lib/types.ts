@@ -65,8 +65,10 @@ export type Expense = {
   };
   installments: {
     bri: number;
+    briTenor: string;
     shopee: number;
     shopeeNote: string;
+    shopeeTenor: string;
   };
   otherExpenses: {
     amount: number;

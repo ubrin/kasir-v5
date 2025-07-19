@@ -26,8 +26,10 @@ const initialExpenseState = {
     bandwidth: '',
     listrik: '',
     angsuranBri: '',
+    angsuranBriTenor: '',
     angsuranShopee: '',
     angsuranShopeeKet: '',
+    angsuranShopeeTenor: '',
     lainnyaRp: '',
     lainnyaKet: '',
 };
@@ -89,8 +91,10 @@ export default function MonthlyBookkeepingPage() {
                     bandwidth: formatNumber(expenseData.mainExpenses.bandwidth),
                     listrik: formatNumber(expenseData.mainExpenses.electricity),
                     angsuranBri: formatNumber(expenseData.installments.bri),
+                    angsuranBriTenor: expenseData.installments.briTenor || '',
                     angsuranShopee: formatNumber(expenseData.installments.shopee),
                     angsuranShopeeKet: expenseData.installments.shopeeNote,
+                    angsuranShopeeTenor: expenseData.installments.shopeeTenor || '',
                     lainnyaRp: formatNumber(expenseData.otherExpenses.amount),
                     lainnyaKet: expenseData.otherExpenses.note,
                 });
@@ -150,8 +154,10 @@ export default function MonthlyBookkeepingPage() {
         },
         installments: {
             bri: angsuranBri,
+            briTenor: expenseInput.angsuranBriTenor,
             shopee: angsuranShopee,
             shopeeNote: expenseInput.angsuranShopeeKet,
+            shopeeTenor: expenseInput.angsuranShopeeTenor,
         },
         otherExpenses: {
             amount: lainnyaRp,
@@ -312,13 +318,18 @@ export default function MonthlyBookkeepingPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                          <div className="grid gap-2">
-                            <Label htmlFor="angsuranBri">BRI (Rp)</Label>
-                            <Input id="angsuranBri" type="text" placeholder="cth. 2.500.000" value={expenseInput.angsuranBri} onChange={handleCurrencyInputChange} />
+                            <Label htmlFor="angsuranBri">BRI</Label>
+                            <div className="flex gap-2">
+                                <Input id="angsuranBri" type="text" placeholder="Jumlah (Rp)" value={expenseInput.angsuranBri} onChange={handleCurrencyInputChange} className="flex-1"/>
+                                <Input id="angsuranBriTenor" placeholder="Tenor (cth. 3/12)" value={expenseInput.angsuranBriTenor} onChange={handleTextChange} className="w-[120px]" />
+                            </div>
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="angsuranShopee">Shopee (Rp)</Label>
-                            <Input id="angsuranShopee" type="text" placeholder="cth. 500.000" value={expenseInput.angsuranShopee} onChange={handleCurrencyInputChange} />
-                                <Label htmlFor="angsuranShopeeKet" className="sr-only">Keterangan Shopee</Label>
+                            <Label htmlFor="angsuranShopee">Shopee</Label>
+                             <div className="flex gap-2">
+                                <Input id="angsuranShopee" type="text" placeholder="Jumlah (Rp)" value={expenseInput.angsuranShopee} onChange={handleCurrencyInputChange} className="flex-1"/>
+                                <Input id="angsuranShopeeTenor" placeholder="Tenor (cth. 3/12)" value={expenseInput.angsuranShopeeTenor} onChange={handleTextChange} className="w-[120px]" />
+                            </div>
                             <Input id="angsuranShopeeKet" placeholder="Keterangan (misal: Pembelian router)" value={expenseInput.angsuranShopeeKet} onChange={handleTextChange} />
                         </div>
                     </CardContent>
