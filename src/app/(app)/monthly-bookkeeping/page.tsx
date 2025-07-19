@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
 
 
 export default function MonthlyBookkeepingPage() {
@@ -131,44 +132,47 @@ export default function MonthlyBookkeepingPage() {
             </div>
         ) : (
         <>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Pemasukan</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium">Total Pemasukan</CardTitle>
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                    <div className="text-2xl font-bold">Rp{summary.total.toLocaleString('id-ID')}</div>
-                    <p className="text-xs text-muted-foreground">
-                        Dari {filteredPayments.length} transaksi
-                    </p>
+                        <div className="text-2xl font-bold">Rp{summary.total.toLocaleString('id-ID')}</div>
+                        <p className="text-xs text-muted-foreground">
+                            Dari {filteredPayments.length} transaksi
+                        </p>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pemasukan (Cash)</CardTitle>
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                    <CardHeader>
+                        <CardTitle className="text-sm font-medium">Rincian Pemasukan</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                    <div className="text-2xl font-bold">Rp{summary.cash.toLocaleString('id-ID')}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pemasukan (BRI)</CardTitle>
-                    <Landmark className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                    <div className="text-2xl font-bold">Rp{summary.bri.toLocaleString('id-ID')}</div>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pemasukan (DANA)</CardTitle>
-                    <Banknote className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                    <div className="text-2xl font-bold">Rp{summary.dana.toLocaleString('id-ID')}</div>
+                     <CardContent className="space-y-4">
+                        <div className="flex items-center">
+                            <Wallet className="h-6 w-6 text-muted-foreground" />
+                            <div className="ml-4 flex-1">
+                                <p className="text-sm text-muted-foreground">Cash</p>
+                                <p className="text-lg font-bold">Rp{summary.cash.toLocaleString('id-ID')}</p>
+                            </div>
+                        </div>
+                        <Separator />
+                         <div className="flex items-center">
+                            <Landmark className="h-6 w-6 text-muted-foreground" />
+                            <div className="ml-4 flex-1">
+                                <p className="text-sm text-muted-foreground">BRI</p>
+                                <p className="text-lg font-bold">Rp{summary.bri.toLocaleString('id-ID')}</p>
+                            </div>
+                        </div>
+                        <Separator />
+                         <div className="flex items-center">
+                            <Banknote className="h-6 w-6 text-muted-foreground" />
+                            <div className="ml-4 flex-1">
+                                <p className="text-sm text-muted-foreground">DANA</p>
+                                <p className="text-lg font-bold">Rp{summary.dana.toLocaleString('id-ID')}</p>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
