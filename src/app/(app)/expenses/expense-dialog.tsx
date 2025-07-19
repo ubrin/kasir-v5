@@ -63,10 +63,10 @@ const expenseSchema = z.object({
   ),
   note: z.string().optional(),
 }).refine(data => {
-    if (data.category === 'utama') return !!data.dueDateDay;
+    if (data.category === 'utama' || data.category === 'angsuran') return !!data.dueDateDay;
     return true;
 }, {
-    message: "Tanggal jatuh tempo harus diisi untuk pengeluaran utama.",
+    message: "Tanggal jatuh tempo harus diisi.",
     path: ['dueDateDay']
 }).refine(data => {
     if (data.category === 'angsuran') return !!data.tenor;
@@ -75,7 +75,7 @@ const expenseSchema = z.object({
     message: "Tenor harus diisi untuk angsuran.",
     path: ['tenor']
 }).refine(data => {
-    if (data.category !== 'utama') return !!data.date;
+    if (data.category === 'lainnya') return !!data.date;
     return true;
 }, {
     message: "Tanggal harus diisi.",
@@ -141,15 +141,19 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
             note: data.note,
         };
 
-        if (data.category === 'utama') {
+        if (data.category === 'utama' || data.category === 'angsuran') {
             expenseData.dueDateDay = data.dueDateDay;
-        } else {
+        }
+
+        if (data.category === 'lainnya') {
             expenseData.date = data.date ? format(data.date, 'yyyy-MM-dd') : undefined;
         }
 
         if (data.category === 'angsuran') {
             expenseData.tenor = data.tenor;
-            expenseData.paidTenor = 0;
+            if (!expense?.id) { // Only set paidTenor for new installments
+                 expenseData.paidTenor = 0;
+            }
         }
 
         if (expense?.id) {
@@ -241,7 +245,7 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
                         )}
                     />
                      
-                    {selectedCategory === 'utama' && (
+                    {(selectedCategory === 'utama' || selectedCategory === 'angsuran') && (
                          <FormField
                             control={form.control}
                             name="dueDateDay"
@@ -258,30 +262,28 @@ export function ExpenseDialog({ expense, onSaveSuccess, children }: ExpenseDialo
                     )}
                     
                     {selectedCategory === 'angsuran' && (
-                        <>
-                            <FormField
-                                control={form.control}
-                                name="tenor"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Tenor (bulan)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="cth. 12" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </>
+                        <FormField
+                            control={form.control}
+                            name="tenor"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Tenor (bulan)</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="cth. 12" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     )}
 
-                    {(selectedCategory === 'angsuran' || selectedCategory === 'lainnya') && (
+                    {selectedCategory === 'lainnya' && (
                         <FormField
                             control={form.control}
                             name="date"
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
-                                <FormLabel>{selectedCategory === 'angsuran' ? 'Jatuh Tempo' : 'Tanggal'}</FormLabel>
+                                <FormLabel>Tanggal</FormLabel>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                     <FormControl>

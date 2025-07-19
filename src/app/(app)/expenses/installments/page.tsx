@@ -7,10 +7,8 @@ import { db } from "@/lib/firebase";
 import type { Expense } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { format, parseISO } from 'date-fns';
-import { id as localeId } from 'date-fns/locale';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { MoreHorizontal, Loader2, ArrowLeft, PlusCircle, Edit, Trash2, Receipt } from 'lucide-react';
@@ -41,7 +39,8 @@ export default function InstallmentsPage() {
             const q = query(collection(db, "expenses"), where("category", "==", "angsuran"));
             const snapshot = await getDocs(q);
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-            setExpenses(data.sort((a,b) => (b.date && a.date) ? new Date(b.date).getTime() - new Date(a.date).getTime() : 0));
+            // Sort by due date day
+            setExpenses(data.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
         } catch (error) {
             console.error("Error fetching installments:", error);
             toast({ title: "Gagal memuat data", variant: "destructive" });
@@ -116,71 +115,69 @@ export default function InstallmentsPage() {
                 </ExpenseDialog>
             </div>
 
-            <Card>
-                <CardContent className="pt-6">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nama Angsuran</TableHead>
-                                <TableHead>Tenor</TableHead>
-                                <TableHead className="text-right">Jumlah</TableHead>
-                                <TableHead className="text-center">Jatuh Tempo</TableHead>
-                                <TableHead>
-                                    <span className="sr-only">Aksi</span>
-                                </TableHead>
+            <CardContent className="pt-6 border rounded-lg p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Nama Angsuran</TableHead>
+                            <TableHead className="w-[120px]">Tenor</TableHead>
+                            <TableHead className="w-[150px] text-right">Jumlah</TableHead>
+                            <TableHead className="w-[180px] text-center">Jatuh Tempo</TableHead>
+                            <TableHead className="w-[80px]">
+                                <span className="sr-only">Aksi</span>
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {expenses.length > 0 ? expenses.map(expense => {
+                            const progress = ((expense.paidTenor ?? 0) / (expense.tenor ?? 1)) * 100;
+                            return (
+                            <TableRow key={expense.id}>
+                                <TableCell className="font-medium">{expense.name}</TableCell>
+                                <TableCell>
+                                    <div className="flex flex-col gap-1">
+                                        <span>{expense.paidTenor || 0} / {expense.tenor} bulan</span>
+                                        <Progress value={progress} />
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right">Rp{expense.amount.toLocaleString('id-ID')}</TableCell>
+                                <TableCell className="text-center">Setiap Tgl. {expense.dueDateDay}</TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => handlePayInstallment(expense)}>
+                                                <Receipt className="mr-2 h-4 w-4" />
+                                                <span>Bayar Angsuran Ini</span>
+                                            </DropdownMenuItem>
+                                            <ExpenseDialog expense={expense} onSaveSuccess={fetchExpenses}>
+                                                <button className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full">
+                                                    <Edit className="mr-2 h-4 w-4" />
+                                                    <span>Ubah</span>
+                                                </button>
+                                            </ExpenseDialog>
+                                            <DropdownMenuItem onClick={() => handleDeleteClick(expense)} className="text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                <span>Hapus</span>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
                             </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {expenses.length > 0 ? expenses.map(expense => {
-                                const progress = ((expense.paidTenor ?? 0) / (expense.tenor ?? 1)) * 100;
-                                return (
-                                <TableRow key={expense.id}>
-                                    <TableCell className="font-medium">{expense.name}</TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1 w-24">
-                                            <span>{expense.paidTenor || 0} / {expense.tenor} bulan</span>
-                                            <Progress value={progress} />
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">Rp{expense.amount.toLocaleString('id-ID')}</TableCell>
-                                    <TableCell className="text-center">{expense.date ? format(parseISO(expense.date), "d MMM yyyy", { locale: localeId }) : '-'}</TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => handlePayInstallment(expense)}>
-                                                    <Receipt className="mr-2 h-4 w-4" />
-                                                    <span>Bayar Angsuran Ini</span>
-                                                </DropdownMenuItem>
-                                                <ExpenseDialog expense={expense} onSaveSuccess={fetchExpenses}>
-                                                    <button className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full">
-                                                        <Edit className="mr-2 h-4 w-4" />
-                                                        <span>Ubah</span>
-                                                    </button>
-                                                </ExpenseDialog>
-                                                <DropdownMenuItem onClick={() => handleDeleteClick(expense)} className="text-destructive">
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    <span>Hapus</span>
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            )}) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24">
-                                        Belum ada data angsuran.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                        )}) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center h-24">
+                                    Belum ada data angsuran.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
 
             <AlertDialog open={!!expenseToDelete} onOpenChange={(isOpen) => !isOpen && setExpenseToDelete(null)}>
                 <AlertDialogContent>
