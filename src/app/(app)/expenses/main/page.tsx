@@ -42,23 +42,26 @@ export default function MainExpensesPage() {
             const start = startOfMonth(today);
             const end = endOfMonth(today);
 
-            // 1. Fetch only the expense templates (items without a date)
-            const templatesQuery = query(collection(db, "expenses"), where("category", "==", "utama"), where("date", "==", null));
-            const templatesSnapshot = await getDocs(templatesQuery);
-            const templates = templatesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-            setExpenseTemplates(templates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
+            // 1. Fetch all documents with 'utama' category. This is a simpler query.
+            const mainExpensesQuery = query(collection(db, "expenses"), where("category", "==", "utama"));
+            const snapshot = await getDocs(mainExpensesQuery);
+            const allMainExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
 
-            // 2. Fetch paid transactions for this month to determine status
-            const paidTransactionsQuery = query(
-                collection(db, "expenses"),
-                where("category", "==", "utama"),
-                where("date", ">=", format(start, 'yyyy-MM-dd')),
-                where("date", "<=", format(end, 'yyyy-MM-dd'))
-            );
-            const paidSnapshot = await getDocs(paidTransactionsQuery);
+            // 2. Filter on the client side
+            const templates = allMainExpenses.filter(exp => !exp.date);
+            const transactions = allMainExpenses.filter(exp => exp.date);
+
+            setExpenseTemplates(templates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
+            
+            // 3. Determine paid status from this month's transactions
             const paidNames = new Set<string>();
-            paidSnapshot.docs.forEach(doc => {
-                paidNames.add(doc.data().name);
+            transactions.forEach(transaction => {
+                if (transaction.date) {
+                    const transactionDate = parseISO(transaction.date);
+                    if (isWithinInterval(transactionDate, { start, end })) {
+                        paidNames.add(transaction.name);
+                    }
+                }
             });
             setPaidExpenseNames(paidNames);
 
@@ -93,11 +96,12 @@ export default function MainExpensesPage() {
     
     const handlePayMainExpense = async (expenseTemplate: Expense) => {
         try {
-            const expenseRecord: Omit<Expense, 'id' | 'dueDateDay'> = {
+            const expenseRecord: Omit<Expense, 'id'> = {
                 name: expenseTemplate.name,
                 amount: expenseTemplate.amount,
                 category: expenseTemplate.category,
                 date: format(new Date(), 'yyyy-MM-dd'),
+                dueDateDay: expenseTemplate.dueDateDay,
                 note: `Pembayaran rutin untuk ${expenseTemplate.name} (${format(new Date(), 'MMMM yyyy')})`
             };
 
