@@ -86,9 +86,9 @@ export default function MonthlyBookkeepingPage() {
 
   const expenseSummary = React.useMemo(() => {
     if (!expenses) return { total: 0, main: 0, installments: 0, other: 0 };
-    const main = expenses.mainExpenses.bandwidth + expenses.mainExpenses.electricity;
+    const main = Array.isArray(expenses.mainExpenses) ? expenses.mainExpenses.reduce((sum, item) => sum + item.amount, 0) : 0;
     const installments = Array.isArray(expenses.installments) ? expenses.installments.reduce((sum, item) => sum + item.amount, 0) : 0;
-    const other = expenses.otherExpenses.amount;
+    const other = expenses.otherExpenses?.amount || 0;
     return {
         total: expenses.totalExpense,
         main,

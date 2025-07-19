@@ -55,6 +55,12 @@ export type AppUser = {
   role: 'admin' | 'user';
 };
 
+export type MainExpenseItem = {
+    id: string;
+    name: string;
+    amount: number;
+}
+
 export type InstallmentItem = {
     id: string; // unique id for the item in the array
     name: string;
@@ -68,10 +74,7 @@ export type Expense = {
   id: string; // Firestore document ID
   periodFrom: string; // 'yyyy-MM-dd'
   periodTo: string; // 'yyyy-MM-dd'
-  mainExpenses: {
-    bandwidth: number;
-    electricity: number;
-  };
+  mainExpenses: MainExpenseItem[];
   installments: InstallmentItem[];
   otherExpenses: {
     amount: number;

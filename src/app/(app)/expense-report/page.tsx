@@ -5,12 +5,12 @@ import * as React from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import { collection, query, where, getDocs, doc, updateDoc, addDoc, arrayUnion, arrayRemove, writeBatch } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Expense, ExpenseCategory, InstallmentItem } from '@/lib/types';
+import type { Expense, ExpenseCategory, MainExpenseItem, InstallmentItem } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, PlusCircle, Save, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Loader2, PlusCircle, Save, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -45,33 +45,39 @@ const categoryTitles: Record<ExpenseCategory, string> = {
     other: "Pengeluaran Lainnya"
 };
 
+const formatNumber = (value: number | string | null | undefined): string => {
+    if (value === null || value === undefined || value === '') return '';
+    return Number(value).toLocaleString('id-ID');
+};
+
 const parseFormattedNumber = (value: string | number): number => {
     if (typeof value === 'number') return value;
     return Number(String(value).replace(/\./g, ''));
 };
 
-const formatNumber = (value: number): string => {
-    if (isNaN(value) || value === null || value === undefined) return '';
-    return value.toLocaleString('id-ID');
-};
+
+// --- Helper function to calculate total expense ---
+const calculateTotal = (exp: Expense) => {
+    const main = (exp.mainExpenses || []).reduce((sum, i) => sum + i.amount, 0);
+    const inst = (exp.installments || []).reduce((sum, i) => sum + i.amount, 0);
+    const other = exp.otherExpenses.amount || 0;
+    return main + inst + other;
+}
+
 
 // --- Form Components ---
 
-const MainExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { expense: Expense, onSave: (data: any) => Promise<void>, onNavigateBack: () => void, periodLabel: string }) => {
-    const [mainExpenses, setMainExpenses] = React.useState(expense.mainExpenses);
-    const [loading, setLoading] = React.useState(false);
+const MainExpenseManager = ({ expense, onSave, onNavigateBack, periodLabel }: { expense: Expense, onSave: (data: any) => Promise<void>, onNavigateBack: () => void, periodLabel: string }) => {
+    const [mainExpenses, setMainExpenses] = React.useState<MainExpenseItem[]>(expense.mainExpenses || []);
+    const { toast } = useToast();
 
-    const handleCurrencyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { id, value } = e.target;
-        const numericValue = value.replace(/[^0-9]/g, '');
-        setMainExpenses(prev => ({ ...prev, [id]: numericValue ? parseInt(numericValue, 10) : 0 }));
+    const handleSaveChanges = async (updatedMainExpenses: MainExpenseItem[]) => {
+        const updatedExpense = { ...expense, mainExpenses: updatedMainExpenses };
+        const totalExpense = calculateTotal(updatedExpense);
+        await onSave({ mainExpenses: updatedMainExpenses, totalExpense });
+        setMainExpenses(updatedMainExpenses);
+        toast({ title: "Perubahan Disimpan", description: "Data pengeluaran utama telah diperbarui." });
     };
-
-    const handleFormSubmit = async () => {
-        setLoading(true);
-        await onSave({ mainExpenses });
-        setLoading(false);
-    }
 
     return (
         <Card>
@@ -79,26 +85,57 @@ const MainExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { exp
                 <CardTitle>Kelola Pengeluaran Utama</CardTitle>
                 <CardDescription>{periodLabel}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid gap-2">
-                    <Label htmlFor="bandwidth">Bandwidth (Rp)</Label>
-                    <Input id="bandwidth" type="text" placeholder="cth. 5.000.000" value={formatNumber(mainExpenses.bandwidth)} onChange={handleCurrencyChange} />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="electricity">Listrik (Rp)</Label>
-                    <Input id="electricity" type="text" placeholder="cth. 1.000.000" value={formatNumber(mainExpenses.electricity)} onChange={handleCurrencyChange} />
-                </div>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Nama Pengeluaran</TableHead>
+                            <TableHead className="text-right">Jumlah</TableHead>
+                            <TableHead className="text-right">Aksi</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {mainExpenses.length > 0 ? mainExpenses.map(item => (
+                            <TableRow key={item.id}>
+                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell className="text-right">Rp{formatNumber(item.amount)}</TableCell>
+                                <TableCell className="text-right space-x-2">
+                                    <EditMainExpenseDialog 
+                                        expenseItem={item} 
+                                        onSave={(updated) => {
+                                            const newItems = mainExpenses.map(i => i.id === updated.id ? updated : i);
+                                            handleSaveChanges(newItems);
+                                        }}
+                                    />
+                                    <DeleteDialog
+                                        onConfirm={() => {
+                                            const newItems = mainExpenses.filter(i => i.id !== item.id);
+                                            handleSaveChanges(newItems);
+                                        }}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center h-24">Belum ada data pengeluaran utama.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
             </CardContent>
-            <CardFooter className="justify-end gap-2">
-                <Button variant="outline" onClick={onNavigateBack}>Batal</Button>
-                <Button onClick={handleFormSubmit} disabled={loading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Simpan Perubahan
-                </Button>
+            <CardFooter className="justify-between">
+                <Button variant="outline" onClick={onNavigateBack}>Kembali</Button>
+                <AddMainExpenseDialog 
+                    onSave={(newItem) => {
+                        const newItems = [...mainExpenses, newItem];
+                        handleSaveChanges(newItems);
+                    }}
+                />
             </CardFooter>
         </Card>
     );
 };
+
 
 const OtherExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { expense: Expense, onSave: (data: any) => Promise<void>, onNavigateBack: () => void, periodLabel: string }) => {
     const [otherExpenses, setOtherExpenses] = React.useState(expense.otherExpenses);
@@ -116,7 +153,9 @@ const OtherExpenseForm = ({ expense, onSave, onNavigateBack, periodLabel }: { ex
     
     const handleFormSubmit = async () => {
         setLoading(true);
-        await onSave({ otherExpenses });
+        const updatedExpense = { ...expense, otherExpenses };
+        const totalExpense = calculateTotal(updatedExpense);
+        await onSave({ otherExpenses, totalExpense });
         setLoading(false);
     }
 
@@ -182,14 +221,8 @@ const InstallmentManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
         const totalExpense = calculateTotal(updatedExpense);
         await onSave({ installments: updatedInstallments, totalExpense });
         setInstallments(updatedInstallments);
+        toast({ title: "Perubahan Disimpan", description: "Data angsuran telah diperbarui." });
     };
-
-    const calculateTotal = (exp: Expense) => {
-        const main = exp.mainExpenses.bandwidth + exp.mainExpenses.electricity;
-        const inst = exp.installments.reduce((sum, i) => sum + i.amount, 0);
-        const other = exp.otherExpenses.amount;
-        return main + inst + other;
-    }
 
     return (
         <Card>
@@ -226,7 +259,7 @@ const InstallmentManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
                                             handleSaveChanges(newInstallments);
                                         }}
                                     />
-                                    <DeleteInstallmentDialog 
+                                    <DeleteDialog
                                         onConfirm={() => {
                                             const newInstallments = installments.filter(i => i.id !== item.id);
                                             handleSaveChanges(newInstallments);
@@ -256,16 +289,104 @@ const InstallmentManager = ({ expense, onSave, onNavigateBack, periodLabel }: { 
 };
 
 
+// --- Dialog Components ---
+
+const AddMainExpenseDialog = ({ onSave }: { onSave: (item: MainExpenseItem) => void }) => {
+    const [open, setOpen] = React.useState(false);
+    const [item, setItem] = React.useState<Omit<MainExpenseItem, 'id'>>({ name: '', amount: '' as any });
+
+    const handleSave = () => {
+        onSave({ ...item, amount: parseFormattedNumber(item.amount), id: uuidv4() });
+        setOpen(false);
+        setItem({ name: '', amount: '' as any });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button><PlusCircle className="mr-2 h-4 w-4" /> Tambah Pengeluaran</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Tambah Pengeluaran Utama Baru</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="name">Nama Pengeluaran</Label>
+                        <Input id="name" value={item.name} onChange={(e) => setItem(p => ({ ...p, name: e.target.value }))} placeholder="cth. Gaji Karyawan" />
+                    </div>
+                     <div className="grid gap-2">
+                        <Label htmlFor="amount">Jumlah (Rp)</Label>
+                        <Input id="amount" type="text" value={formatNumber(item.amount)} onChange={(e) => setItem(p => ({ ...p, amount: parseFormattedNumber(e.target.value) }))} placeholder="cth. 3.000.000" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
+                    <Button onClick={handleSave}>Simpan</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+const EditMainExpenseDialog = ({ expenseItem, onSave }: { expenseItem: MainExpenseItem, onSave: (item: MainExpenseItem) => void }) => {
+    const [open, setOpen] = React.useState(false);
+    const [item, setItem] = React.useState<MainExpenseItem>(expenseItem);
+
+    React.useEffect(() => {
+        setItem(expenseItem);
+    }, [expenseItem]);
+
+    const handleSave = () => {
+        onSave({ ...item, amount: parseFormattedNumber(item.amount) });
+        setOpen(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">Ubah</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Ubah Data Pengeluaran</DialogTitle>
+                </DialogHeader>
+                 <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="name">Nama Pengeluaran</Label>
+                        <Input id="name" value={item.name} onChange={(e) => setItem(p => ({ ...p, name: e.target.value }))} />
+                    </div>
+                     <div className="grid gap-2">
+                        <Label htmlFor="amount">Jumlah (Rp)</Label>
+                        <Input id="amount" type="text" value={formatNumber(item.amount)} onChange={(e) => setItem(p => ({ ...p, amount: parseFormattedNumber(e.target.value) }))} />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
+                    <Button onClick={handleSave}>Simpan Perubahan</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 const AddInstallmentDialog = ({ onSave }: { onSave: (item: InstallmentItem) => void }) => {
     const [open, setOpen] = React.useState(false);
     const [item, setItem] = React.useState<Omit<InstallmentItem, 'id'>>({
-        name: '', amount: 0, totalTenor: 0, currentTenor: 0, dueDate: 1
+        name: '', amount: '' as any, totalTenor: '' as any, currentTenor: '' as any, dueDate: '' as any
     });
 
     const handleSave = () => {
-        onSave({ ...item, id: uuidv4() });
+        onSave({ 
+            ...item, 
+            id: uuidv4(),
+            amount: parseFormattedNumber(item.amount),
+            totalTenor: Number(item.totalTenor),
+            currentTenor: Number(item.totalTenor), // Current tenor starts same as total
+            dueDate: Number(item.dueDate)
+        });
         setOpen(false);
-        setItem({ name: '', amount: 0, totalTenor: 0, currentTenor: 0, dueDate: 1 });
+        setItem({ name: '', amount: '' as any, totalTenor: '' as any, currentTenor: '' as any, dueDate: '' as any });
     };
 
     return (
@@ -280,20 +401,20 @@ const AddInstallmentDialog = ({ onSave }: { onSave: (item: InstallmentItem) => v
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label htmlFor="name">Nama Angsuran</Label>
-                        <Input id="name" value={item.name} onChange={(e) => setItem(p => ({ ...p, name: e.target.value }))} />
+                        <Input id="name" value={item.name} onChange={(e) => setItem(p => ({ ...p, name: e.target.value }))} placeholder="cth. Cicilan Mobil" />
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="amount">Jumlah (Rp)</Label>
-                        <Input id="amount" type="text" value={formatNumber(item.amount)} onChange={(e) => setItem(p => ({ ...p, amount: parseFormattedNumber(e.target.value) }))} />
+                        <Input id="amount" type="text" value={formatNumber(item.amount)} onChange={(e) => setItem(p => ({ ...p, amount: parseFormattedNumber(e.target.value) }))} placeholder="cth. 2.500.000"/>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="totalTenor">Total Tenor (Bulan)</Label>
-                            <Input id="totalTenor" type="number" value={item.totalTenor} onChange={(e) => setItem(p => ({ ...p, totalTenor: Number(e.target.value), currentTenor: Number(e.target.value) }))} />
+                            <Input id="totalTenor" type="number" value={item.totalTenor} onChange={(e) => setItem(p => ({ ...p, totalTenor: Number(e.target.value) }))} placeholder="cth. 12" />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="dueDate">Tgl Jatuh Tempo</Label>
-                            <Input id="dueDate" type="number" value={item.dueDate} onChange={(e) => setItem(p => ({ ...p, dueDate: Number(e.target.value) }))} />
+                            <Input id="dueDate" type="number" value={item.dueDate} onChange={(e) => setItem(p => ({ ...p, dueDate: Number(e.target.value) }))} placeholder="cth. 15" />
                         </div>
                     </div>
                 </div>
@@ -315,7 +436,7 @@ const EditInstallmentDialog = ({ installment, onSave }: { installment: Installme
     }, [installment]);
 
     const handleSave = () => {
-        onSave(item);
+        onSave({ ...item, amount: parseFormattedNumber(item.amount) });
         setOpen(false);
     };
 
@@ -361,7 +482,7 @@ const EditInstallmentDialog = ({ installment, onSave }: { installment: Installme
     )
 }
 
-const DeleteInstallmentDialog = ({ onConfirm }: { onConfirm: () => void }) => {
+const DeleteDialog = ({ onConfirm }: { onConfirm: () => void }) => {
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -410,18 +531,17 @@ export default function ExpenseReportPage() {
             
             if (!expensesSnapshot.empty) {
                 const expenseData = { id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense;
-                // Ensure installments is an array
-                if (!expenseData.installments) {
-                    expenseData.installments = [];
-                }
+                // Ensure arrays exist
+                if (!expenseData.installments) expenseData.installments = [];
+                if (!expenseData.mainExpenses) expenseData.mainExpenses = [];
+                if (!expenseData.otherExpenses) expenseData.otherExpenses = { amount: 0, note: '' };
                 setExpense(expenseData);
             } else {
-                // If no expense record exists for the period, create a default one to work with
                  const newExpense: Expense = {
                     id: '', // Will be set on save
                     periodFrom: from,
                     periodTo: to || from,
-                    mainExpenses: { bandwidth: 0, electricity: 0 },
+                    mainExpenses: [],
                     installments: [],
                     otherExpenses: { amount: 0, note: '' },
                     totalExpense: 0,
@@ -450,18 +570,9 @@ export default function ExpenseReportPage() {
 
         const expenseDocRef = expense.id ? doc(db, "expenses", expense.id) : doc(collection(db, "expenses"));
 
-        const updatedExpense = { ...expense, ...dataToUpdate };
-        
-        // Recalculate total
-        const mainTotal = updatedExpense.mainExpenses.bandwidth + updatedExpense.mainExpenses.electricity;
-        const installmentsTotal = updatedExpense.installments.reduce((sum, item) => sum + item.amount, 0);
-        const otherTotal = updatedExpense.otherExpenses.amount;
-        const totalExpense = mainTotal + installmentsTotal + otherTotal;
-
         const payload = {
             ...expense,
             ...dataToUpdate,
-            totalExpense,
             periodFrom: from,
             periodTo: to,
             updatedAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss')
@@ -471,7 +582,9 @@ export default function ExpenseReportPage() {
             if (expense.id) {
                 await updateDoc(expenseDocRef, payload);
             } else {
-                await addDoc(collection(db, "expenses"), payload);
+                const docRef = await addDoc(collection(db, "expenses"), { ...payload, createdAt: format(new Date(), 'yyyy-MM-dd HH:mm:ss') });
+                // Update local state with the new ID so subsequent saves are updates
+                setExpense(prev => prev ? ({ ...prev, id: docRef.id }) : null);
             }
             toast({ title: "Perubahan Disimpan", description: "Data pengeluaran telah berhasil diperbarui." });
             fetchExpenseData(); // Refresh data
@@ -505,7 +618,7 @@ export default function ExpenseReportPage() {
 
         switch (category) {
             case 'main':
-                return <MainExpenseForm {...commonProps} />;
+                return <MainExpenseManager {...commonProps} />;
             case 'installments':
                 return <InstallmentManager {...commonProps} />;
             case 'other':
