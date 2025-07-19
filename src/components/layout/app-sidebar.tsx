@@ -26,6 +26,7 @@ import { useAuth } from '@/context/auth-context';
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
   { href: '/dashboard', label: 'Statistik', icon: LayoutDashboard, roles: ['admin'] },
+  { href: '/monthly-bookkeeping', label: 'Pembukuan', icon: BookText, roles: ['admin'] },
   { href: '/expenses', label: 'Pengeluaran', icon: TrendingDown, roles: ['admin'] },
   {
     label: 'Transaksi',

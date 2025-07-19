@@ -23,7 +23,7 @@ export default function MonthlyBookkeepingPage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
   const [payments, setPayments] = React.useState<Payment[]>([]);
-  const [expenses, setExpenses] = React.useState<Expense | null>(null);
+  const [expenses, setExpenses] = React.useState<Expense[]>([]);
 
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
@@ -45,14 +45,18 @@ export default function MonthlyBookkeepingPage() {
         setPayments(paymentsList);
         
         // Fetch Expenses
-        const expensesQuery = query(collection(db, "expenses"), where("periodFrom", "==", format(fromDate, 'yyyy-MM-dd')));
-        const expensesSnapshot = await getDocs(expensesQuery);
-        if (!expensesSnapshot.empty) {
-            const expenseData = { id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense;
-            setExpenses(expenseData);
-        } else {
-            setExpenses(null);
-        }
+        const expensesSnapshot = await getDocs(collection(db, "expenses"));
+        const expenseList = expensesSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Expense))
+            .filter(exp => {
+                if (exp.category === 'utama' && exp.dueDateDay) return true; // Include recurring
+                if (exp.date) {
+                    return isWithinInterval(parseISO(exp.date), { start: fromDate, end: toDate });
+                }
+                return false;
+            });
+        setExpenses(expenseList);
+
 
     } catch (error) {
         console.error("Error fetching data:", error);
@@ -85,17 +89,17 @@ export default function MonthlyBookkeepingPage() {
   }, [payments]);
 
   const expenseSummary = React.useMemo(() => {
-    if (!expenses) return { total: 0, main: 0, installments: 0, other: 0 };
-    const main = Array.isArray(expenses.mainExpenses) ? expenses.mainExpenses.reduce((sum, item) => sum + item.amount, 0) : 0;
-    const installments = Array.isArray(expenses.installments) ? expenses.installments.reduce((sum, item) => sum + item.amount, 0) : 0;
-    const other = expenses.otherExpenses?.amount || 0;
-    return {
-        total: expenses.totalExpense,
-        main,
-        installments,
-        other
-    }
+    const summary = { total: 0, main: 0, installments: 0, other: 0 };
+    expenses.forEach(exp => {
+        summary.total += exp.amount;
+        if (exp.category === 'utama') summary.main += exp.amount;
+        if (exp.category === 'angsuran') summary.installments += exp.amount;
+        if (exp.category === 'lainnya') summary.other += exp.amount;
+    });
+    return summary;
   }, [expenses]);
+  
+  const netIncome = incomeSummary.total - expenseSummary.total;
 
   return (
     <div className="flex flex-col gap-8">
@@ -144,84 +148,97 @@ export default function MonthlyBookkeepingPage() {
                 <Loader2 className="h-16 w-16 animate-spin" />
             </div>
         ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <div className="grid grid-cols-1 gap-8 items-start">
             <Card>
                 <CardHeader>
-                    <CardTitle>Ringkasan Pemasukan</CardTitle>
+                    <CardTitle>Ringkasan Keuangan</CardTitle>
                     <CardDescription>
-                        Total pemasukan berdasarkan periode yang dipilih.
+                        Total pemasukan, pengeluaran, dan laba bersih pada periode terpilih.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Total Pemasukan</p>
-                        <p className="text-4xl font-bold">Rp{incomeSummary.total.toLocaleString('id-ID')}</p>
-                    </div>
-                    <Separator />
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <div className="flex items-center">
-                            <Wallet className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">Cash</p>
-                                <p className="text-lg font-bold">Rp{incomeSummary.cash.toLocaleString('id-ID')}</p>
-                            </div>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Total Pemasukan</p>
+                            <p className="text-3xl font-bold text-green-600">Rp{incomeSummary.total.toLocaleString('id-ID')}</p>
                         </div>
-                        <div className="flex items-center">
-                            <Landmark className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">BRI</p>
-                                <p className="text-lg font-bold">Rp{incomeSummary.bri.toLocaleString('id-ID')}</p>
-                            </div>
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Total Pengeluaran</p>
+                            <p className="text-3xl font-bold text-destructive">Rp{expenseSummary.total.toLocaleString('id-ID')}</p>
                         </div>
-                        <div className="flex items-center">
-                            <Banknote className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">DANA</p>
-                                <p className="text-lg font-bold">Rp{incomeSummary.dana.toLocaleString('id-ID')}</p>
-                            </div>
+                         <div>
+                            <p className="text-sm font-medium text-muted-foreground">Laba Bersih</p>
+                            <p className={`text-3xl font-bold ${netIncome >= 0 ? 'text-blue-600' : 'text-destructive'}`}>
+                                Rp{netIncome.toLocaleString('id-ID')}
+                            </p>
                         </div>
                     </div>
                 </CardContent>
             </Card>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle>Ringkasan Pengeluaran</CardTitle>
-                    <CardDescription>
-                        Total pengeluaran berdasarkan periode yang dipilih.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                     <div>
-                        <p className="text-sm font-medium text-muted-foreground">Total Pengeluaran</p>
-                        <p className="text-4xl font-bold text-destructive">Rp{expenseSummary.total.toLocaleString('id-ID')}</p>
-                    </div>
-                    <Separator />
-                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        <Link href={`/expense-report?category=main&from=${format(date!.from!, 'yyyy-MM-dd')}&to=${format(date!.to!, 'yyyy-MM-dd')}`} className="flex items-center hover:bg-muted p-2 rounded-lg transition-colors">
-                            <TrendingDown className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">Utama</p>
-                                <p className="text-lg font-bold">Rp{expenseSummary.main.toLocaleString('id-ID')}</p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Rincian Pemasukan</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            <div className="flex items-center">
+                                <Wallet className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">Cash</p>
+                                    <p className="text-lg font-bold">Rp{incomeSummary.cash.toLocaleString('id-ID')}</p>
+                                </div>
                             </div>
-                        </Link>
-                        <Link href={`/expense-report?category=installments&from=${format(date!.from!, 'yyyy-MM-dd')}&to=${format(date!.to!, 'yyyy-MM-dd')}`} className="flex items-center hover:bg-muted p-2 rounded-lg transition-colors">
-                            <InstallmentIcon className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">Angsuran</p>
-                                <p className="text-lg font-bold">Rp{expenseSummary.installments.toLocaleString('id-ID')}</p>
+                            <div className="flex items-center">
+                                <Landmark className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">BRI</p>
+                                    <p className="text-lg font-bold">Rp{incomeSummary.bri.toLocaleString('id-ID')}</p>
+                                </div>
                             </div>
-                        </Link>
-                        <Link href={`/expense-report?category=other&from=${format(date!.from!, 'yyyy-MM-dd')}&to=${format(date!.to!, 'yyyy-MM-dd')}`} className="flex items-center hover:bg-muted p-2 rounded-lg transition-colors">
-                            <Package className="h-6 w-6 text-muted-foreground" />
-                            <div className="ml-4 flex-1">
-                                <p className="text-sm text-muted-foreground">Lainnya</p>
-                                <p className="text-lg font-bold">Rp{expenseSummary.other.toLocaleString('id-ID')}</p>
+                            <div className="flex items-center">
+                                <Banknote className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">DANA</p>
+                                    <p className="text-lg font-bold">Rp{incomeSummary.dana.toLocaleString('id-ID')}</p>
+                                </div>
                             </div>
-                        </Link>
-                    </div>
-                </CardContent>
-            </Card>
+                        </div>
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Rincian Pengeluaran</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            <div className="flex items-center">
+                                <TrendingDown className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">Utama</p>
+                                    <p className="text-lg font-bold">Rp{expenseSummary.main.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <InstallmentIcon className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">Angsuran</p>
+                                    <p className="text-lg font-bold">Rp{expenseSummary.installments.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center">
+                                <Package className="h-6 w-6 text-muted-foreground" />
+                                <div className="ml-4 flex-1">
+                                    <p className="text-sm text-muted-foreground">Lainnya</p>
+                                    <p className="text-lg font-bold">Rp{expenseSummary.other.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
       )}
     </div>
