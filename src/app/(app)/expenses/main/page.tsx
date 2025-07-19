@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { collection, query, where, getDocs, doc, deleteDoc, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, deleteDoc, addDoc } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import type { Expense } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +31,7 @@ export default function MainExpensesPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [loading, setLoading] = React.useState(true);
-    const [expenses, setExpenses] = React.useState<Expense[]>([]);
+    const [expenseTemplates, setExpenseTemplates] = React.useState<Expense[]>([]);
     const [paidExpenseNames, setPaidExpenseNames] = React.useState<Set<string>>(new Set());
     const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
 
@@ -42,22 +42,22 @@ export default function MainExpensesPage() {
             const start = startOfMonth(today);
             const end = endOfMonth(today);
 
-            const mainExpensesQuery = query(collection(db, "expenses"), where("category", "==", "utama"));
-            const snapshot = await getDocs(mainExpensesQuery);
+            const expensesQuery = query(collection(db, "expenses"), where("category", "==", "utama"));
+            const snapshot = await getDocs(expensesQuery);
             
             const allMainExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             
-            // Templates are expenses without a date
-            const expenseTemplates = allMainExpenses.filter(exp => !exp.date);
-            setExpenses(expenseTemplates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
+            const templates = allMainExpenses.filter(exp => !exp.date);
+            setExpenseTemplates(templates.sort((a, b) => (a.dueDateDay ?? 0) - (b.dueDateDay ?? 0)));
 
-            // Paid expenses are those with a date in the current month
             const paidNames = new Set<string>();
-            allMainExpenses.forEach(expense => {
-                 if (expense.date) {
-                    const expenseDate = parseISO(expense.date);
+            const paidTransactions = allMainExpenses.filter(exp => exp.date);
+
+            paidTransactions.forEach(transaction => {
+                 if (transaction.date) {
+                    const expenseDate = parseISO(transaction.date);
                     if (isWithinInterval(expenseDate, { start, end })) {
-                        paidNames.add(expense.name);
+                        paidNames.add(transaction.name);
                     }
                 }
             });
@@ -92,28 +92,28 @@ export default function MainExpensesPage() {
         }
     };
     
-    const handlePayMainExpense = async (expense: Expense) => {
+    const handlePayMainExpense = async (expenseTemplate: Expense) => {
         try {
-            // Create a new expense record with a date to mark it as a transaction
             const expenseRecord: Omit<Expense, 'id'> = {
-                ...expense, // copy name, amount, category, etc.
+                ...expenseTemplate,
                 date: format(new Date(), 'yyyy-MM-dd'),
-                note: `Pembayaran rutin untuk ${expense.name}`
+                note: `Pembayaran rutin untuk ${expenseTemplate.name} (${format(new Date(), 'MMMM yyyy')})`
             };
-            // remove id if it exists
-            const {id, ...recordToSave} = expenseRecord;
+            
+            const { id, ...recordToSave } = expenseRecord;
 
             await addDoc(collection(db, 'expenses'), recordToSave);
+            
             toast({
                 title: 'Pembayaran Dicatat',
-                description: `Pengeluaran untuk ${expense.name} sejumlah Rp${expense.amount.toLocaleString('id-ID')} telah dicatat.`,
+                description: `Pengeluaran untuk ${expenseTemplate.name} telah dicatat.`,
                 action: (
                    <Button variant="secondary" size="sm" onClick={() => router.push('/expenses/history')}>
                         Lihat Riwayat
                    </Button>
                 )
             });
-            fetchExpenses(); // Refresh data to update status
+            fetchExpenses();
         } catch (error) {
             console.error("Error creating expense record:", error);
             toast({ title: "Gagal Mencatat Pembayaran", variant: "destructive" });
@@ -159,7 +159,7 @@ export default function MainExpensesPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {expenses.length > 0 ? expenses.map(expense => {
+                            {expenseTemplates.length > 0 ? expenseTemplates.map(expense => {
                                 const isPaid = paidExpenseNames.has(expense.name);
                                 return (
                                 <TableRow key={expense.id}>
