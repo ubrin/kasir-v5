@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { collection, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, deleteDoc, addDoc } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import type { Expense } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Loader2, ArrowLeft, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Loader2, ArrowLeft, PlusCircle, Edit, Trash2, Receipt } from 'lucide-react';
 import { ExpenseDialog } from '../expense-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { format } from 'date-fns';
 
 export default function MainExpensesPage() {
     const { toast } = useToast();
@@ -67,6 +68,31 @@ export default function MainExpensesPage() {
             toast({ title: "Gagal Menghapus", variant: "destructive" });
         }
     };
+    
+    const handlePayMainExpense = async (expense: Expense) => {
+        try {
+            const expenseRecord: Omit<Expense, 'id'> = {
+                name: expense.name,
+                amount: expense.amount,
+                category: 'lainnya',
+                date: format(new Date(), 'yyyy-MM-dd'),
+                note: `Pembayaran rutin untuk ${expense.name}`
+            };
+            await addDoc(collection(db, 'expenses'), expenseRecord);
+            toast({
+                title: 'Pembayaran Dicatat',
+                description: `Pengeluaran untuk ${expense.name} sejumlah Rp${expense.amount.toLocaleString('id-ID')} telah dicatat sebagai pengeluaran 'Lainnya'.`,
+                action: (
+                   <Button variant="secondary" size="sm" onClick={() => router.push('/expenses/other')}>
+                        Lihat
+                   </Button>
+                )
+            });
+        } catch (error) {
+            console.error("Error creating expense record:", error);
+            toast({ title: "Gagal Mencatat Pembayaran", variant: "destructive" });
+        }
+    }
 
 
     if (loading) {
@@ -102,9 +128,7 @@ export default function MainExpensesPage() {
                                 <TableHead>Nama Pengeluaran</TableHead>
                                 <TableHead className="text-right">Jumlah</TableHead>
                                 <TableHead className="text-center">Jatuh Tempo</TableHead>
-                                <TableHead>
-                                    <span className="sr-only">Aksi</span>
-                                </TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -114,25 +138,30 @@ export default function MainExpensesPage() {
                                     <TableCell className="text-right">Rp{expense.amount.toLocaleString('id-ID')}</TableCell>
                                     <TableCell className="text-center">Setiap Tgl. {expense.dueDateDay}</TableCell>
                                     <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <ExpenseDialog expense={expense} onSaveSuccess={fetchExpenses}>
-                                                    <button className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full">
-                                                        <Edit className="mr-2 h-4 w-4" />
-                                                        <span>Ubah</span>
-                                                    </button>
-                                                </ExpenseDialog>
-                                                <DropdownMenuItem onClick={() => handleDeleteClick(expense)} className="text-destructive">
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    <span>Hapus</span>
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        <div className="flex gap-2 justify-end">
+                                            <Button variant="outline" size="sm" onClick={() => handlePayMainExpense(expense)}>
+                                                <Receipt className="mr-2 h-4 w-4"/> Bayar
+                                            </Button>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <ExpenseDialog expense={expense} onSaveSuccess={fetchExpenses}>
+                                                        <button className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 w-full">
+                                                            <Edit className="mr-2 h-4 w-4" />
+                                                            <span>Ubah</span>
+                                                        </button>
+                                                    </ExpenseDialog>
+                                                    <DropdownMenuItem onClick={() => handleDeleteClick(expense)} className="text-destructive">
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        <span>Hapus</span>
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             )) : (
