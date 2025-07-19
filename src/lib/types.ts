@@ -1,4 +1,5 @@
 
+
 export type Customer = {
   id: string; // Corresponds to Firestore document ID
   name: string;
@@ -52,4 +53,25 @@ export type AppUser = {
   firstName: string;
   lastName: string;
   role: 'admin' | 'user';
+};
+
+export type Expense = {
+  id: string; // Firestore document ID
+  periodFrom: string; // 'yyyy-MM-dd'
+  periodTo: string; // 'yyyy-MM-dd'
+  mainExpenses: {
+    bandwidth: number;
+    electricity: number;
+  };
+  installments: {
+    bri: number;
+    shopee: number;
+    shopeeNote: string;
+  };
+  otherExpenses: {
+    amount: number;
+    note: string;
+  };
+  totalExpense: number;
+  createdAt: string; // 'yyyy-MM-dd'
 };

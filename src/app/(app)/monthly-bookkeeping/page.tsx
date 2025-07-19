@@ -2,12 +2,12 @@
 'use client';
 
 import * as React from 'react';
-import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, addDoc, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Payment } from '@/lib/types';
+import type { Payment, Expense } from '@/lib/types';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,49 +22,84 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
+const initialExpenseState = {
+    bandwidth: '',
+    listrik: '',
+    angsuranBri: '',
+    angsuranShopee: '',
+    angsuranShopeeKet: '',
+    lainnyaRp: '',
+    lainnyaKet: '',
+};
 
 export default function MonthlyBookkeepingPage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
   const [payments, setPayments] = React.useState<Payment[]>([]);
+  const [expenses, setExpenses] = React.useState<Expense | null>(null);
+  const [expenseInput, setExpenseInput] = React.useState(initialExpenseState);
+
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setExpenseInput(prev => ({ ...prev, [id]: value }));
+  };
+
   React.useEffect(() => {
-    const fetchPayments = async () => {
+    const fetchData = async () => {
+        if (!date?.from) return;
         setLoading(true);
         try {
+            const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
+            const toDate = date.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date(date.from.setHours(23, 59, 59, 999));
+
+            // Fetch Payments
             const paymentsSnapshot = await getDocs(collection(db, "payments"));
-            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+            const paymentsList = paymentsSnapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as Payment))
+                .filter(p => isWithinInterval(parseISO(p.paymentDate), { start: fromDate, end: toDate }));
             setPayments(paymentsList);
+            
+            // Fetch Expenses
+            const expensesQuery = query(collection(db, "expenses"), where("periodFrom", "==", format(fromDate, 'yyyy-MM-dd')));
+            const expensesSnapshot = await getDocs(expensesQuery);
+            if (!expensesSnapshot.empty) {
+                const expenseData = { id: expensesSnapshot.docs[0].id, ...expensesSnapshot.docs[0].data() } as Expense;
+                setExpenses(expenseData);
+                setExpenseInput({
+                    bandwidth: String(expenseData.mainExpenses.bandwidth),
+                    listrik: String(expenseData.mainExpenses.electricity),
+                    angsuranBri: String(expenseData.installments.bri),
+                    angsuranShopee: String(expenseData.installments.shopee),
+                    angsuranShopeeKet: expenseData.installments.shopeeNote,
+                    lainnyaRp: String(expenseData.otherExpenses.amount),
+                    lainnyaKet: expenseData.otherExpenses.note,
+                });
+            } else {
+                setExpenses(null);
+                setExpenseInput(initialExpenseState);
+            }
+
         } catch (error) {
-            console.error("Error fetching payments:", error);
+            console.error("Error fetching data:", error);
             toast({
-                title: "Gagal Memuat Laporan",
-                description: "Tidak dapat mengambil data pembayaran dari database.",
+                title: "Gagal Memuat Data",
+                description: "Tidak dapat mengambil data dari database.",
                 variant: "destructive"
             });
         } finally {
             setLoading(false);
         }
     };
-    fetchPayments();
-  }, [toast]);
-
-  const filteredPayments = React.useMemo(() => {
-    return payments.filter(payment => {
-        if (!date?.from) return true;
-        const paymentDate = parseISO(payment.paymentDate);
-        const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
-        const toDate = date.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date(date.from.setHours(23, 59, 59, 999));
-        return paymentDate >= fromDate && paymentDate <= toDate;
-    });
-  }, [payments, date]);
+    fetchData();
+  }, [date, toast]);
 
   const summary = React.useMemo(() => {
-    return filteredPayments.reduce(
+    return payments.reduce(
       (acc, payment) => {
         const amount = payment.totalPayment ?? payment.paidAmount; // Fallback for older data
         acc.total += amount;
@@ -75,7 +110,57 @@ export default function MonthlyBookkeepingPage() {
       },
       { total: 0, cash: 0, bri: 0, dana: 0 }
     );
-  }, [filteredPayments]);
+  }, [payments]);
+
+  const handleSaveExpenses = async () => {
+    if (!date?.from) {
+        toast({ title: "Tanggal tidak valid", description: "Pilih periode tanggal terlebih dahulu.", variant: "destructive" });
+        return;
+    }
+
+    const bandwidth = Number(expenseInput.bandwidth) || 0;
+    const listrik = Number(expenseInput.listrik) || 0;
+    const angsuranBri = Number(expenseInput.angsuranBri) || 0;
+    const angsuranShopee = Number(expenseInput.angsuranShopee) || 0;
+    const lainnyaRp = Number(expenseInput.lainnyaRp) || 0;
+    
+    const totalExpense = bandwidth + listrik + angsuranBri + angsuranShopee + lainnyaRp;
+
+    const expenseData: Omit<Expense, 'id'> = {
+        periodFrom: format(date.from, 'yyyy-MM-dd'),
+        periodTo: format(date.to || date.from, 'yyyy-MM-dd'),
+        mainExpenses: {
+            bandwidth: bandwidth,
+            electricity: listrik,
+        },
+        installments: {
+            bri: angsuranBri,
+            shopee: angsuranShopee,
+            shopeeNote: expenseInput.angsuranShopeeKet,
+        },
+        otherExpenses: {
+            amount: lainnyaRp,
+            note: expenseInput.lainnyaKet,
+        },
+        totalExpense: totalExpense,
+        createdAt: format(new Date(), 'yyyy-MM-dd'),
+    };
+    
+    try {
+        await addDoc(collection(db, "expenses"), expenseData);
+        toast({
+            title: "Pengeluaran Disimpan",
+            description: `Total pengeluaran sebesar Rp${totalExpense.toLocaleString('id-ID')} berhasil dicatat.`
+        });
+    } catch (error) {
+        console.error("Error saving expenses:", error);
+        toast({
+            title: "Gagal Menyimpan",
+            description: "Terjadi kesalahan saat menyimpan data pengeluaran.",
+            variant: "destructive"
+        });
+    }
+  };
   
 
   return (
@@ -181,11 +266,11 @@ export default function MonthlyBookkeepingPage() {
                             <AccordionContent className="space-y-4">
                                 <div className="grid gap-2">
                                     <Label htmlFor="bandwidth">Bandwidth (Rp)</Label>
-                                    <Input id="bandwidth" type="number" placeholder="cth. 5000000" />
+                                    <Input id="bandwidth" type="number" placeholder="cth. 5000000" value={expenseInput.bandwidth} onChange={handleInputChange} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="listrik">Listrik (Rp)</Label>
-                                    <Input id="listrik" type="number" placeholder="cth. 1000000" />
+                                    <Input id="listrik" type="number" placeholder="cth. 1000000" value={expenseInput.listrik} onChange={handleInputChange} />
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
@@ -193,14 +278,14 @@ export default function MonthlyBookkeepingPage() {
                             <AccordionTrigger>Angsuran</AccordionTrigger>
                             <AccordionContent className="space-y-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="angsuran-bri">BRI (Rp)</Label>
-                                    <Input id="angsuran-bri" type="number" placeholder="cth. 2500000" />
+                                    <Label htmlFor="angsuranBri">BRI (Rp)</Label>
+                                    <Input id="angsuranBri" type="number" placeholder="cth. 2500000" value={expenseInput.angsuranBri} onChange={handleInputChange} />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="angsuran-shopee">Shopee (Rp)</Label>
-                                    <Input id="angsuran-shopee" type="number" placeholder="cth. 500000" />
-                                     <Label htmlFor="angsuran-shopee-ket" className="sr-only">Keterangan Shopee</Label>
-                                    <Input id="angsuran-shopee-ket" placeholder="Keterangan (misal: Pembelian router)" />
+                                    <Label htmlFor="angsuranShopee">Shopee (Rp)</Label>
+                                    <Input id="angsuranShopee" type="number" placeholder="cth. 500000" value={expenseInput.angsuranShopee} onChange={handleInputChange} />
+                                     <Label htmlFor="angsuranShopeeKet" className="sr-only">Keterangan Shopee</Label>
+                                    <Input id="angsuranShopeeKet" placeholder="Keterangan (misal: Pembelian router)" value={expenseInput.angsuranShopeeKet} onChange={handleInputChange} />
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
@@ -208,19 +293,19 @@ export default function MonthlyBookkeepingPage() {
                             <AccordionTrigger>Pengeluaran Lainnya</AccordionTrigger>
                              <AccordionContent className="space-y-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="lainnya-rp">Jumlah (Rp)</Label>
-                                    <Input id="lainnya-rp" type="number" placeholder="cth. 150000" />
+                                    <Label htmlFor="lainnyaRp">Jumlah (Rp)</Label>
+                                    <Input id="lainnyaRp" type="number" placeholder="cth. 150000" value={expenseInput.lainnyaRp} onChange={handleInputChange} />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="lainnya-ket">Keterangan</Label>
-                                    <Textarea id="lainnya-ket" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." />
+                                    <Label htmlFor="lainnyaKet">Keterangan</Label>
+                                    <Textarea id="lainnyaKet" placeholder="cth. Biaya tak terduga, perbaikan alat, dll." value={expenseInput.lainnyaKet} onChange={handleInputChange} />
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
                 </CardContent>
                 <CardFooter>
-                    <Button className="w-full">Simpan Pengeluaran</Button>
+                    <Button className="w-full" onClick={handleSaveExpenses}>Simpan Pengeluaran</Button>
                 </CardFooter>
             </Card>
         </div>
