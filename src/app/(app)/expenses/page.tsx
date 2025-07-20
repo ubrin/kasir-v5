@@ -27,11 +27,6 @@ export default function ExpensesPage() {
     angsuran: [],
     lainnya: []
   });
-  const [history, setHistory] = React.useState<{ wajib: Expense[], angsuran: Expense[], lainnya: Expense[] }>({
-    wajib: [],
-    angsuran: [],
-    lainnya: []
-  });
   const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
 
   const fetchExpenses = React.useCallback(async () => {
@@ -47,14 +42,7 @@ export default function ExpensesPage() {
         lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && !exp.date)
       };
 
-      const historyRecords = {
-        wajib: allExpenses.filter(exp => exp.category === 'utama' && exp.date).sort((a,b) => new Date(b.date!).getTime() - new Date(a.date!).getTime()),
-        angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && exp.date).sort((a,b) => new Date(b.date!).getTime() - new Date(a.date!).getTime()),
-        lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && exp.date).sort((a,b) => new Date(b.date!).getTime() - new Date(a.date!).getTime()),
-      };
-
       setExpenses(templates);
-      setHistory(historyRecords);
 
     } catch (error) {
       console.error("Error fetching expenses:", error);
@@ -122,7 +110,7 @@ export default function ExpensesPage() {
   };
   
   const handleExpenseAdded = async (newExpenseData: Omit<Expense, 'id'>) => {
-    try {
+     try {
         const dataToAdd: any = {
             name: newExpenseData.name,
             amount: newExpenseData.amount,
@@ -163,11 +151,9 @@ export default function ExpensesPage() {
     try {
       const batch = writeBatch(db);
       
-      // 1. Delete the template itself
       const templateRef = doc(db, "expenses", expenseToDelete.id);
       batch.delete(templateRef);
 
-      // 2. Query for all documents with the same name and category
       const historyQuery = query(
         collection(db, "expenses"), 
         where("name", "==", expenseToDelete.name),
@@ -176,11 +162,8 @@ export default function ExpensesPage() {
       
       const historySnapshot = await getDocs(historyQuery);
       
-      // 3. Delete all found history records (documents that have a 'date' field)
       historySnapshot.forEach(doc => {
-        // We ensure we don't try to delete the template again if it shows up in the query results
-        // and only delete history records which have a `date` field.
-        if (doc.id !== expenseToDelete.id && doc.data().date) {
+        if (doc.data().date) {
             batch.delete(doc.ref);
         }
       });
@@ -312,44 +295,6 @@ export default function ExpensesPage() {
       </Table>
     );
   };
-  
-  const renderHistoryTable = (data: Expense[], categoryName: string) => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center h-48">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      );
-    }
-    if (data.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
-          <p className="text-lg font-medium">Belum Ada Riwayat</p>
-          <p className="text-muted-foreground">Tidak ada riwayat pengeluaran {categoryName} yang tercatat.</p>
-        </div>
-      );
-    }
-    return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nama</TableHead>
-            <TableHead>Tanggal</TableHead>
-            <TableHead className="text-right">Jumlah</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell>{item.date ? format(new Date(item.date), "d MMMM yyyy", { locale: id }) : '-'}</TableCell>
-              <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    );
-  };
 
   return (
     <>
@@ -390,14 +335,6 @@ export default function ExpensesPage() {
                 {renderPayableTable(expenses.wajib, 'wajib')}
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Riwayat Pengeluaran Wajib</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {renderHistoryTable(history.wajib, 'wajib')}
-              </CardContent>
-            </Card>
           </TabsContent>
           <TabsContent value="angsuran" className="space-y-4">
             <Card>
@@ -421,14 +358,6 @@ export default function ExpensesPage() {
                 {renderPayableTable(expenses.angsuran, 'angsuran')}
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Riwayat Angsuran</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {renderHistoryTable(history.angsuran, 'angsuran')}
-              </CardContent>
-            </Card>
           </TabsContent>
           <TabsContent value="lainnya" className="space-y-4">
             <Card>
@@ -450,14 +379,6 @@ export default function ExpensesPage() {
               </CardHeader>
               <CardContent>
                 {renderPayableTable(expenses.lainnya, 'lainnya')}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Riwayat Pengeluaran Lainnya</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {renderHistoryTable(history.lainnya, 'lainnya')}
               </CardContent>
             </Card>
           </TabsContent>
@@ -486,5 +407,3 @@ export default function ExpensesPage() {
     </>
   );
 }
-
-    
