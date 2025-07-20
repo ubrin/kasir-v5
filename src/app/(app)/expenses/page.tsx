@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, getDocs, addDoc, writeBatch, doc, increment, deleteDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from "@/lib/types";
-import { format, getDate, getYear, getMonth, differenceInDays, isSameMonth, isSameYear } from 'date-fns';
+import { format, getDate, getYear, getMonth, differenceInDays, isSameMonth, isSameYear, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,6 +27,11 @@ export default function ExpensesPage() {
     angsuran: [],
     lainnya: []
   });
+  const [history, setHistory] = React.useState<{ wajib: Expense[], angsuran: Expense[], lainnya: Expense[] }>({
+    wajib: [],
+    angsuran: [],
+    lainnya: []
+  });
   const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
 
   const fetchExpenses = React.useCallback(async () => {
@@ -41,8 +46,15 @@ export default function ExpensesPage() {
         angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && !exp.date),
         lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && !exp.date)
       };
+      
+      const historyRecords = {
+        wajib: allExpenses.filter(exp => exp.category === 'utama' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
+        angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
+        lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime())
+      };
 
       setExpenses(templates);
+      setHistory(historyRecords);
 
     } catch (error) {
       console.error("Error fetching expenses:", error);
@@ -233,7 +245,7 @@ export default function ExpensesPage() {
     if (data.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
-          <p className="text-lg font-medium">Tidak Ada Tagihan</p>
+          <p className="text-lg font-medium">Tidak Ada Templat</p>
           <p className="text-muted-foreground">Tidak ada templat tagihan {categoryName} yang perlu dibayar.</p>
         </div>
       );
@@ -295,6 +307,44 @@ export default function ExpensesPage() {
       </Table>
     );
   };
+  
+  const renderHistoryTable = (data: Expense[]) => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-48">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      );
+    }
+    if (data.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
+          <p className="text-lg font-medium">Tidak Ada Riwayat</p>
+          <p className="text-muted-foreground">Belum ada pembayaran yang tercatat.</p>
+        </div>
+      );
+    }
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Tanggal</TableHead>
+            <TableHead>Nama</TableHead>
+            <TableHead className="text-right">Jumlah</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>{format(parseISO(item.date!), 'd MMMM yyyy', { locale: id })}</TableCell>
+              <TableCell className="font-medium">{item.name}</TableCell>
+              <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  };
 
   return (
     <>
@@ -335,6 +385,14 @@ export default function ExpensesPage() {
                 {renderPayableTable(expenses.wajib, 'wajib')}
               </CardContent>
             </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Riwayat Pengeluaran Wajib</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderHistoryTable(history.wajib)}
+              </CardContent>
+            </Card>
           </TabsContent>
           <TabsContent value="angsuran" className="space-y-4">
             <Card>
@@ -358,6 +416,14 @@ export default function ExpensesPage() {
                 {renderPayableTable(expenses.angsuran, 'angsuran')}
               </CardContent>
             </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Riwayat Angsuran</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderHistoryTable(history.angsuran)}
+              </CardContent>
+            </Card>
           </TabsContent>
           <TabsContent value="lainnya" className="space-y-4">
             <Card>
@@ -379,6 +445,14 @@ export default function ExpensesPage() {
               </CardHeader>
               <CardContent>
                 {renderPayableTable(expenses.lainnya, 'lainnya')}
+              </CardContent>
+            </Card>
+             <Card>
+              <CardHeader>
+                <CardTitle>Riwayat Pengeluaran Lainnya</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderHistoryTable(history.lainnya)}
               </CardContent>
             </Card>
           </TabsContent>
@@ -407,3 +481,5 @@ export default function ExpensesPage() {
     </>
   );
 }
+
+    
