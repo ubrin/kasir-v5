@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from "react";
-import { collection, query, getDocs, addDoc, writeBatch, doc, increment } from "firebase/firestore";
+import { collection, query, getDocs, addDoc, writeBatch, doc, increment, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from "@/lib/types";
 import { format } from 'date-fns';
@@ -10,13 +10,14 @@ import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Edit, Trash2, Settings } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { AddExpenseDialog } from "@/components/add-expense-dialog";
+import { ManageInstallmentsDialog } from "@/components/manage-installments-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function ExpensesPage() {
   const { toast } = useToast();
@@ -31,6 +32,7 @@ export default function ExpensesPage() {
     angsuran: [],
     lainnya: []
   });
+  const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
 
   const fetchExpenses = React.useCallback(async () => {
     setLoading(true);
@@ -41,7 +43,7 @@ export default function ExpensesPage() {
 
       const templates = {
         wajib: allExpenses.filter(exp => exp.category === 'utama' && !exp.date),
-        angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && !exp.date && (exp.paidTenor || 0) < (exp.tenor || 0)),
+        angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && !exp.date),
         lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && !exp.date)
       };
 
@@ -127,6 +129,30 @@ export default function ExpensesPage() {
     }
   };
 
+  const handleDeleteClick = (expense: Expense) => {
+    setExpenseToDelete(expense);
+  };
+
+  const confirmDelete = async () => {
+    if (!expenseToDelete) return;
+    try {
+      await deleteDoc(doc(db, "expenses", expenseToDelete.id));
+      toast({
+        title: "Templat Dihapus",
+        description: `Templat pengeluaran ${expenseToDelete.name} telah berhasil dihapus.`,
+        variant: "destructive"
+      });
+      setExpenseToDelete(null);
+      fetchExpenses();
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+      toast({
+        title: "Gagal Menghapus",
+        variant: "destructive"
+      });
+    }
+  };
+
 
   const renderPayableTable = (data: Expense[], categoryName: string) => {
     if (loading) {
@@ -160,7 +186,7 @@ export default function ExpensesPage() {
               <TableCell className="font-medium">{item.name}</TableCell>
               {categoryName === 'angsuran' && (
                 <TableCell>
-                  <Badge variant="outline">
+                   <Badge variant={(item.paidTenor || 0) >= (item.tenor || 0) ? "default" : "outline"} className={(item.paidTenor || 0) >= (item.tenor || 0) ? "bg-green-100 text-green-800" : ""}>
                     {item.paidTenor || 0} / {item.tenor}
                   </Badge>
                 </TableCell>
@@ -168,7 +194,7 @@ export default function ExpensesPage() {
               <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
               <TableCell className="text-right">
                 <Button size="sm" onClick={() => handlePay(item)} disabled={(item.paidTenor || 0) >= (item.tenor || 0)}>
-                    Bayar
+                    {(item.paidTenor || 0) >= (item.tenor || 0) ? "Lunas" : "Bayar"}
                 </Button>
               </TableCell>
             </TableRow>
@@ -217,85 +243,113 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pengeluaran</h1>
-          <p className="text-muted-foreground">Catat dan kelola semua pengeluaran Anda.</p>
+    <>
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Pengeluaran</h1>
+            <p className="text-muted-foreground">Catat dan kelola semua pengeluaran Anda.</p>
+          </div>
+          <AddExpenseDialog onExpenseAdded={handleExpenseAdded} />
         </div>
-        <AddExpenseDialog onExpenseAdded={handleExpenseAdded} />
+        
+        <Tabs defaultValue="wajib" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="wajib">Wajib</TabsTrigger>
+            <TabsTrigger value="angsuran">Angsuran</TabsTrigger>
+            <TabsTrigger value="lainnya">Lainnya</TabsTrigger>
+          </TabsList>
+          <TabsContent value="wajib" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pengeluaran Wajib</CardTitle>
+                <CardDescription>Pengeluaran rutin bulanan seperti gaji atau sewa.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {renderPayableTable(expenses.wajib, 'wajib')}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Riwayat Pengeluaran Wajib</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderHistoryTable(history.wajib, 'wajib')}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="angsuran" className="space-y-4">
+            <Card className="bg-muted/30">
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                      <CardTitle>Angsuran</CardTitle>
+                      <CardDescription>Cicilan atau pinjaman dengan tenor tertentu.</CardDescription>
+                  </div>
+                   <ManageInstallmentsDialog 
+                      installments={expenses.angsuran} 
+                      onDelete={handleDeleteClick}
+                      // onEdit will be implemented later
+                  >
+                      <Button variant="outline" size="sm">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Kelola Angsuran
+                      </Button>
+                  </ManageInstallmentsDialog>
+              </CardHeader>
+              <CardContent>
+                {renderPayableTable(expenses.angsuran, 'angsuran')}
+              </CardContent>
+            </Card>
+            <Card className="bg-muted/30">
+              <CardHeader>
+                <CardTitle>Riwayat Angsuran</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderHistoryTable(history.angsuran, 'angsuran')}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="lainnya" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pengeluaran Lainnya</CardTitle>
+                <CardDescription>Pengeluaran insidental atau tidak rutin.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {renderPayableTable(expenses.lainnya, 'lainnya')}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Riwayat Pengeluaran Lainnya</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderHistoryTable(history.lainnya, 'lainnya')}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-      
-      <Tabs defaultValue="wajib" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="wajib">Wajib</TabsTrigger>
-          <TabsTrigger value="angsuran">Angsuran</TabsTrigger>
-          <TabsTrigger value="lainnya">Lainnya</TabsTrigger>
-        </TabsList>
-        <TabsContent value="wajib" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pengeluaran Wajib</CardTitle>
-              <CardDescription>Pengeluaran rutin bulanan seperti gaji atau sewa.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {renderPayableTable(expenses.wajib, 'wajib')}
-            </CardContent>
-          </Card>
-           <Card>
-            <CardHeader>
-              <CardTitle>Riwayat Pengeluaran Wajib</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderHistoryTable(history.wajib, 'wajib')}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="angsuran" className="space-y-4">
-          <Card className="bg-muted/30">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Angsuran</CardTitle>
-                    <CardDescription>Cicilan atau pinjaman dengan tenor tertentu.</CardDescription>
-                </div>
-                <Button variant="outline" size="sm">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Kelola Angsuran
-                </Button>
-            </CardHeader>
-            <CardContent>
-              {renderPayableTable(expenses.angsuran, 'angsuran')}
-            </CardContent>
-          </Card>
-           <Card className="bg-muted/30">
-            <CardHeader>
-              <CardTitle>Riwayat Angsuran</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderHistoryTable(history.angsuran, 'angsuran')}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="lainnya" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pengeluaran Lainnya</CardTitle>
-              <CardDescription>Pengeluaran insidental atau tidak rutin.</CardDescription>
-            </CardHeader>
-            <CardContent>
-               {renderPayableTable(expenses.lainnya, 'lainnya')}
-            </CardContent>
-          </Card>
-           <Card>
-            <CardHeader>
-              <CardTitle>Riwayat Pengeluaran Lainnya</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderHistoryTable(history.lainnya, 'lainnya')}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+
+       <AlertDialog open={!!expenseToDelete} onOpenChange={(isOpen) => !isOpen && setExpenseToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Anda yakin ingin menghapus templat ini?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Tindakan ini akan menghapus templat pengeluaran <span className="font-bold">{expenseToDelete?.name}</span> secara permanen. Riwayat pembayaran yang sudah ada tidak akan terpengaruh.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setExpenseToDelete(null)}>Batal</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={confirmDelete}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    Ya, Hapus
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    </>
   );
 }
