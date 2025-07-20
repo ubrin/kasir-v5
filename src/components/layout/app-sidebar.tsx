@@ -25,7 +25,7 @@ import { useAuth } from '@/context/auth-context';
 
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
-  { href: '/dashboard', label: 'Statistik', icon: LayoutDashboard, roles: ['admin'] },
+  { href: '/finance', label: 'Keuangan', icon: LayoutDashboard, roles: ['admin'] },
   {
     label: 'Transaksi',
     icon: Package,
@@ -142,3 +142,5 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
+
+    

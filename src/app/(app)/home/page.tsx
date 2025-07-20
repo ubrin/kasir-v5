@@ -57,7 +57,7 @@ export default function HomePage() {
             </CardHeader>
           </Card>
         </Link>
-        <Link href="/dashboard">
+        <Link href="/finance">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center gap-4">
               <div className="bg-primary text-primary-foreground p-3 rounded-md">
@@ -74,3 +74,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    

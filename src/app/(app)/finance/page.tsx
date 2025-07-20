@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 
 const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
 
-export default function DashboardPage() {
+export default function FinancePage() {
     const { toast } = useToast();
     const [loading, setLoading] = React.useState(true);
     const [stats, setStats] = React.useState({
@@ -179,7 +179,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Statistik</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Keuangan</h1>
          <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline">
@@ -340,3 +340,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
