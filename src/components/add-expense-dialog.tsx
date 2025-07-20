@@ -134,9 +134,9 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <DialogHeader className="p-6 pb-4">
-              <DialogTitle>Tambah Pengeluaran Baru</DialogTitle>
+              <DialogTitle>Tambah Pengeluaran</DialogTitle>
               <DialogDescription>
-                Isi rincian di bawah untuk menambah templat pengeluaran baru.
+                Isi rincian di bawah. Untuk 'Lainnya', data akan langsung tercatat sebagai pengeluaran hari ini.
               </DialogDescription>
             </DialogHeader>
             <ScrollArea className="h-[60vh]">
@@ -149,7 +149,7 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                         <FormItem>
                         <FormLabel>Nama Pengeluaran</FormLabel>
                         <FormControl>
-                            <Input placeholder="cth. Gaji Karyawan" {...field} />
+                            <Input placeholder="cth. Beli ATK" {...field} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -164,7 +164,7 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                             <FormControl>
                                 <Input 
                                   type="text" 
-                                  placeholder="cth. 2.000.000" 
+                                  placeholder="cth. 50.000" 
                                   {...field}
                                   onChange={handleAmountChange}
                                   value={field.value ? Number(field.value).toLocaleString('id-ID') : ''}

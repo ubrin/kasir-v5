@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, getDocs, addDoc, writeBatch, doc, increment, deleteDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from "@/lib/types";
-import { format, getDate, getYear, getMonth, differenceInDays, isSameMonth, isSameYear, parseISO } from 'date-fns';
+import { format, getDate, getYear, getMonth, differenceInDays, isSameMonth, isSameYear, parseISO, startOfMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,10 +22,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 export default function ExpensesPage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
-  const [expenses, setExpenses] = React.useState<{ wajib: Expense[], angsuran: Expense[], lainnya: Expense[] }>({
+  const [expenses, setExpenses] = React.useState<{ wajib: Expense[], angsuran: Expense[] }>({
     wajib: [],
     angsuran: [],
-    lainnya: []
   });
   const [history, setHistory] = React.useState<{ wajib: Expense[], angsuran: Expense[], lainnya: Expense[] }>({
     wajib: [],
@@ -35,23 +34,62 @@ export default function ExpensesPage() {
   const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
   const [historyToDelete, setHistoryToDelete] = React.useState<Expense | null>(null);
 
+  const clearOldOtherExpenses = React.useCallback(async () => {
+    try {
+        const today = new Date();
+        const startOfCurrentMonth = startOfMonth(today);
+        
+        const q = query(collection(db, "expenses"), where("category", "==", "lainnya"));
+        const snapshot = await getDocs(q);
+        
+        const batch = writeBatch(db);
+        let deletedCount = 0;
+
+        snapshot.docs.forEach(doc => {
+            const expense = doc.data() as Expense;
+            if (expense.date) {
+                const expenseDate = parseISO(expense.date);
+                if (!isSameMonth(expenseDate, today) || !isSameYear(expenseDate, today)) {
+                    batch.delete(doc.ref);
+                    deletedCount++;
+                }
+            }
+        });
+
+        if (deletedCount > 0) {
+            await batch.commit();
+            console.log(`${deletedCount} old 'lainnya' expenses cleared.`);
+        }
+    } catch (error) {
+        console.error("Error clearing old 'lainnya' expenses:", error);
+    }
+  }, []);
+
   const fetchExpenses = React.useCallback(async () => {
     setLoading(true);
+    await clearOldOtherExpenses();
     try {
       const expensesQuery = query(collection(db, "expenses"));
       const querySnapshot = await getDocs(expensesQuery);
       const allExpenses = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+      
+      const today = new Date();
 
       const templates = {
         wajib: allExpenses.filter(exp => exp.category === 'utama' && !exp.date),
         angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && !exp.date),
-        lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && !exp.date)
       };
       
       const historyRecords = {
         wajib: allExpenses.filter(exp => exp.category === 'utama' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
         angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
-        lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime())
+        lainnya: allExpenses.filter(exp => {
+            if (exp.category === 'lainnya' && exp.date) {
+                const expenseDate = parseISO(exp.date);
+                return isSameMonth(expenseDate, today) && isSameYear(expenseDate, today);
+            }
+            return false;
+        }).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
       };
 
       setExpenses(templates);
@@ -67,7 +105,7 @@ export default function ExpensesPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, clearOldOtherExpenses]);
   
   React.useEffect(() => {
     fetchExpenses();
@@ -80,7 +118,6 @@ export default function ExpensesPage() {
         const batch = writeBatch(db);
         const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-        // 1. Create a history record
         const historyRecord: Omit<Expense, 'id'> = {
             name: expense.name,
             amount: expense.amount,
@@ -90,7 +127,6 @@ export default function ExpensesPage() {
         const historyRef = doc(collection(db, "expenses"));
         batch.set(historyRef, historyRecord);
 
-        // 2. Update the template document
         const expenseRef = doc(db, "expenses", expense.id);
         const updates: { [key: string]: any } = {};
 
@@ -130,14 +166,20 @@ export default function ExpensesPage() {
             category: newExpenseData.category,
         };
         
-        if (newExpenseData.category === 'angsuran') {
-            dataToAdd.tenor = newExpenseData.tenor;
-            dataToAdd.paidTenor = 0;
-            dataToAdd.dueDateDay = newExpenseData.dueDateDay;
-        } else if (newExpenseData.category === 'utama') {
-            dataToAdd.dueDateDay = newExpenseData.dueDateDay;
+        if (newExpenseData.category === 'lainnya') {
+            dataToAdd.date = format(new Date(), 'yyyy-MM-dd');
+        } else {
+            if (newExpenseData.category === 'angsuran') {
+                dataToAdd.tenor = newExpenseData.tenor;
+                dataToAdd.paidTenor = 0;
+            }
+            if (newExpenseData.category === 'utama' || newExpenseData.category === 'angsuran') {
+                 if (newExpenseData.dueDateDay) {
+                    dataToAdd.dueDateDay = newExpenseData.dueDateDay;
+                }
+            }
         }
-
+        
         await addDoc(collection(db, "expenses"), dataToAdd);
         
         toast({
@@ -176,7 +218,7 @@ export default function ExpensesPage() {
       const historySnapshot = await getDocs(historyQuery);
       
       historySnapshot.docs.forEach(doc => {
-        if (doc.data().date) { // Ensure it's a history record
+        if (doc.data().date) {
             batch.delete(doc.ref);
         }
       });
@@ -258,8 +300,6 @@ export default function ExpensesPage() {
 
 
   const renderPayableTable = (data: Expense[], categoryName: string) => {
-    const showDueDateInfo = categoryName === 'wajib' || categoryName === 'angsuran';
-
     if (loading) {
       return (
         <div className="flex items-center justify-center h-48">
@@ -281,8 +321,8 @@ export default function ExpensesPage() {
           <TableRow>
             <TableHead>Nama</TableHead>
             {categoryName === 'angsuran' && <TableHead>Tenor</TableHead>}
-            {showDueDateInfo && <TableHead>Jatuh Tempo</TableHead>}
-            {showDueDateInfo && <TableHead>Status</TableHead>}
+            <TableHead>Jatuh Tempo</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="text-right">Jumlah</TableHead>
             <TableHead className="text-right">Aksi</TableHead>
           </TableRow>
@@ -298,7 +338,7 @@ export default function ExpensesPage() {
                 isPaidThisMonth = isSameMonth(today, lastPaid) && isSameYear(today, lastPaid);
             }
             
-            const isButtonDisabled = isInstallmentPaidOff || ( (item.category === 'utama' || item.category === 'angsuran') && isPaidThisMonth );
+            const isButtonDisabled = isInstallmentPaidOff || ((item.category === 'utama' || item.category === 'angsuran') && isPaidThisMonth);
 
             return (
             <TableRow key={item.id}>
@@ -310,8 +350,7 @@ export default function ExpensesPage() {
                   </Badge>
                 </TableCell>
               )}
-               {showDueDateInfo && (
-                <>
+               <>
                   <TableCell>
                     {item.dueDateDay ? `Setiap tgl. ${item.dueDateDay}` : '-'}
                   </TableCell>
@@ -319,7 +358,6 @@ export default function ExpensesPage() {
                     {getExpenseStatusBadge(item)}
                   </TableCell>
                 </>
-              )}
               <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
               <TableCell className="text-right">
                 <Button size="sm" onClick={() => handlePay(item)} disabled={isButtonDisabled}>
@@ -333,7 +371,7 @@ export default function ExpensesPage() {
     );
   };
   
-  const renderHistoryTable = (data: Expense[]) => {
+  const renderHistoryTable = (data: Expense[], categoryName: string) => {
     if (loading) {
       return (
         <div className="flex items-center justify-center h-48">
@@ -345,7 +383,7 @@ export default function ExpensesPage() {
       return (
         <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
           <p className="text-lg font-medium">Tidak Ada Riwayat</p>
-          <p className="text-muted-foreground">Belum ada pembayaran yang tercatat.</p>
+          <p className="text-muted-foreground">Belum ada pembayaran yang tercatat {categoryName === "lainnya" ? "bulan ini" : ""}.</p>
         </div>
       );
     }
@@ -421,7 +459,7 @@ export default function ExpensesPage() {
                 <CardTitle>Riwayat Pengeluaran Wajib</CardTitle>
               </CardHeader>
               <CardContent>
-                {renderHistoryTable(history.wajib)}
+                {renderHistoryTable(history.wajib, 'wajib')}
               </CardContent>
             </Card>
           </TabsContent>
@@ -452,38 +490,18 @@ export default function ExpensesPage() {
                 <CardTitle>Riwayat Angsuran</CardTitle>
               </CardHeader>
               <CardContent>
-                {renderHistoryTable(history.angsuran)}
+                {renderHistoryTable(history.angsuran, 'angsuran')}
               </CardContent>
             </Card>
           </TabsContent>
           <TabsContent value="lainnya" className="space-y-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Pengeluaran Lainnya</CardTitle>
-                  <CardDescription>Pengeluaran insidental atau tidak rutin.</CardDescription>
-                </div>
-                 <ManageExpensesDialog 
-                    expenses={expenses.lainnya} 
-                    category="lainnya"
-                    onDelete={handleDeleteClick}
-                >
-                    <Button variant="outline" size="sm">
-                        <Settings className="mr-2 h-4 w-4" />
-                        Kelola
-                    </Button>
-                </ManageExpensesDialog>
-              </CardHeader>
-              <CardContent>
-                {renderPayableTable(expenses.lainnya, 'lainnya')}
-              </CardContent>
-            </Card>
              <Card>
               <CardHeader>
-                <CardTitle>Riwayat Pengeluaran Lainnya</CardTitle>
+                <CardTitle>Riwayat Pengeluaran Lainnya (Bulan Ini)</CardTitle>
+                <CardDescription>Pengeluaran insidental yang tercatat bulan ini akan otomatis dihapus bulan depan.</CardDescription>
               </CardHeader>
               <CardContent>
-                {renderHistoryTable(history.lainnya)}
+                {renderHistoryTable(history.lainnya, 'lainnya')}
               </CardContent>
             </Card>
           </TabsContent>
@@ -532,5 +550,3 @@ export default function ExpensesPage() {
     </>
   );
 }
-
-    
