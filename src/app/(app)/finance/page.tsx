@@ -4,10 +4,12 @@ import * as React from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Expense } from "@/lib/types";
+import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Loader2, TrendingUp, TrendingDown, Wallet } from "lucide-react"
+import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 export default function FinancePage() {
   const { toast } = useToast();
@@ -71,9 +73,25 @@ export default function FinancePage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Keuangan</h1>
-        <p className="text-muted-foreground">Akumulasi pemasukan, pengeluaran, dan saldo dari seluruh riwayat transaksi.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Keuangan</h1>
+            <p className="text-muted-foreground">Akumulasi pemasukan, pengeluaran, dan saldo dari seluruh riwayat transaksi.</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+                <Link href="/monthly-statistics">
+                    <AreaChart className="mr-2 h-4 w-4" />
+                    Statistik Bulanan
+                </Link>
+            </Button>
+            <Button asChild>
+                <Link href="/expenses">
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Lihat Pengeluaran
+                </Link>
+            </Button>
+        </div>
       </div>
         <Card>
             <CardHeader>
