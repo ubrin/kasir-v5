@@ -197,6 +197,27 @@ export default function ExpensesPage() {
     }
   };
 
+  const handleExpenseUpdated = async (expenseToUpdate: Expense) => {
+    try {
+        const { id, ...dataToUpdate } = expenseToUpdate;
+        const expenseRef = doc(db, "expenses", id);
+        await updateDoc(expenseRef, dataToUpdate);
+
+        toast({
+            title: "Pengeluaran Diperbarui",
+            description: `${expenseToUpdate.name} telah berhasil diperbarui.`,
+        });
+        fetchExpenses();
+    } catch (error) {
+        console.error("Error updating expense:", error);
+        toast({
+            title: "Gagal Memperbarui",
+            description: "Terjadi kesalahan saat memperbarui data.",
+            variant: "destructive",
+        });
+    }
+  };
+
   const handleDeleteClick = (expense: Expense) => {
     setExpenseToDelete(expense);
   };
@@ -443,6 +464,7 @@ export default function ExpensesPage() {
                     expenses={expenses.wajib}
                     category="utama"
                     onDelete={handleDeleteClick}
+                    onEdit={handleExpenseUpdated}
                 >
                     <Button variant="outline" size="sm">
                         <Settings className="mr-2 h-4 w-4" />
@@ -474,6 +496,7 @@ export default function ExpensesPage() {
                       expenses={expenses.angsuran}
                       category="angsuran"
                       onDelete={handleDeleteClick}
+                      onEdit={handleExpenseUpdated}
                   >
                       <Button variant="outline" size="sm">
                           <Settings className="mr-2 h-4 w-4" />

@@ -22,16 +22,17 @@ import {
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Edit, Trash2 } from 'lucide-react';
+import { EditExpenseDialog } from './edit-expense-dialog';
 
 interface ManageExpensesDialogProps {
   expenses: Expense[];
-  category: 'utama' | 'angsuran' | 'lainnya';
+  category: 'utama' | 'angsuran';
   onDelete: (expense: Expense) => void;
-  // onEdit: (expense: Expense) => void; // To be implemented
+  onEdit: (expense: Expense) => void;
   children: React.ReactNode;
 }
 
-export function ManageExpensesDialog({ expenses, category, onDelete, children }: ManageExpensesDialogProps) {
+export function ManageExpensesDialog({ expenses, category, onDelete, onEdit, children }: ManageExpensesDialogProps) {
   const [open, setOpen] = React.useState(false);
   
   const handleDeleteClick = (expense: Expense) => {
@@ -82,9 +83,11 @@ export function ManageExpensesDialog({ expenses, category, onDelete, children }:
                         </TableCell>
                     )}
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" disabled>
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <EditExpenseDialog expense={item} onExpenseUpdated={onEdit}>
+                        <Button variant="ghost" size="icon">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </EditExpenseDialog>
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(item)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
