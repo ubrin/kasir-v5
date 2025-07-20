@@ -1,96 +1,172 @@
 
 'use client'
 import * as React from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, writeBatch, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Payment, Expense } from "@/lib/types";
+import type { Customer, Invoice, Payment } from "@/lib/types";
+import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { DollarSign, TrendingDown, Users, TrendingUp, Loader2 } from "lucide-react"
-import { format, parseISO, startOfMonth, endOfMonth } from "date-fns"
-import { id } from 'date-fns/locale';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
+import { DollarSign, Users, CreditCard, Activity, Archive, Loader2, FileClock, Files } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { differenceInMonths, parseISO, startOfMonth, subMonths, getMonth, getYear } from "date-fns"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+
+const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
 
 export default function MonthlyStatisticsPage() {
     const { toast } = useToast();
     const [loading, setLoading] = React.useState(true);
     const [stats, setStats] = React.useState({
-        totalRevenue: 0,
-        totalExpenses: 0,
-        netProfit: 0,
+        totalOmset: 0,
+        totalArrears: 0,
+        newCustomers: 0,
     });
-    const [monthlyData, setMonthlyData] = React.useState<{payments: Payment[], expenses: Expense[]}>({
-        payments: [],
-        expenses: []
-    });
+    const [monthlyRevenueData, setMonthlyRevenueData] = React.useState<any[]>([]);
+    const [pieData, setPieData] = React.useState<any[]>([]);
 
-    const currentMonthName = format(new Date(), "MMMM yyyy", { locale: id });
+    const fetchData = React.useCallback(async () => {
+        setLoading(true);
+        try {
+            const [customersSnapshot, invoicesSnapshot, paymentsSnapshot] = await Promise.all([
+                getDocs(collection(db, "customers")),
+                getDocs(collection(db, "invoices")),
+                getDocs(collection(db, "payments"))
+            ]);
 
-    React.useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const today = new Date();
-                const start = startOfMonth(today);
-                const end = endOfMonth(today);
+            const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+            const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
+            const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+            
+            const today = new Date();
+            const currentMonth = getMonth(today);
+            const currentYear = getYear(today);
+            const startOfCurrentMonth = startOfMonth(today);
 
-                const paymentsQuery = query(collection(db, "payments"), 
-                    where("paymentDate", ">=", format(start, 'yyyy-MM-dd')),
-                    where("paymentDate", "<=", format(end, 'yyyy-MM-dd'))
-                );
+            const totalOmset = customers.reduce((acc, c) => acc + c.packagePrice, 0);
 
-                const expensesQuery = query(collection(db, "expenses"), 
-                    where("date", ">=", format(start, 'yyyy-MM-dd')),
-                    where("date", "<=", format(end, 'yyyy-MM-dd'))
-                );
+            const newCustomers = customers.filter(c => c.installationDate && differenceInMonths(new Date(), parseISO(c.installationDate)) < 1).length;
 
-                const [paymentsSnapshot, expensesSnapshot] = await Promise.all([
-                    getDocs(paymentsQuery),
-                    getDocs(expensesQuery),
-                ]);
+            const thisMonthInvoices = invoices.filter(invoice => {
+                const invoiceDate = parseISO(invoice.date);
+                return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
+            });
 
-                const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
-                const expensesList = expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
-                
-                const totalRevenue = paymentsList.reduce((acc, p) => acc + (p.totalPayment || p.paidAmount), 0);
-                const totalExpenses = expensesList.reduce((acc, e) => acc + e.amount, 0);
-                const netProfit = totalRevenue - totalExpenses;
+            const oldUnpaidInvoices = invoices.filter(invoice => {
+                const invoiceDate = parseISO(invoice.date);
+                return invoice.status === 'belum lunas' && invoiceDate < startOfCurrentMonth;
+            });
+            const totalArrears = oldUnpaidInvoices.reduce((acc, inv) => acc + inv.amount, 0);
 
-                setStats({
-                    totalRevenue,
-                    totalExpenses,
-                    netProfit,
-                });
+            setStats({
+                totalOmset,
+                totalArrears,
+                newCustomers,
+            });
+            
+            const paidInvoicesStats = thisMonthInvoices
+                .filter(i => i.status === 'lunas')
+                .reduce((acc, inv) => {
+                    acc.count++;
+                    acc.amount += inv.amount;
+                    return acc;
+                }, { count: 0, amount: 0 });
 
-                setMonthlyData({
-                    payments: paymentsList.sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.paymentDate).getTime()),
-                    expenses: expensesList.sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime())
-                });
+            const unpaidInvoicesStats = thisMonthInvoices
+                .filter(i => i.status === 'belum lunas')
+                .reduce((acc, inv) => {
+                    acc.count++;
+                    acc.amount += inv.amount;
+                    return acc;
+                }, { count: 0, amount: 0 });
+            
+            setPieData([
+                { name: 'Lunas', value: paidInvoicesStats.amount, count: paidInvoicesStats.count },
+                { name: 'Belum Lunas', value: unpaidInvoicesStats.amount, count: unpaidInvoicesStats.count },
+            ]);
 
-            } catch (error) {
-                console.error("Failed to fetch monthly statistics:", error);
-                toast({
-                    title: "Gagal memuat statistik",
-                    description: "Tidak dapat mengambil data untuk bulan ini.",
-                    variant: "destructive"
-                });
-            } finally {
-                setLoading(false);
+            const revenueDataByMonth: { [key: string]: number } = {};
+            for (let i = 5; i >= 0; i--) {
+                const date = subMonths(new Date(), i);
+                const monthName = date.toLocaleString('id-ID', { month: 'short' });
+                revenueDataByMonth[monthName] = 0;
             }
-        };
-        fetchData();
+
+            payments.forEach(p => {
+                const paymentDate = parseISO(p.paymentDate);
+                if (differenceInMonths(new Date(), paymentDate) < 6) {
+                    const monthName = paymentDate.toLocaleString('id-ID', { month: 'short' });
+                    if (revenueDataByMonth.hasOwnProperty(monthName)) {
+                        revenueDataByMonth[monthName] += (p.totalPayment || p.paidAmount); // Fallback for older data
+                    }
+                }
+            });
+            setMonthlyRevenueData(Object.keys(revenueDataByMonth).map(month => ({ month, revenue: revenueDataByMonth[month] })));
+
+        } catch (error) {
+            console.error("Failed to fetch dashboard data:", error);
+            toast({
+                title: "Gagal memuat data",
+                description: "Tidak dapat mengambil data untuk dasbor.",
+                variant: "destructive"
+            });
+        } finally {
+            setLoading(false);
+        }
     }, [toast]);
     
-    const getMethodBadge = (method: 'cash' | 'bri' | 'dana') => {
-        switch(method) {
-            case 'cash': return <Badge variant="secondary">Cash</Badge>;
-            case 'bri': return <Badge className="bg-blue-600 text-white hover:bg-blue-700">BRI</Badge>;
-            case 'dana': return <Badge className="bg-sky-500 text-white hover:bg-sky-600">DANA</Badge>;
+    React.useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+    
+    const handleArchivePaidInvoices = async () => {
+        try {
+            const q = query(collection(db, "invoices"), where("status", "==", "lunas"));
+            const snapshot = await getDocs(q);
+
+            if (snapshot.empty) {
+                toast({
+                    title: "Tidak Ada Data untuk Diarsipkan",
+                    description: "Semua faktur lunas sudah diarsipkan.",
+                    variant: "default",
+                });
+                return;
+            }
+
+            const batch = writeBatch(db);
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+
+            toast({
+                title: "Pengarsipan Berhasil",
+                description: `${snapshot.size} faktur yang sudah lunas telah diarsipkan.`,
+            });
+
+            fetchData();
+        } catch (error) {
+            console.error("Archiving error:", error);
+            toast({
+                title: "Gagal Mengarsipkan",
+                description: "Terjadi kesalahan saat mengarsipkan faktur.",
+                variant: "destructive",
+            });
         }
-    };
+    }
     
   if (loading) {
     return (
@@ -103,98 +179,162 @@ export default function MonthlyStatisticsPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Statistik Bulanan</h1>
-            <p className="text-muted-foreground">Ringkasan keuangan untuk bulan {currentMonthName}.</p>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight">Statistik Bulanan</h1>
+         <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline">
+                <Archive className="mr-2 h-4 w-4" />
+                Arsipkan Faktur Lunas
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Anda yakin ingin mengarsipkan?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tindakan ini akan menghapus semua data faktur dengan status "Lunas" dari daftar aktif. Tindakan ini tidak dapat dibatalkan. Data pelanggan dan faktur yang menunggak tidak akan terpengaruh.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={handleArchivePaidInvoices} className="bg-destructive hover:bg-destructive/90">
+                Ya, Arsipkan Sekarang
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-      <Card>
-        <CardHeader>
-            <CardTitle>Ringkasan Keuangan</CardTitle>
-        </CardHeader>
-        <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="flex flex-col space-y-1">
-                    <span className="text-sm text-muted-foreground">Total Pemasukan</span>
-                    <span className="text-2xl font-bold">Rp{stats.totalRevenue.toLocaleString('id-ID')}</span>
-                </div>
-                 <div className="flex flex-col space-y-1">
-                    <span className="text-sm text-muted-foreground">Total Pengeluaran</span>
-                    <span className="text-2xl font-bold text-destructive">Rp{stats.totalExpenses.toLocaleString('id-ID')}</span>
-                </div>
-                 <div className="flex flex-col space-y-1">
-                    <span className="text-sm text-muted-foreground">Keuntungan Bersih</span>
-                    <span className={`text-2xl font-bold ${stats.netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                        Rp{stats.netProfit.toLocaleString('id-ID')}
-                    </span>
-                </div>
-            </div>
-        </CardContent>
-      </Card>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Link href="/customers">
+          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Omset
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
+              <p className="text-xs text-muted-foreground">
+                Potensi pendapatan bulanan
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/customers">
+          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Pelanggan Baru
+              </CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">+{stats.newCustomers}</div>
+              <p className="text-xs text-muted-foreground">
+                Bulan ini
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/delinquency">
+            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                Total Tunggakan
+                </CardTitle>
+                <FileClock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">Rp{stats.totalArrears.toLocaleString('id-ID')}</div>
+                <p className="text-xs text-muted-foreground">
+                Tagihan belum lunas dari bulan lalu
+                </p>
+            </CardContent>
+            </Card>
+        </Link>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>Rincian Pemasukan</CardTitle>
-            <CardDescription>Daftar semua pembayaran yang diterima bulan ini.</CardDescription>
+            <CardTitle>Ringkasan Pendapatan</CardTitle>
+            <CardDescription>Grafik pendapatan yang diterima selama beberapa bulan terakhir.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Pelanggan</TableHead>
-                  <TableHead>Metode</TableHead>
-                  <TableHead className="text-right">Jumlah</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {monthlyData.payments.length > 0 ? monthlyData.payments.map(payment => (
-                  <TableRow key={payment.id}>
-                    <TableCell>{format(parseISO(payment.paymentDate), 'd MMM', { locale: id })}</TableCell>
-                    <TableCell>{payment.customerName}</TableCell>
-                    <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
-                    <TableCell className="text-right font-medium">Rp{payment.totalPayment.toLocaleString('id-ID')}</TableCell>
-                  </TableRow>
-                )) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">Belum ada pemasukan bulan ini.</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+          <CardContent className="pl-2">
+            <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={monthlyRevenueData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                    dataKey="month"
+                    stroke="#888888"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    />
+                    <YAxis
+                    stroke="#888888"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `Rp${new Intl.NumberFormat('id-ID', { notation: "compact", compactDisplay: "short" }).format(value as number)}`}
+                    />
+                    <Tooltip
+                        contentStyle={{
+                            background: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                        }}
+                        formatter={(value: number) => [`Rp${value.toLocaleString('id-ID')}`, 'Pendapatan']}
+                    />
+                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Rincian Pengeluaran</CardTitle>
-            <CardDescription>Daftar semua pengeluaran yang tercatat bulan ini.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tanggal</TableHead>
-                    <TableHead>Deskripsi</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead className="text-right">Jumlah</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {monthlyData.expenses.length > 0 ? monthlyData.expenses.map(expense => (
-                    <TableRow key={expense.id}>
-                      <TableCell>{expense.date ? format(parseISO(expense.date), 'd MMM', { locale: id }) : '-'}</TableCell>
-                      <TableCell>{expense.name}</TableCell>
-                      <TableCell><Badge variant="outline">{expense.category}</Badge></TableCell>
-                      <TableCell className="text-right font-medium">Rp{expense.amount.toLocaleString('id-ID')}</TableCell>
-                    </TableRow>
-                  )) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">Belum ada pengeluaran bulan ini.</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-          </CardContent>
+        <Card className="lg:col-span-3">
+        <CardHeader>
+            <CardTitle>Status Pembayaran Faktur (Bulan Ini)</CardTitle>
+            <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center pb-0">
+            <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                    <Tooltip
+                        contentStyle={{
+                            background: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                        }}
+                        formatter={(value: number, name: string, props: any) => [
+                        `Rp${value.toLocaleString('id-ID')}`, 
+                        `${name} (${props.payload.count} Faktur)`
+                        ]}
+                    />
+                    <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+                        const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+                        if (!percent || percent < 0.01) return null;
+                        return (
+                        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12}>
+                            {`${(percent * 100).toFixed(0)}%`}
+                        </text>
+                        );
+                    }}
+                    >
+                    {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />
+                    ))}
+                    </Pie>
+                    <Legend iconType="circle" wrapperStyle={{fontSize: "12px"}}/>
+                </PieChart>
+                </ResponsiveContainer>
+        </CardContent>
         </Card>
       </div>
     </div>
