@@ -167,19 +167,22 @@ export default function ExpensesPage() {
       const templateRef = doc(db, "expenses", expenseToDelete.id);
       batch.delete(templateRef);
 
-      // 2. Query for all history records with the same name and category
+      // 2. Query for all documents with the same name and category
       const historyQuery = query(
         collection(db, "expenses"), 
         where("name", "==", expenseToDelete.name),
-        where("category", "==", expenseToDelete.category),
-        where("date", "!=", null) // This ensures we only get history records
+        where("category", "==", expenseToDelete.category)
       );
       
       const historySnapshot = await getDocs(historyQuery);
       
-      // 3. Delete all found history records
+      // 3. Delete all found history records (documents that have a 'date' field)
       historySnapshot.forEach(doc => {
-        batch.delete(doc.ref);
+        // We ensure we don't try to delete the template again if it shows up in the query results
+        // and only delete history records which have a `date` field.
+        if (doc.id !== expenseToDelete.id && doc.data().date) {
+            batch.delete(doc.ref);
+        }
       });
 
       await batch.commit();
@@ -483,3 +486,5 @@ export default function ExpensesPage() {
     </>
   );
 }
+
+    
