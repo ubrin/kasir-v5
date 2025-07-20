@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown, History, Wallet } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown, History, Wallet, AreaChart } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -25,7 +25,9 @@ import { useAuth } from '@/context/auth-context';
 
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
-  { href: '/finance', label: 'Keuangan', icon: LayoutDashboard, roles: ['admin'] },
+  { href: '/finance', label: 'Keuangan', icon: LayoutDashboard, roles: ['admin'], subItems: [
+       { href: '/monthly-statistics', label: 'Statistik Bulanan', icon: AreaChart, roles: ['admin'] },
+  ]},
   {
     label: 'Transaksi',
     icon: Package,
@@ -67,7 +69,8 @@ export default function AppSidebar() {
     return roles.includes(user.role);
   }
 
-  const isSubItemActive = (subItems: any[]) => {
+  const isSubItemActive = (subItems?: any[]) => {
+    if (!subItems) return false;
     return subItems.some(sub => pathname.startsWith(sub.href!));
   }
 
@@ -85,15 +88,27 @@ export default function AppSidebar() {
         <SidebarMenu>
           {menuItems.filter(item => hasAccess(item.roles)).map((item, index) => (
             item.subItems ? (
-              <Collapsible key={index} defaultOpen={isSubItemActive(item.subItems)}>
+              <Collapsible key={index} defaultOpen={isSubItemActive(item.subItems) || pathname.startsWith(item.href!)}>
                 <CollapsibleTrigger asChild className="w-full">
-                   <SidebarMenuButton className="w-full justify-between" variant="ghost" tooltip={{children: item.label}}>
-                      <div className="flex items-center gap-2">
-                        <item.icon className="h-5 w-5" />
-                        <span>{item.label}</span>
-                      </div>
-                      <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
-                  </SidebarMenuButton>
+                    <SidebarMenuButton asChild={!!item.href} isActive={pathname === item.href!} className="w-full justify-between" variant="ghost" tooltip={{children: item.label}}>
+                       {item.href ? (
+                         <Link href={item.href}>
+                             <div className="flex items-center gap-2">
+                                <item.icon className="h-5 w-5" />
+                                <span>{item.label}</span>
+                             </div>
+                             <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
+                          </Link>
+                       ) : (
+                         <>
+                            <div className="flex items-center gap-2">
+                                <item.icon className="h-5 w-5" />
+                                <span>{item.label}</span>
+                            </div>
+                            <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
+                         </>
+                       )}
+                    </SidebarMenuButton>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarMenu className="pl-7 pt-1">
@@ -142,5 +157,3 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
