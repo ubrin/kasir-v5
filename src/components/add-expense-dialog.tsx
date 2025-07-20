@@ -36,7 +36,12 @@ import { Label } from '@/components/ui/label';
 const addExpenseSchema = z.object({
   name: z.string().min(1, { message: "Nama pengeluaran harus diisi." }),
   amount: z.preprocess(
-    (val) => (String(val).trim() === '' ? undefined : Number(val)),
+    (val) => {
+      if (typeof val === 'string') {
+        return Number(val.replace(/\./g, ''));
+      }
+      return val;
+    },
     z.number({required_error: "Jumlah harus diisi.", invalid_type_error: "Harus berupa angka"}).min(1, "Jumlah minimal 1")
   ),
   category: z.enum(['utama', 'angsuran', 'lainnya'], {
@@ -90,6 +95,18 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
     });
     setOpen(false);
   };
+  
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    const numberValue = parseInt(rawValue.replace(/\D/g, ''), 10);
+    if (isNaN(numberValue)) {
+      form.setValue('amount', 0 as any);
+      e.target.value = '';
+    } else {
+      form.setValue('amount', numberValue as any);
+      e.target.value = numberValue.toLocaleString('id-ID');
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -130,7 +147,13 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                             <FormItem>
                             <FormLabel>Jumlah (Rp)</FormLabel>
                             <FormControl>
-                                <Input type="number" placeholder="cth. 2000000" {...field} />
+                                <Input 
+                                  type="text" 
+                                  placeholder="cth. 2.000.000" 
+                                  {...field}
+                                  onChange={handleAmountChange}
+                                  value={field.value ? Number(field.value).toLocaleString('id-ID') : ''}
+                                />
                             </FormControl>
                             <FormMessage />
                             </FormItem>
