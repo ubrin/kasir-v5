@@ -107,7 +107,8 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                 Isi rincian di bawah untuk menambah templat pengeluaran baru.
               </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-[60vh] p-6 pt-0">
+            <ScrollArea className="h-[60vh]">
+              <div className="p-6 pt-0">
                 <div className="space-y-4">
                     <FormField
                     control={form.control}
@@ -205,6 +206,7 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                         />
                     )}
                 </div>
+              </div>
             </ScrollArea>
             <DialogFooter className="p-6 pt-4 border-t">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button>
