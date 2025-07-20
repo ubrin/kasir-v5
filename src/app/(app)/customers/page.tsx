@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { collection, addDoc, getDocs, doc, deleteDoc, writeBatch, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -55,6 +55,7 @@ export default function CustomersPage() {
   const [unpaidCustomerDetails, setUnpaidCustomerDetails] = React.useState<Map<string, string>>(new Map());
   const [isClient, setIsClient] = React.useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -223,8 +224,12 @@ export default function CustomersPage() {
     }
   };
 
+  const searchQuery = searchParams.get('q') || '';
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const groupedCustomers = customers.reduce((acc, customer) => {
+  const groupedCustomers = filteredCustomers.reduce((acc, customer) => {
     const code = customer.dueDateCode;
     if (!acc[code]) {
       acc[code] = [];
@@ -295,6 +300,14 @@ export default function CustomersPage() {
                 <AddCustomerDialog onCustomerAdded={handleCustomerAdded} />
             </div>
         </div>
+        
+        {searchQuery && (
+            <div className="text-sm text-muted-foreground">
+                Menampilkan {filteredCustomers.length} hasil untuk pencarian <span className="font-semibold text-foreground">"{searchQuery}"</span>.
+                <Button variant="link" className="p-1 h-auto" onClick={() => router.push('/customers')}>Hapus filter</Button>
+            </div>
+        )}
+
 
         {filteredGroupKeys.length > 0 ? (
             filteredGroupKeys.map((code) => (
@@ -376,8 +389,8 @@ export default function CustomersPage() {
         ) : (
              <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
-                    <p className="text-lg font-medium">Tidak Ada Pelanggan</p>
-                    <p className="text-muted-foreground">Mulai dengan menambahkan pelanggan baru atau impor dari file.</p>
+                    <p className="text-lg font-medium">{searchQuery ? "Tidak Ada Hasil" : "Tidak Ada Pelanggan"}</p>
+                    <p className="text-muted-foreground">{searchQuery ? `Tidak ada pelanggan yang cocok dengan pencarian "${searchQuery}".` : "Mulai dengan menambahkan pelanggan baru atau impor dari file."}</p>
                 </CardContent>
             </Card>
         )}
@@ -405,3 +418,5 @@ export default function CustomersPage() {
     </div>
   )
 }
+
+    

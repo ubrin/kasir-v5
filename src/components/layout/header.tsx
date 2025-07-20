@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Search, Bell, User, LogOut, Download } from 'lucide-react';
@@ -17,11 +18,13 @@ import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { usePwaInstall } from '@/hooks/use-pwa-install';
+import * as React from 'react';
 
 export default function Header() {
   const router = useRouter();
   const { toast } = useToast();
   const { installPrompt, canInstall } = usePwaInstall();
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const handleLogout = async () => {
     try {
@@ -39,6 +42,13 @@ export default function Header() {
       });
     }
   };
+  
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/customers?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
 
   return (
@@ -52,13 +62,15 @@ export default function Header() {
             </div>
         </div>
       <div className="w-full flex-1">
-        <form>
+        <form onSubmit={handleSearchSubmit}>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Cari..."
+              placeholder="Cari pelanggan..."
               className="w-full appearance-none bg-background pl-8 shadow-none md:w-2/3 lg:w-1/3"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </form>
@@ -95,3 +107,5 @@ export default function Header() {
     </header>
   );
 }
+
+    
