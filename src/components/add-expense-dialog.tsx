@@ -29,6 +29,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { Expense } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 
 const addExpenseSchema = z.object({
@@ -143,31 +144,43 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                             <RadioGroup
                               onValueChange={field.onChange}
                               defaultValue={field.value}
-                              className="flex flex-col space-y-1"
+                              className="grid grid-cols-3 gap-2"
                             >
-                              <FormItem className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <RadioGroupItem value="utama" />
-                                </FormControl>
-                                <FormLabel className="font-normal">
+                              <FormItem>
+                                <RadioGroupItem value="utama" id="utama" className="sr-only" />
+                                <Label
+                                  htmlFor="utama"
+                                  className={cn(
+                                    "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer",
+                                    field.value === 'utama' && "border-primary"
+                                  )}
+                                >
                                   Wajib
-                                </FormLabel>
+                                </Label>
                               </FormItem>
-                              <FormItem className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <RadioGroupItem value="angsuran" />
-                                </FormControl>
-                                <FormLabel className="font-normal">
+                              <FormItem>
+                                <RadioGroupItem value="angsuran" id="angsuran" className="sr-only" />
+                                 <Label
+                                  htmlFor="angsuran"
+                                  className={cn(
+                                    "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer",
+                                    field.value === 'angsuran' && "border-primary"
+                                  )}
+                                >
                                   Angsuran
-                                </FormLabel>
+                                </Label>
                               </FormItem>
-                              <FormItem className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <RadioGroupItem value="lainnya" />
-                                </FormControl>
-                                <FormLabel className="font-normal">
+                               <FormItem>
+                                <RadioGroupItem value="lainnya" id="lainnya" className="sr-only" />
+                                 <Label
+                                  htmlFor="lainnya"
+                                  className={cn(
+                                    "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer",
+                                    field.value === 'lainnya' && "border-primary"
+                                  )}
+                                >
                                   Lainnya
-                                </FormLabel>
+                                </Label>
                               </FormItem>
                             </RadioGroup>
                           </FormControl>
