@@ -30,6 +30,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { Expense } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 
 const addExpenseSchema = z.object({
