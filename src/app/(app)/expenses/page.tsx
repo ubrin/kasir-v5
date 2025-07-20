@@ -166,7 +166,7 @@ export default function ExpensesPage() {
   };
 
   const getExpenseStatusBadge = (item: Expense) => {
-    const isInstallmentPaid Off = item.category === 'angsuran' && (item.paidTenor || 0) >= (item.tenor || 0);
+    const isInstallmentPaidOff = item.category === 'angsuran' && (item.paidTenor || 0) >= (item.tenor || 0);
     if (isInstallmentPaidOff) {
         return <Badge className="bg-green-100 text-green-800">Lunas</Badge>;
     }
@@ -424,5 +424,3 @@ export default function ExpensesPage() {
     </>
   );
 }
-
-    
