@@ -51,6 +51,10 @@ const addExpenseSchema = z.object({
     (val) => (String(val).trim() === '' ? undefined : Number(val)),
     z.number({invalid_type_error: "Harus berupa angka"}).min(1, "Tenor minimal 1 bulan").optional()
   ),
+   dueDateDay: z.preprocess(
+    (val) => (String(val).trim() === '' ? undefined : Number(val)),
+    z.number({invalid_type_error: "Harus berupa angka"}).min(1, "Tanggal minimal 1").max(31, "Tanggal maksimal 31").optional()
+  ),
 }).refine(data => {
     if (data.category === 'angsuran') {
         return data.tenor !== undefined && data.tenor > 0;
@@ -59,6 +63,14 @@ const addExpenseSchema = z.object({
 }, {
     message: "Tenor wajib diisi untuk kategori angsuran.",
     path: ["tenor"],
+}).refine(data => {
+    if (data.category === 'utama' || data.category === 'angsuran') {
+        return data.dueDateDay !== undefined && data.dueDateDay > 0;
+    }
+    return true;
+}, {
+    message: "Tgl. jatuh tempo wajib diisi.",
+    path: ["dueDateDay"],
 });
 
 type AddExpenseFormValues = z.infer<typeof addExpenseSchema>;
@@ -76,6 +88,7 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
       amount: '' as any,
       category: undefined,
       tenor: '' as any,
+      dueDateDay: '' as any,
     },
   });
 
@@ -86,12 +99,14 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
         ...data,
         amount: Number(data.amount),
         tenor: data.category === 'angsuran' ? Number(data.tenor) : undefined,
+        dueDateDay: data.category === 'lainnya' ? undefined : Number(data.dueDateDay),
     });
     form.reset({
         name: '',
         amount: '' as any,
         category: undefined,
         tenor: '' as any,
+        dueDateDay: '' as any,
     });
     setOpen(false);
   };
@@ -213,6 +228,23 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                         </FormItem>
                       )}
                     />
+                    
+                    {(watchCategory === 'utama' || watchCategory === 'angsuran') && (
+                      <FormField
+                          control={form.control}
+                          name="dueDateDay"
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel>Tgl. Jatuh Tempo</FormLabel>
+                              <FormControl>
+                                  <Input type="number" placeholder="Setiap tgl. 1-31" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                    )}
+
                     {watchCategory === 'angsuran' && (
                          <FormField
                             control={form.control}
