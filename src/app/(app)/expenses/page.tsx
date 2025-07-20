@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { AddExpenseDialog } from "@/components/add-expense-dialog";
-import { ManageInstallmentsDialog } from "@/components/manage-installments-dialog";
+import { ManageExpensesDialog } from "@/components/manage-expenses-dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function ExpensesPage() {
@@ -110,7 +110,6 @@ export default function ExpensesPage() {
   
   const handleExpenseAdded = async (newExpenseData: Omit<Expense, 'id'>) => {
     try {
-        // Build the document to add, ensuring no 'undefined' fields are sent
         const dataToAdd: any = {
             name: newExpenseData.name,
             amount: newExpenseData.amount,
@@ -274,9 +273,21 @@ export default function ExpensesPage() {
           </TabsList>
           <TabsContent value="wajib" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Pengeluaran Wajib</CardTitle>
-                <CardDescription>Pengeluaran rutin bulanan seperti gaji atau sewa.</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Pengeluaran Wajib</CardTitle>
+                  <CardDescription>Pengeluaran rutin bulanan seperti gaji atau sewa.</CardDescription>
+                </div>
+                 <ManageExpensesDialog 
+                    expenses={expenses.wajib}
+                    category="utama"
+                    onDelete={handleDeleteClick}
+                >
+                    <Button variant="outline" size="sm">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Kelola
+                    </Button>
+                </ManageExpensesDialog>
               </CardHeader>
               <CardContent>
                 {renderPayableTable(expenses.wajib, 'wajib')}
@@ -298,16 +309,16 @@ export default function ExpensesPage() {
                       <CardTitle>Angsuran</CardTitle>
                       <CardDescription>Cicilan atau pinjaman dengan tenor tertentu.</CardDescription>
                   </div>
-                   <ManageInstallmentsDialog 
-                      installments={expenses.angsuran} 
+                   <ManageExpensesDialog 
+                      expenses={expenses.angsuran}
+                      category="angsuran"
                       onDelete={handleDeleteClick}
-                      // onEdit will be implemented later
                   >
                       <Button variant="outline" size="sm">
                           <Settings className="mr-2 h-4 w-4" />
-                          Kelola Angsuran
+                          Kelola
                       </Button>
-                  </ManageInstallmentsDialog>
+                  </ManageExpensesDialog>
               </CardHeader>
               <CardContent>
                 {renderPayableTable(expenses.angsuran, 'angsuran')}
@@ -324,9 +335,21 @@ export default function ExpensesPage() {
           </TabsContent>
           <TabsContent value="lainnya" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Pengeluaran Lainnya</CardTitle>
-                <CardDescription>Pengeluaran insidental atau tidak rutin.</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Pengeluaran Lainnya</CardTitle>
+                  <CardDescription>Pengeluaran insidental atau tidak rutin.</CardDescription>
+                </div>
+                 <ManageExpensesDialog 
+                    expenses={expenses.lainnya} 
+                    category="lainnya"
+                    onDelete={handleDeleteClick}
+                >
+                    <Button variant="outline" size="sm">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Kelola
+                    </Button>
+                </ManageExpensesDialog>
               </CardHeader>
               <CardContent>
                 {renderPayableTable(expenses.lainnya, 'lainnya')}
