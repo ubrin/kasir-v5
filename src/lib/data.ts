@@ -66,7 +66,6 @@ export const customers: Customer[] = [
     address: 'gebang',
     dueDateCode: 1,
     installationDate: `${currentYear}-04-01`,
-    subscriptionMbps: 10,
     packagePrice: 150000,
     outstandingBalance: 300000, // Tunggakan Mei + Juli
     paymentHistory: 'Pemasangan pada 1 April. Pembayaran Juni lunas.'
