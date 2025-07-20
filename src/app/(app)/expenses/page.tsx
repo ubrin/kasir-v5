@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, getDocs, addDoc, writeBatch, doc, increment, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from "@/lib/types";
-import { format } from 'date-fns';
+import { format, getDate, getYear, getMonth, differenceInDays } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -165,8 +165,31 @@ export default function ExpensesPage() {
     }
   };
 
+  const getExpenseStatusBadge = (item: Expense) => {
+    const isInstallmentPaid Off = item.category === 'angsuran' && (item.paidTenor || 0) >= (item.tenor || 0);
+    if (isInstallmentPaidOff) {
+        return <Badge className="bg-green-100 text-green-800">Lunas</Badge>;
+    }
+    
+    if (!item.dueDateDay) return null;
+
+    const today = new Date();
+    const currentDay = getDate(today);
+    const daysDiff = item.dueDateDay - currentDay;
+
+    if (daysDiff < 0) {
+        return <Badge variant="destructive">Jatuh Tempo</Badge>;
+    }
+    if (daysDiff === 0) {
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Hari Ini</Badge>;
+    }
+    return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">Akan Datang</Badge>;
+  };
+
 
   const renderPayableTable = (data: Expense[], categoryName: string) => {
+    const showDueDateInfo = categoryName === 'wajib' || categoryName === 'angsuran';
+
     if (loading) {
       return (
         <div className="flex items-center justify-center h-48">
@@ -188,6 +211,8 @@ export default function ExpensesPage() {
           <TableRow>
             <TableHead>Nama</TableHead>
             {categoryName === 'angsuran' && <TableHead>Tenor</TableHead>}
+            {showDueDateInfo && <TableHead>Jatuh Tempo</TableHead>}
+            {showDueDateInfo && <TableHead>Status</TableHead>}
             <TableHead className="text-right">Jumlah</TableHead>
             <TableHead className="text-right">Aksi</TableHead>
           </TableRow>
@@ -202,6 +227,16 @@ export default function ExpensesPage() {
                     {item.paidTenor || 0} / {item.tenor}
                   </Badge>
                 </TableCell>
+              )}
+               {showDueDateInfo && (
+                <>
+                  <TableCell>
+                    {item.dueDateDay ? `Setiap tgl. ${item.dueDateDay}` : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {getExpenseStatusBadge(item)}
+                  </TableCell>
+                </>
               )}
               <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
               <TableCell className="text-right">
@@ -303,7 +338,7 @@ export default function ExpensesPage() {
             </Card>
           </TabsContent>
           <TabsContent value="angsuran" className="space-y-4">
-            <Card className="bg-muted/30">
+            <Card className="bg-muted/20">
               <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                       <CardTitle>Angsuran</CardTitle>
@@ -324,7 +359,7 @@ export default function ExpensesPage() {
                 {renderPayableTable(expenses.angsuran, 'angsuran')}
               </CardContent>
             </Card>
-            <Card className="bg-muted/30">
+            <Card className="bg-muted/20">
               <CardHeader>
                 <CardTitle>Riwayat Angsuran</CardTitle>
               </CardHeader>
@@ -389,3 +424,5 @@ export default function ExpensesPage() {
     </>
   );
 }
+
+    
