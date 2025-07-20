@@ -58,7 +58,7 @@ export type AppUser = {
 export type Expense = {
   id: string;
   name: string;
-  amount: number;
+  amount?: number; // Made optional for 'utama' category templates
   category: 'utama' | 'angsuran' | 'lainnya';
   date?: string; // 'yyyy-MM-dd', only for transaction records, not for templates
   

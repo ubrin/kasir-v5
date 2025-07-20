@@ -7,6 +7,9 @@ import { db } from "@/lib/firebase";
 import type { Expense } from "@/lib/types";
 import { format, getDate, getYear, getMonth, differenceInDays, isSameMonth, isSameYear, parseISO, startOfMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +21,112 @@ import { Badge } from "@/components/ui/badge";
 import { AddExpenseDialog } from "@/components/add-expense-dialog";
 import { ManageExpensesDialog } from "@/components/manage-expenses-dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+
+const payWajibSchema = z.object({
+  amount: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        return Number(val.replace(/\./g, ''));
+      }
+      return val;
+    },
+    z.number({required_error: "Jumlah harus diisi.", invalid_type_error: "Harus berupa angka"}).min(1, "Jumlah minimal 1")
+  ),
+});
+type PayWajibFormValues = z.infer<typeof payWajibSchema>;
+
+function PayWajibDialog({
+  expense,
+  open,
+  onOpenChange,
+  onConfirm,
+}: {
+  expense: Expense | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (expense: Expense, amount: number) => void;
+}) {
+  const form = useForm<PayWajibFormValues>({
+    resolver: zodResolver(payWajibSchema),
+    defaultValues: {
+      amount: '' as any,
+    },
+  });
+
+  React.useEffect(() => {
+    if (!open) {
+      form.reset();
+    }
+  }, [open, form]);
+
+  const onSubmit = (data: PayWajibFormValues) => {
+    if (expense) {
+      onConfirm(expense, data.amount);
+      onOpenChange(false);
+    }
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    const numberValue = parseInt(rawValue.replace(/\D/g, ''), 10);
+    if (isNaN(numberValue)) {
+      form.setValue('amount', '' as any);
+      e.target.value = '';
+    } else {
+      form.setValue('amount', numberValue as any);
+      e.target.value = numberValue.toLocaleString('id-ID');
+    }
+  };
+
+  if (!expense) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <DialogHeader>
+              <DialogTitle>Bayar: {expense.name}</DialogTitle>
+              <DialogDescription>
+                Masukkan jumlah pembayaran untuk pengeluaran ini.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Jumlah Pembayaran (Rp)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="cth. 50.000"
+                        {...field}
+                        onChange={handleAmountChange}
+                        value={field.value ? Number(field.value).toLocaleString('id-ID') : ''}
+                        autoFocus
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
+              <Button type="submit">Catat Pembayaran</Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default function ExpensesPage() {
   const { toast } = useToast();
@@ -33,6 +142,9 @@ export default function ExpensesPage() {
   });
   const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
   const [historyToDelete, setHistoryToDelete] = React.useState<Expense | null>(null);
+  const [expenseToPay, setExpenseToPay] = React.useState<Expense | null>(null);
+  const [isPayWajibDialogOpen, setIsPayWajibDialogOpen] = React.useState(false);
+
 
   const clearOldOtherExpenses = React.useCallback(async () => {
     try {
@@ -111,8 +223,21 @@ export default function ExpensesPage() {
     fetchExpenses();
   }, [fetchExpenses]);
 
-  const handlePay = async (expense: Expense) => {
+  const handlePay = async (expense: Expense, amount?: number) => {
     if (!expense.id) return;
+    
+    // For 'utama' category, trigger dialog if amount is not provided
+    if (expense.category === 'utama' && amount === undefined) {
+      setExpenseToPay(expense);
+      setIsPayWajibDialogOpen(true);
+      return;
+    }
+
+    const paymentAmount = expense.category === 'utama' ? amount : expense.amount;
+    if (!paymentAmount) {
+         toast({ title: "Jumlah tidak valid", variant: "destructive" });
+         return;
+    }
 
     try {
         const batch = writeBatch(db);
@@ -120,7 +245,7 @@ export default function ExpensesPage() {
 
         const historyRecord: Omit<Expense, 'id'> = {
             name: expense.name,
-            amount: expense.amount,
+            amount: paymentAmount,
             category: expense.category,
             date: todayStr,
         };
@@ -162,9 +287,12 @@ export default function ExpensesPage() {
      try {
         const dataToAdd: any = {
             name: newExpenseData.name,
-            amount: newExpenseData.amount,
             category: newExpenseData.category,
         };
+        
+        if (newExpenseData.amount) {
+            dataToAdd.amount = newExpenseData.amount;
+        }
         
         if (newExpenseData.category === 'lainnya') {
             dataToAdd.date = format(new Date(), 'yyyy-MM-dd');
@@ -320,7 +448,7 @@ export default function ExpensesPage() {
   };
 
 
-  const renderPayableTable = (data: Expense[], categoryName: string) => {
+  const renderPayableTable = (data: Expense[], categoryName: 'wajib' | 'angsuran') => {
     if (loading) {
       return (
         <div className="flex items-center justify-center h-48">
@@ -344,7 +472,7 @@ export default function ExpensesPage() {
             {categoryName === 'angsuran' && <TableHead>Tenor</TableHead>}
             <TableHead>Jatuh Tempo</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="text-right">Jumlah</TableHead>
+            {categoryName === 'angsuran' && <TableHead className="text-right">Jumlah</TableHead>}
             <TableHead className="text-right">Aksi</TableHead>
           </TableRow>
         </TableHeader>
@@ -379,7 +507,9 @@ export default function ExpensesPage() {
                     {getExpenseStatusBadge(item)}
                   </TableCell>
                 </>
-              <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
+              {categoryName === 'angsuran' && item.amount && (
+                  <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
+              )}
               <TableCell className="text-right">
                 <Button size="sm" onClick={() => handlePay(item)} disabled={isButtonDisabled}>
                     {isInstallmentPaidOff ? "Lunas" : isPaidThisMonth ? "Dibayar" : "Bayar"}
@@ -421,9 +551,9 @@ export default function ExpensesPage() {
         <TableBody>
           {data.map((item) => (
             <TableRow key={item.id}>
-              <TableCell>{format(parseISO(item.date!), 'd MMMM yyyy', { locale: id })}</TableCell>
+              <TableCell>{item.date ? format(parseISO(item.date), 'd MMMM yyyy', { locale: id }) : ''}</TableCell>
               <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
+              <TableCell className="text-right">Rp{(item.amount || 0).toLocaleString('id-ID')}</TableCell>
               <TableCell className="text-right">
                 <Button variant="ghost" size="icon" onClick={() => handleHistoryDeleteClick(item)}>
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -570,6 +700,13 @@ export default function ExpensesPage() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
+        <PayWajibDialog
+            expense={expenseToPay}
+            open={isPayWajibDialogOpen}
+            onOpenChange={setIsPayWajibDialogOpen}
+            onConfirm={handlePay}
+        />
     </>
   );
 }

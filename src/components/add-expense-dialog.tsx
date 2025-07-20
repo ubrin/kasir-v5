@@ -37,12 +37,12 @@ const addExpenseSchema = z.object({
   name: z.string().min(1, { message: "Nama pengeluaran harus diisi." }),
   amount: z.preprocess(
     (val) => {
-      if (typeof val === 'string') {
+      if (typeof val === 'string' && val.trim() !== '') {
         return Number(val.replace(/\./g, ''));
       }
-      return val;
+      return val === '' ? undefined : val;
     },
-    z.number({required_error: "Jumlah harus diisi.", invalid_type_error: "Harus berupa angka"}).min(1, "Jumlah minimal 1")
+    z.number({invalid_type_error: "Harus berupa angka"}).min(1, "Jumlah minimal 1").optional()
   ),
   category: z.enum(['utama', 'angsuran', 'lainnya'], {
     required_error: 'Kategori harus dipilih.',
@@ -71,6 +71,14 @@ const addExpenseSchema = z.object({
 }, {
     message: "Tgl. jatuh tempo wajib diisi.",
     path: ["dueDateDay"],
+}).refine(data => {
+    if (data.category === 'angsuran' || data.category === 'lainnya') {
+        return data.amount !== undefined && data.amount > 0;
+    }
+    return true;
+}, {
+    message: "Jumlah wajib diisi untuk kategori ini.",
+    path: ["amount"],
 });
 
 type AddExpenseFormValues = z.infer<typeof addExpenseSchema>;
@@ -95,12 +103,16 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
   const watchCategory = form.watch('category');
 
   const onSubmit = (data: AddExpenseFormValues) => {
-    onExpenseAdded({
-        ...data,
-        amount: Number(data.amount),
+    const expenseData: Omit<Expense, 'id'> = {
+        name: data.name,
+        category: data.category,
+        amount: data.category !== 'utama' ? Number(data.amount) : undefined,
         tenor: data.category === 'angsuran' ? Number(data.tenor) : undefined,
         dueDateDay: data.category === 'lainnya' ? undefined : Number(data.dueDateDay),
-    });
+    };
+    
+    onExpenseAdded(expenseData);
+    
     form.reset({
         name: '',
         amount: '' as any,
@@ -154,25 +166,6 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                         <FormMessage />
                         </FormItem>
                     )}
-                    />
-                     <FormField
-                        control={form.control}
-                        name="amount"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Jumlah (Rp)</FormLabel>
-                            <FormControl>
-                                <Input 
-                                  type="text" 
-                                  placeholder="cth. 50.000" 
-                                  {...field}
-                                  onChange={handleAmountChange}
-                                  value={field.value ? Number(field.value).toLocaleString('id-ID') : ''}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
                     />
                     <FormField
                       control={form.control}
@@ -228,6 +221,28 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                         </FormItem>
                       )}
                     />
+                     
+                    {(watchCategory === 'angsuran' || watchCategory === 'lainnya') && (
+                        <FormField
+                            control={form.control}
+                            name="amount"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Jumlah (Rp)</FormLabel>
+                                <FormControl>
+                                    <Input 
+                                    type="text" 
+                                    placeholder="cth. 50.000" 
+                                    {...field}
+                                    onChange={handleAmountChange}
+                                    value={field.value ? Number(field.value).toLocaleString('id-ID') : ''}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
                     
                     {(watchCategory === 'utama' || watchCategory === 'angsuran') && (
                       <FormField
