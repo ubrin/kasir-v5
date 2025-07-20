@@ -10,7 +10,7 @@ import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Settings } from "lucide-react";
+import { Loader2, Settings, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,7 @@ export default function ExpensesPage() {
     lainnya: []
   });
   const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
+  const [historyToDelete, setHistoryToDelete] = React.useState<Expense | null>(null);
 
   const fetchExpenses = React.useCallback(async () => {
     setLoading(true);
@@ -96,7 +97,7 @@ export default function ExpensesPage() {
         if (expense.category === 'angsuran') {
             updates.paidTenor = increment(1);
         }
-        // Always update lastPaidDate for recurring expenses
+        
         if (expense.category === 'utama' || expense.category === 'angsuran') {
             updates.lastPaidDate = todayStr;
         }
@@ -174,8 +175,8 @@ export default function ExpensesPage() {
       
       const historySnapshot = await getDocs(historyQuery);
       
-      historySnapshot.forEach(doc => {
-        if (doc.data().date) {
+      historySnapshot.docs.forEach(doc => {
+        if (doc.data().date) { // Ensure it's a history record
             batch.delete(doc.ref);
         }
       });
@@ -198,6 +199,30 @@ export default function ExpensesPage() {
         description: "Terjadi kesalahan saat menghapus data.",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleHistoryDeleteClick = (item: Expense) => {
+    setHistoryToDelete(item);
+  };
+
+  const confirmHistoryDelete = async () => {
+    if (!historyToDelete) return;
+    try {
+        await deleteDoc(doc(db, "expenses", historyToDelete.id));
+        toast({
+            title: "Riwayat Dihapus",
+            description: `Riwayat pembayaran untuk ${historyToDelete.name} telah berhasil dihapus.`,
+            variant: "destructive"
+        });
+        setHistoryToDelete(null);
+        fetchExpenses();
+    } catch (error) {
+        console.error("Error deleting history item:", error);
+        toast({
+            title: "Gagal Menghapus Riwayat",
+            variant: "destructive"
+        });
     }
   };
 
@@ -331,6 +356,7 @@ export default function ExpensesPage() {
             <TableHead>Tanggal</TableHead>
             <TableHead>Nama</TableHead>
             <TableHead className="text-right">Jumlah</TableHead>
+            <TableHead className="text-right">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -339,6 +365,11 @@ export default function ExpensesPage() {
               <TableCell>{format(parseISO(item.date!), 'd MMMM yyyy', { locale: id })}</TableCell>
               <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
+              <TableCell className="text-right">
+                <Button variant="ghost" size="icon" onClick={() => handleHistoryDeleteClick(item)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -471,6 +502,26 @@ export default function ExpensesPage() {
                 <AlertDialogCancel onClick={() => setExpenseToDelete(null)}>Batal</AlertDialogCancel>
                 <AlertDialogAction
                     onClick={confirmDelete}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    Ya, Hapus
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!historyToDelete} onOpenChange={(isOpen) => !isOpen && setHistoryToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Anda yakin ingin menghapus riwayat ini?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Tindakan ini akan menghapus riwayat pembayaran untuk <span className="font-bold">{historyToDelete?.name}</span> pada tanggal <span className="font-bold">{historyToDelete?.date ? format(parseISO(historyToDelete.date), 'd MMMM yyyy') : ''}</span>. Tindakan ini tidak dapat dibatalkan.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setHistoryToDelete(null)}>Batal</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={confirmHistoryDelete}
                     className="bg-destructive hover:bg-destructive/90"
                 >
                     Ya, Hapus
