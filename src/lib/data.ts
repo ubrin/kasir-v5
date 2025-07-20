@@ -153,34 +153,7 @@ export const invoices: Invoice[] = [
   }
 ];
 
-export const payments: Payment[] = [
-    {
-        id: 'PAY001',
-        customerId: 'CUST002',
-        customerName: 'Citra Lestari',
-        paymentDate: format(subMonths(today, 1), 'yyyy-MM-dd'),
-        paidAmount: 250000,
-        paymentMethod: 'dana',
-        invoiceIds: ['INV002'],
-        totalBill: 250000,
-        discount: 0,
-        totalPayment: 250000,
-        changeAmount: 0
-    },
-    {
-        id: 'PAY002',
-        customerId: 'CUST005',
-        customerName: 'heri',
-        paymentDate: `${currentYear}-06-10`, // Pembayaran Juni
-        paidAmount: 150000,
-        paymentMethod: 'bri',
-        invoiceIds: ['INV007'],
-        totalBill: 150000,
-        discount: 0,
-        totalPayment: 150000,
-        changeAmount: 0
-    }
-];
+export const payments: Payment[] = [];
 
 
 // Static data can remain here.
