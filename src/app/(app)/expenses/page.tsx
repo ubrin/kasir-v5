@@ -2,10 +2,10 @@
 'use client';
 
 import * as React from "react";
-import { collection, query, getDocs, addDoc, writeBatch, doc, increment, deleteDoc } from "firebase/firestore";
+import { collection, query, getDocs, addDoc, writeBatch, doc, increment, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from "@/lib/types";
-import { format, getDate, getYear, getMonth, differenceInDays } from 'date-fns';
+import { format, getDate, getYear, getMonth, differenceInDays, isSameMonth, isSameYear } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -73,23 +73,35 @@ export default function ExpensesPage() {
   }, [fetchExpenses]);
 
   const handlePay = async (expense: Expense) => {
+    if (!expense.id) return;
+
     try {
         const batch = writeBatch(db);
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
 
+        // 1. Create a history record
         const historyRecord: Omit<Expense, 'id'> = {
             name: expense.name,
             amount: expense.amount,
             category: expense.category,
-            date: format(new Date(), 'yyyy-MM-dd'),
+            date: todayStr,
         };
         const historyRef = doc(collection(db, "expenses"));
         batch.set(historyRef, historyRecord);
 
-        if (expense.category === 'angsuran' && expense.id) {
-            const expenseRef = doc(db, "expenses", expense.id);
-            batch.update(expenseRef, {
-                paidTenor: increment(1)
-            });
+        // 2. Update the template document
+        const expenseRef = doc(db, "expenses", expense.id);
+        const updates: { [key: string]: any } = {};
+
+        if (expense.category === 'angsuran') {
+            updates.paidTenor = increment(1);
+            updates.lastPaidDate = todayStr;
+        } else if (expense.category === 'utama') {
+            updates.lastPaidDate = todayStr;
+        }
+
+        if (Object.keys(updates).length > 0) {
+            batch.update(expenseRef, updates);
         }
         
         await batch.commit();
@@ -175,6 +187,14 @@ export default function ExpensesPage() {
 
     const today = new Date();
     const currentDay = getDate(today);
+
+    if (item.lastPaidDate) {
+        const lastPaid = new Date(item.lastPaidDate);
+        if (isSameMonth(today, lastPaid) && isSameYear(today, lastPaid)) {
+            return <Badge className="bg-green-100 text-green-800">Sudah Dibayar</Badge>;
+        }
+    }
+    
     const daysDiff = item.dueDateDay - currentDay;
 
     if (daysDiff < 0) {
@@ -220,6 +240,16 @@ export default function ExpensesPage() {
         <TableBody>
           {data.map((item) => {
             const isInstallmentPaidOff = item.category === 'angsuran' && (item.paidTenor || 0) >= (item.tenor || 0);
+            
+            let isPaidThisMonth = false;
+            if (item.lastPaidDate) {
+                const lastPaid = new Date(item.lastPaidDate);
+                const today = new Date();
+                isPaidThisMonth = isSameMonth(today, lastPaid) && isSameYear(today, lastPaid);
+            }
+            
+            const isButtonDisabled = isInstallmentPaidOff || ( (item.category === 'utama' || item.category === 'angsuran') && isPaidThisMonth );
+
             return (
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.name}</TableCell>
@@ -242,8 +272,8 @@ export default function ExpensesPage() {
               )}
               <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
               <TableCell className="text-right">
-                <Button size="sm" onClick={() => handlePay(item)} disabled={isInstallmentPaidOff}>
-                    {isInstallmentPaidOff ? "Lunas" : "Bayar"}
+                <Button size="sm" onClick={() => handlePay(item)} disabled={isButtonDisabled}>
+                    {isInstallmentPaidOff ? "Lunas" : isPaidThisMonth ? "Dibayar" : "Bayar"}
                 </Button>
               </TableCell>
             </TableRow>
