@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from "react";
-import { collection, query, getDocs, addDoc, writeBatch, doc, increment, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, query, getDocs, addDoc, writeBatch, doc, increment, deleteDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from "@/lib/types";
 import { format, getDate, getYear, getMonth, differenceInDays, isSameMonth, isSameYear } from 'date-fns';
@@ -95,8 +95,9 @@ export default function ExpensesPage() {
 
         if (expense.category === 'angsuran') {
             updates.paidTenor = increment(1);
-            updates.lastPaidDate = todayStr;
-        } else if (expense.category === 'utama') {
+        }
+        // Always update lastPaidDate for recurring expenses
+        if (expense.category === 'utama' || expense.category === 'angsuran') {
             updates.lastPaidDate = todayStr;
         }
 
@@ -160,22 +161,48 @@ export default function ExpensesPage() {
   const confirmDelete = async () => {
     if (!expenseToDelete) return;
     try {
-      await deleteDoc(doc(db, "expenses", expenseToDelete.id));
+      const batch = writeBatch(db);
+      
+      // 1. Delete the template itself
+      const templateRef = doc(db, "expenses", expenseToDelete.id);
+      batch.delete(templateRef);
+
+      // 2. Query for all history records with the same name and category
+      const historyQuery = query(
+        collection(db, "expenses"), 
+        where("name", "==", expenseToDelete.name),
+        where("category", "==", expenseToDelete.category),
+        where("date", "!=", null) // This ensures we only get history records
+      );
+      
+      const historySnapshot = await getDocs(historyQuery);
+      
+      // 3. Delete all found history records
+      historySnapshot.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+
       toast({
-        title: "Templat Dihapus",
-        description: `Templat pengeluaran ${expenseToDelete.name} telah berhasil dihapus.`,
+        title: "Data Dihapus",
+        description: `Templat pengeluaran ${expenseToDelete.name} dan riwayatnya telah berhasil dihapus.`,
         variant: "destructive"
       });
+      
       setExpenseToDelete(null);
       fetchExpenses();
+
     } catch (error) {
-      console.error("Error deleting expense:", error);
+      console.error("Error deleting expense and its history:", error);
       toast({
         title: "Gagal Menghapus",
+        description: "Terjadi kesalahan saat menghapus data.",
         variant: "destructive"
       });
     }
   };
+
 
   const getExpenseStatusBadge = (item: Expense) => {
     const isInstallmentPaidOff = item.category === 'angsuran' && (item.paidTenor || 0) >= (item.tenor || 0);
@@ -221,7 +248,7 @@ export default function ExpensesPage() {
       return (
         <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
           <p className="text-lg font-medium">Tidak Ada Tagihan</p>
-          <p className="text-muted-foreground">Tidak ada tagihan {categoryName} yang perlu dibayar saat ini.</p>
+          <p className="text-muted-foreground">Tidak ada templat tagihan {categoryName} yang perlu dibayar.</p>
         </div>
       );
     }
@@ -370,7 +397,7 @@ export default function ExpensesPage() {
             </Card>
           </TabsContent>
           <TabsContent value="angsuran" className="space-y-4">
-            <Card className="bg-muted/20">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                       <CardTitle>Angsuran</CardTitle>
@@ -391,7 +418,7 @@ export default function ExpensesPage() {
                 {renderPayableTable(expenses.angsuran, 'angsuran')}
               </CardContent>
             </Card>
-            <Card className="bg-muted/20">
+            <Card>
               <CardHeader>
                 <CardTitle>Riwayat Angsuran</CardTitle>
               </CardHeader>
@@ -439,7 +466,7 @@ export default function ExpensesPage() {
                 <AlertDialogHeader>
                 <AlertDialogTitle>Anda yakin ingin menghapus templat ini?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Tindakan ini akan menghapus templat pengeluaran <span className="font-bold">{expenseToDelete?.name}</span> secara permanen. Riwayat pembayaran yang sudah ada tidak akan terpengaruh.
+                    Tindakan ini akan menghapus templat pengeluaran <span className="font-bold">{expenseToDelete?.name}</span> secara permanen beserta semua riwayat pembayarannya.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
