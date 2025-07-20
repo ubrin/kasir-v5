@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Settings, Trash2 } from "lucide-react";
+import { Loader2, Settings, Trash2, MoreHorizontal } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const payWajibSchema = z.object({
   amount: z.preprocess(
@@ -147,47 +148,13 @@ export default function ExpensesPage() {
   const [isPayWajibDialogOpen, setIsPayWajibDialogOpen] = React.useState(false);
 
 
-  const clearOldOtherExpenses = React.useCallback(async () => {
-    try {
-        const today = new Date();
-        const startOfCurrentMonth = startOfMonth(today);
-        
-        const q = query(collection(db, "expenses"), where("category", "==", "lainnya"));
-        const snapshot = await getDocs(q);
-        
-        const batch = writeBatch(db);
-        let deletedCount = 0;
-
-        snapshot.docs.forEach(doc => {
-            const expense = doc.data() as Expense;
-            if (expense.date) {
-                const expenseDate = parseISO(expense.date);
-                if (!isSameMonth(expenseDate, today) || !isSameYear(expenseDate, today)) {
-                    batch.delete(doc.ref);
-                    deletedCount++;
-                }
-            }
-        });
-
-        if (deletedCount > 0) {
-            await batch.commit();
-            console.log(`${deletedCount} old 'lainnya' expenses cleared.`);
-        }
-    } catch (error) {
-        console.error("Error clearing old 'lainnya' expenses:", error);
-    }
-  }, []);
-
   const fetchExpenses = React.useCallback(async () => {
     setLoading(true);
-    await clearOldOtherExpenses();
     try {
       const expensesQuery = query(collection(db, "expenses"));
       const querySnapshot = await getDocs(expensesQuery);
       const allExpenses = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
       
-      const today = new Date();
-
       const templates = {
         wajib: allExpenses.filter(exp => exp.category === 'utama' && !exp.date),
         angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && !exp.date),
@@ -196,13 +163,7 @@ export default function ExpensesPage() {
       const historyRecords = {
         wajib: allExpenses.filter(exp => exp.category === 'utama' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
         angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
-        lainnya: allExpenses.filter(exp => {
-            if (exp.category === 'lainnya' && exp.date) {
-                const expenseDate = parseISO(exp.date);
-                return isSameMonth(expenseDate, today) && isSameYear(expenseDate, today);
-            }
-            return false;
-        }).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
+        lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
       };
 
       setExpenses(templates);
@@ -218,7 +179,7 @@ export default function ExpensesPage() {
     } finally {
       setLoading(false);
     }
-  }, [toast, clearOldOtherExpenses]);
+  }, [toast]);
   
   React.useEffect(() => {
     fetchExpenses();
@@ -227,7 +188,6 @@ export default function ExpensesPage() {
   const handlePay = async (expense: Expense, amount?: number) => {
     if (!expense.id) return;
     
-    // For 'utama' category, trigger dialog if amount is not provided
     if (expense.category === 'utama' && amount === undefined) {
       setExpenseToPay(expense);
       setIsPayWajibDialogOpen(true);
@@ -516,7 +476,7 @@ export default function ExpensesPage() {
       return (
         <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
           <p className="text-lg font-medium">Tidak Ada Riwayat</p>
-          <p className="text-muted-foreground">Belum ada pembayaran yang tercatat {categoryName === "lainnya" ? "bulan ini" : ""}.</p>
+          <p className="text-muted-foreground">Belum ada pembayaran yang tercatat.</p>
         </div>
       );
     }
@@ -537,9 +497,24 @@ export default function ExpensesPage() {
               <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell className="text-right">Rp{(item.amount || 0).toLocaleString('id-ID')}</TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => handleHistoryDeleteClick(item)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button aria-haspopup="true" size="icon" variant="ghost">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Buka menu</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                      <DropdownMenuItem 
+                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                        onClick={() => handleHistoryDeleteClick(item)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Hapus
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}
@@ -632,8 +607,8 @@ export default function ExpensesPage() {
           <TabsContent value="lainnya" className="space-y-4">
              <Card>
               <CardHeader>
-                <CardTitle>Riwayat Pengeluaran Lainnya (Bulan Ini)</CardTitle>
-                <CardDescription>Pengeluaran insidental yang tercatat bulan ini akan otomatis dihapus bulan depan.</CardDescription>
+                <CardTitle>Riwayat Pengeluaran Lainnya</CardTitle>
+                <CardDescription>Pengeluaran insidental yang pernah tercatat.</CardDescription>
               </CardHeader>
               <CardContent>
                 {renderHistoryTable(history.lainnya, 'lainnya')}
@@ -692,3 +667,5 @@ export default function ExpensesPage() {
     </>
   );
 }
+
+    
