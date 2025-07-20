@@ -29,7 +29,8 @@ const payWajibSchema = z.object({
   amount: z.preprocess(
     (val) => {
       if (typeof val === 'string') {
-        return Number(val.replace(/\./g, ''));
+        const cleaned = val.replace(/\D/g, '');
+        return cleaned === '' ? undefined : Number(cleaned);
       }
       return val;
     },
@@ -52,13 +53,13 @@ function PayWajibDialog({
   const form = useForm<PayWajibFormValues>({
     resolver: zodResolver(payWajibSchema),
     defaultValues: {
-      amount: '' as any,
+      amount: undefined,
     },
   });
 
   React.useEffect(() => {
     if (!open) {
-      form.reset();
+      form.reset({ amount: undefined });
     }
   }, [open, form]);
 
@@ -73,10 +74,10 @@ function PayWajibDialog({
     const rawValue = e.target.value;
     const numberValue = parseInt(rawValue.replace(/\D/g, ''), 10);
     if (isNaN(numberValue)) {
-      form.setValue('amount', '' as any);
+      form.setValue('amount', undefined);
       e.target.value = '';
     } else {
-      form.setValue('amount', numberValue as any);
+      form.setValue('amount', numberValue);
       e.target.value = numberValue.toLocaleString('id-ID');
     }
   };
@@ -353,30 +354,11 @@ export default function ExpensesPage() {
   const confirmDelete = async () => {
     if (!expenseToDelete) return;
     try {
-      const batch = writeBatch(db);
-      
-      const templateRef = doc(db, "expenses", expenseToDelete.id);
-      batch.delete(templateRef);
-
-      const historyQuery = query(
-        collection(db, "expenses"), 
-        where("name", "==", expenseToDelete.name),
-        where("category", "==", expenseToDelete.category)
-      );
-      
-      const historySnapshot = await getDocs(historyQuery);
-      
-      historySnapshot.docs.forEach(doc => {
-        if (doc.data().date) {
-            batch.delete(doc.ref);
-        }
-      });
-
-      await batch.commit();
+      await deleteDoc(doc(db, "expenses", expenseToDelete.id));
 
       toast({
-        title: "Data Dihapus",
-        description: `Templat pengeluaran ${expenseToDelete.name} dan riwayatnya telah berhasil dihapus.`,
+        title: "Templat Dihapus",
+        description: `Templat pengeluaran ${expenseToDelete.name} telah berhasil dihapus. Riwayat pembayarannya tetap tersimpan.`,
         variant: "destructive"
       });
       
@@ -384,10 +366,10 @@ export default function ExpensesPage() {
       fetchExpenses();
 
     } catch (error) {
-      console.error("Error deleting expense and its history:", error);
+      console.error("Error deleting expense template:", error);
       toast({
         title: "Gagal Menghapus",
-        description: "Terjadi kesalahan saat menghapus data.",
+        description: "Terjadi kesalahan saat menghapus templat.",
         variant: "destructive"
       });
     }
@@ -666,7 +648,7 @@ export default function ExpensesPage() {
                 <AlertDialogHeader>
                 <AlertDialogTitle>Anda yakin ingin menghapus templat ini?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Tindakan ini akan menghapus templat pengeluaran <span className="font-bold">{expenseToDelete?.name}</span> secara permanen beserta semua riwayat pembayarannya.
+                    Tindakan ini akan menghapus templat pengeluaran <span className="font-bold">{expenseToDelete?.name}</span> secara permanen. Riwayat pembayarannya akan tetap tersimpan.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
