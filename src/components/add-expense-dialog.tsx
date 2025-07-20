@@ -26,13 +26,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { Expense } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -140,26 +134,46 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                         )}
                     />
                     <FormField
-                        control={form.control}
-                        name="category"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Kategori</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Kategori</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="flex flex-col space-y-1"
+                            >
+                              <FormItem className="flex items-center space-x-3 space-y-0">
                                 <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih kategori pengeluaran" />
-                                </SelectTrigger>
+                                  <RadioGroupItem value="utama" />
                                 </FormControl>
-                                <SelectContent>
-                                <SelectItem value="utama">Wajib</SelectItem>
-                                <SelectItem value="angsuran">Angsuran</SelectItem>
-                                <SelectItem value="lainnya">Lainnya</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                            </FormItem>
-                        )}
+                                <FormLabel className="font-normal">
+                                  Wajib
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="angsuran" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  Angsuran
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="lainnya" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  Lainnya
+                                </FormLabel>
+                              </FormItem>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                     {watchCategory === 'angsuran' && (
                          <FormField
