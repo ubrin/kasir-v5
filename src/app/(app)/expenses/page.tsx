@@ -110,10 +110,23 @@ export default function ExpensesPage() {
   
   const handleExpenseAdded = async (newExpenseData: Omit<Expense, 'id'>) => {
     try {
-        await addDoc(collection(db, "expenses"), {
-            ...newExpenseData,
-            paidTenor: newExpenseData.category === 'angsuran' ? 0 : undefined,
-        });
+        // Build the document to add, ensuring no 'undefined' fields are sent
+        const dataToAdd: any = {
+            name: newExpenseData.name,
+            amount: newExpenseData.amount,
+            category: newExpenseData.category,
+        };
+        
+        if (newExpenseData.category === 'angsuran') {
+            dataToAdd.tenor = newExpenseData.tenor;
+            dataToAdd.paidTenor = 0;
+            dataToAdd.dueDateDay = newExpenseData.dueDateDay;
+        } else if (newExpenseData.category === 'utama') {
+            dataToAdd.dueDateDay = newExpenseData.dueDateDay;
+        }
+
+        await addDoc(collection(db, "expenses"), dataToAdd);
+        
         toast({
             title: "Pengeluaran Ditambahkan",
             description: `${newExpenseData.name} telah berhasil ditambahkan.`,
