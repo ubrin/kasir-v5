@@ -12,6 +12,7 @@ import { id } from 'date-fns/locale';
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export default function MonthlyStatisticsPage() {
     const { toast } = useToast();
@@ -107,52 +108,29 @@ export default function MonthlyStatisticsPage() {
             <p className="text-muted-foreground">Ringkasan keuangan untuk bulan {currentMonthName}.</p>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Pemasukan
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">Rp{stats.totalRevenue.toLocaleString('id-ID')}</div>
-              <p className="text-xs text-muted-foreground">
-                Pemasukan bulan ini
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Pengeluaran
-              </CardTitle>
-              <TrendingDown className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-destructive">Rp{stats.totalExpenses.toLocaleString('id-ID')}</div>
-              <p className="text-xs text-muted-foreground">
-                Pengeluaran bulan ini
-              </p>
-            </CardContent>
-          </Card>
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Keuntungan Bersih
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${stats.netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                Rp{stats.netProfit.toLocaleString('id-ID')}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Pemasukan dikurangi pengeluaran
-              </p>
-            </CardContent>
-          </Card>
-      </div>
+      <Card>
+        <CardHeader>
+            <CardTitle>Ringkasan Keuangan</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="flex flex-col space-y-1">
+                    <span className="text-sm text-muted-foreground">Total Pemasukan</span>
+                    <span className="text-2xl font-bold">Rp{stats.totalRevenue.toLocaleString('id-ID')}</span>
+                </div>
+                 <div className="flex flex-col space-y-1">
+                    <span className="text-sm text-muted-foreground">Total Pengeluaran</span>
+                    <span className="text-2xl font-bold text-destructive">Rp{stats.totalExpenses.toLocaleString('id-ID')}</span>
+                </div>
+                 <div className="flex flex-col space-y-1">
+                    <span className="text-sm text-muted-foreground">Keuntungan Bersih</span>
+                    <span className={`text-2xl font-bold ${stats.netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        Rp{stats.netProfit.toLocaleString('id-ID')}
+                    </span>
+                </div>
+            </div>
+        </CardContent>
+      </Card>
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
