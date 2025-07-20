@@ -3,14 +3,14 @@
 import * as React from "react";
 import { collection, getDocs, query, where, writeBatch, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Customer, Invoice, Payment } from "@/lib/types";
+import type { Customer, Invoice, Payment, Expense } from "@/lib/types";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
-import { DollarSign, Users, CreditCard, Activity, Archive, Loader2, FileClock, Files } from "lucide-react"
+import { DollarSign, Users, CreditCard, Activity, Archive, Loader2, FileClock, Files, TrendingUp, TrendingDown, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { differenceInMonths, parseISO, startOfMonth, subMonths, getMonth, getYear } from "date-fns"
+import { differenceInMonths, parseISO, startOfMonth, subMonths, getMonth, getYear, isSameMonth, isSameYear } from "date-fns"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +34,9 @@ export default function MonthlyStatisticsPage() {
         totalOmset: 0,
         totalArrears: 0,
         newCustomers: 0,
+        monthlyIncome: 0,
+        monthlyExpense: 0,
+        netProfit: 0,
     });
     const [monthlyRevenueData, setMonthlyRevenueData] = React.useState<any[]>([]);
     const [pieData, setPieData] = React.useState<any[]>([]);
@@ -41,30 +44,43 @@ export default function MonthlyStatisticsPage() {
     const fetchData = React.useCallback(async () => {
         setLoading(true);
         try {
-            const [customersSnapshot, invoicesSnapshot, paymentsSnapshot] = await Promise.all([
+            const [customersSnapshot, invoicesSnapshot, paymentsSnapshot, expensesSnapshot] = await Promise.all([
                 getDocs(collection(db, "customers")),
                 getDocs(collection(db, "invoices")),
-                getDocs(collection(db, "payments"))
+                getDocs(collection(db, "payments")),
+                getDocs(query(collection(db, "expenses"), where("date", "!=", null)))
             ]);
 
             const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
             const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
             const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+            const expenses = expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             
             const today = new Date();
             const currentMonth = getMonth(today);
             const currentYear = getYear(today);
             const startOfCurrentMonth = startOfMonth(today);
 
-            const totalOmset = customers.reduce((acc, c) => acc + c.packagePrice, 0);
-
-            const newCustomers = customers.filter(c => c.installationDate && differenceInMonths(new Date(), parseISO(c.installationDate)) < 1).length;
-
-            const thisMonthInvoices = invoices.filter(invoice => {
-                const invoiceDate = parseISO(invoice.date);
-                return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
+            // Monthly specific calculations
+            const thisMonthPayments = payments.filter(p => {
+                const paymentDate = parseISO(p.paymentDate);
+                return isSameMonth(paymentDate, today) && isSameYear(paymentDate, today);
             });
+            const monthlyIncome = thisMonthPayments.reduce((sum, p) => sum + (p.totalPayment || p.paidAmount), 0);
 
+            const thisMonthExpenses = expenses.filter(e => {
+                const expenseDate = parseISO(e.date!);
+                return isSameMonth(expenseDate, today) && isSameYear(expenseDate, today);
+            });
+            const monthlyExpense = thisMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
+            
+            const netProfit = monthlyIncome - monthlyExpense;
+
+
+            // General stats
+            const totalOmset = customers.reduce((acc, c) => acc + c.packagePrice, 0);
+            const newCustomers = customers.filter(c => c.installationDate && isSameMonth(parseISO(c.installationDate), today) && isSameYear(parseISO(c.installationDate), today)).length;
+            
             const oldUnpaidInvoices = invoices.filter(invoice => {
                 const invoiceDate = parseISO(invoice.date);
                 return invoice.status === 'belum lunas' && invoiceDate < startOfCurrentMonth;
@@ -75,8 +91,17 @@ export default function MonthlyStatisticsPage() {
                 totalOmset,
                 totalArrears,
                 newCustomers,
+                monthlyIncome,
+                monthlyExpense,
+                netProfit,
             });
             
+            // Chart Data
+            const thisMonthInvoices = invoices.filter(invoice => {
+                const invoiceDate = parseISO(invoice.date);
+                return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
+            });
+
             const paidInvoicesStats = thisMonthInvoices
                 .filter(i => i.status === 'lunas')
                 .reduce((acc, inv) => {
@@ -203,6 +228,46 @@ export default function MonthlyStatisticsPage() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+       <Card>
+            <CardHeader>
+                <CardTitle>Ringkasan Keuangan Bulan Ini</CardTitle>
+                <CardDescription>Pemasukan, pengeluaran, dan laba bersih yang tercatat bulan ini.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-8 sm:grid-cols-3">
+                    <div className="flex items-center gap-4">
+                         <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-lg">
+                            <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Pemasukan</p>
+                            <p className="text-2xl font-bold">Rp{stats.monthlyIncome.toLocaleString('id-ID')}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="bg-red-100 dark:bg-red-900/50 p-3 rounded-lg">
+                            <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Pengeluaran</p>
+                            <p className="text-2xl font-bold">Rp{stats.monthlyExpense.toLocaleString('id-ID')}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-lg">
+                            <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Laba Bersih</p>
+                            <p className="text-2xl font-bold">Rp{stats.netProfit.toLocaleString('id-ID')}</p>
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Link href="/customers">
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
@@ -340,3 +405,5 @@ export default function MonthlyStatisticsPage() {
     </div>
   )
 }
+
+    
