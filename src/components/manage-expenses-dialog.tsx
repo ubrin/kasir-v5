@@ -74,7 +74,9 @@ export function ManageExpensesDialog({ expenses, category, onDelete, onEdit, chi
                 {expenses.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>Rp{item.amount.toLocaleString('id-ID')}</TableCell>
+                    <TableCell>
+                      {item.amount ? `Rp${item.amount.toLocaleString('id-ID')}` : '-'}
+                    </TableCell>
                     {category === 'angsuran' && (
                         <TableCell>
                         <Badge variant={(item.paidTenor || 0) >= (item.tenor || 0) ? "default" : "outline"} className={(item.paidTenor || 0) >= (item.tenor || 0) ? "bg-green-100 text-green-800" : ""}>
