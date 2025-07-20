@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import type { Payment, Expense } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Loader2, TrendingUp, TrendingDown, Wallet } from "lucide-react"
+import { Loader2, TrendingUp, TrendingDown, Wallet, DollarSign, Users, FileClock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 
 export default function FinancePage() {
@@ -71,44 +71,48 @@ export default function FinancePage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-3xl font-bold tracking-tight">Keuangan</h1>
-       <Card>
-            <CardHeader>
-                <CardTitle>Ringkasan Keuangan Total</CardTitle>
-                <CardDescription>Akumulasi pemasukan, pengeluaran, dan saldo dari seluruh riwayat transaksi.</CardDescription>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Keuangan</h1>
+        <p className="text-muted-foreground">Akumulasi pemasukan, pengeluaran, dan saldo dari seluruh riwayat transaksi.</p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Uang Masuk</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <div className="grid gap-8 sm:grid-cols-3">
-                    <div className="flex items-center gap-4">
-                         <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-lg">
-                            <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total Uang Masuk</p>
-                            <p className="text-2xl font-bold">Rp{stats.totalIncome.toLocaleString('id-ID')}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="bg-red-100 dark:bg-red-900/50 p-3 rounded-lg">
-                            <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total Uang Keluar</p>
-                            <p className="text-2xl font-bold">Rp{stats.totalExpense.toLocaleString('id-ID')}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-lg">
-                            <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Saldo</p>
-                            <p className="text-2xl font-bold">Rp{stats.balance.toLocaleString('id-ID')}</p>
-                        </div>
-                    </div>
-                </div>
+                <div className="text-2xl font-bold">Rp{stats.totalIncome.toLocaleString('id-ID')}</div>
+                <p className="text-xs text-muted-foreground">
+                    Dari semua transaksi
+                </p>
             </CardContent>
         </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Uang Keluar</CardTitle>
+                <TrendingDown className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">Rp{stats.totalExpense.toLocaleString('id-ID')}</div>
+                <p className="text-xs text-muted-foreground">
+                    Dari semua pengeluaran
+                </p>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Saldo</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">Rp{stats.balance.toLocaleString('id-ID')}</div>
+                <p className="text-xs text-muted-foreground">
+                    Sisa uang kas
+                </p>
+            </CardContent>
+        </Card>
+       </div>
     </div>
   )
 }
