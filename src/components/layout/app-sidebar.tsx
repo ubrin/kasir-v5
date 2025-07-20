@@ -21,6 +21,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
+import { useSidebar } from '@/components/ui/sidebar';
 
 
 const menuItems = [
@@ -45,6 +46,13 @@ export default function AppSidebar() {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isMobile, setOpen, setOpenMobile } = useSidebar();
+
+  const handleItemClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -91,7 +99,7 @@ export default function AppSidebar() {
                 <CollapsibleTrigger asChild className="w-full">
                     <SidebarMenuButton asChild={!!item.href} isActive={pathname === item.href!} className="w-full justify-between" variant="ghost" tooltip={{children: item.label}}>
                        {item.href ? (
-                         <Link href={item.href}>
+                         <Link href={item.href} onClick={handleItemClick}>
                              <div className="flex items-center gap-2">
                                 <item.icon className="h-5 w-5" />
                                 <span>{item.label}</span>
@@ -114,7 +122,7 @@ export default function AppSidebar() {
                     {item.subItems.filter(subItem => hasAccess(subItem.roles)).map((subItem) => (
                        <SidebarMenuItem key={subItem.href}>
                          <SidebarMenuButton asChild isActive={pathname.startsWith(subItem.href!)} size="sm">
-                            <Link href={subItem.href!}>
+                            <Link href={subItem.href!} onClick={handleItemClick}>
                               {subItem.icon && <subItem.icon className="h-4 w-4" />}
                               <span>{subItem.label}</span>
                             </Link>
@@ -127,7 +135,7 @@ export default function AppSidebar() {
             ) : (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton asChild isActive={pathname === item.href!} tooltip={{children: item.label}}>
-                  <Link href={item.href!}>
+                  <Link href={item.href!} onClick={handleItemClick}>
                     <item.icon className="h-5 w-5" />
                     <span>{item.label}</span>
                   </Link>
