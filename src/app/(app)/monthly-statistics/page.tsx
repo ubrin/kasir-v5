@@ -3,7 +3,7 @@
 import * as React from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Customer, Payment, Expense } from "@/lib/types";
+import type { Payment, Expense } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { DollarSign, TrendingDown, Users, TrendingUp, Loader2 } from "lucide-react"
@@ -20,7 +20,6 @@ export default function MonthlyStatisticsPage() {
         totalRevenue: 0,
         totalExpenses: 0,
         netProfit: 0,
-        newCustomers: 0,
     });
     const [monthlyData, setMonthlyData] = React.useState<{payments: Payment[], expenses: Expense[]}>({
         payments: [],
@@ -47,15 +46,9 @@ export default function MonthlyStatisticsPage() {
                     where("date", "<=", format(end, 'yyyy-MM-dd'))
                 );
 
-                const customersQuery = query(collection(db, "customers"), 
-                    where("installationDate", ">=", format(start, 'yyyy-MM-dd')),
-                    where("installationDate", "<=", format(end, 'yyyy-MM-dd'))
-                );
-
-                const [paymentsSnapshot, expensesSnapshot, customersSnapshot] = await Promise.all([
+                const [paymentsSnapshot, expensesSnapshot] = await Promise.all([
                     getDocs(paymentsQuery),
                     getDocs(expensesQuery),
-                    getDocs(customersSnapshot),
                 ]);
 
                 const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
@@ -64,13 +57,11 @@ export default function MonthlyStatisticsPage() {
                 const totalRevenue = paymentsList.reduce((acc, p) => acc + (p.totalPayment || p.paidAmount), 0);
                 const totalExpenses = expensesList.reduce((acc, e) => acc + e.amount, 0);
                 const netProfit = totalRevenue - totalExpenses;
-                const newCustomers = customersSnapshot.size;
 
                 setStats({
                     totalRevenue,
                     totalExpenses,
                     netProfit,
-                    newCustomers,
                 });
 
                 setMonthlyData({
@@ -116,7 +107,7 @@ export default function MonthlyStatisticsPage() {
             <p className="text-muted-foreground">Ringkasan keuangan untuk bulan {currentMonthName}.</p>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -158,20 +149,6 @@ export default function MonthlyStatisticsPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Pemasukan dikurangi pengeluaran
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Pelanggan Baru
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+{stats.newCustomers}</div>
-              <p className="text-xs text-muted-foreground">
-                Pelanggan baru bulan ini
               </p>
             </CardContent>
           </Card>
