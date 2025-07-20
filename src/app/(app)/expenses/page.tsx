@@ -10,11 +10,12 @@ import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2 } from "lucide-react";
+import { PlusCircle, Loader2, Edit, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function ExpensesPage() {
   const { toast } = useToast();
@@ -145,9 +146,21 @@ export default function ExpensesPage() {
               )}
               <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
               <TableCell className="text-right">
-                <Button size="sm" onClick={() => handlePay(item)} disabled={(item.paidTenor || 0) >= (item.tenor || 0)}>
-                    Bayar
-                </Button>
+                <div className="flex gap-2 justify-end">
+                    {categoryName === 'angsuran' && (
+                        <>
+                            <Button size="icon" variant="outline">
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="destructive">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </>
+                    )}
+                    <Button size="sm" onClick={() => handlePay(item)} disabled={(item.paidTenor || 0) >= (item.tenor || 0)}>
+                        Bayar
+                    </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
@@ -232,7 +245,7 @@ export default function ExpensesPage() {
           </Card>
         </TabsContent>
         <TabsContent value="angsuran" className="space-y-4">
-          <Card>
+          <Card className="bg-muted/30">
             <CardHeader>
               <CardTitle>Angsuran</CardTitle>
               <CardDescription>Cicilan atau pinjaman dengan tenor tertentu.</CardDescription>
@@ -241,7 +254,7 @@ export default function ExpensesPage() {
               {renderPayableTable(expenses.angsuran, 'angsuran')}
             </CardContent>
           </Card>
-           <Card>
+           <Card className="bg-muted/30">
             <CardHeader>
               <CardTitle>Riwayat Angsuran</CardTitle>
             </CardHeader>
