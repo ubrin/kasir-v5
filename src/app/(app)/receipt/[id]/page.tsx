@@ -21,9 +21,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/hooks/use-toast';
 
 export default function ReceiptPage({ params }: { params: { id: string } }) {
+    const paymentId = params.id;
     const router = useRouter();
     const { toast } = useToast();
-    const { id: paymentId } = params;
     const receiptRef = React.useRef<HTMLDivElement>(null);
     
     const [loading, setLoading] = React.useState(true);
@@ -268,5 +268,3 @@ Terima kasih telah menggunakan layanan kami.
         </div>
     );
 }
-
-    

@@ -20,9 +20,9 @@ import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 
 export default function InvoicePage({ params }: { params: { id: string } }) {
+    const customerId = params.id;
     const router = useRouter();
     const { toast } = useToast();
-    const { id: customerId } = params;
     const invoiceRef = React.useRef<HTMLDivElement>(null);
     
     const [loading, setLoading] = React.useState(true);
@@ -243,5 +243,3 @@ export default function InvoicePage({ params }: { params: { id: string } }) {
         </div>
     );
 }
-
-    

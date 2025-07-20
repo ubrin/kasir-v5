@@ -19,9 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
+  const customerId = params.id;
   const router = useRouter();
   const { toast } = useToast();
-  const { id: customerId } = params;
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
   const [customerPayments, setCustomerPayments] = useState<Payment[]>([]);
@@ -410,5 +410,3 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   )
 }
-
-    
