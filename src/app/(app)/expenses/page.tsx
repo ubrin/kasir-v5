@@ -10,7 +10,7 @@ import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, Edit, Trash2 } from "lucide-react";
+import { PlusCircle, Loader2, Edit, Trash2, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
@@ -146,21 +146,9 @@ export default function ExpensesPage() {
               )}
               <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
               <TableCell className="text-right">
-                <div className="flex gap-2 justify-end">
-                    {categoryName === 'angsuran' && (
-                        <>
-                            <Button size="icon" variant="outline">
-                                <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="destructive">
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </>
-                    )}
-                    <Button size="sm" onClick={() => handlePay(item)} disabled={(item.paidTenor || 0) >= (item.tenor || 0)}>
-                        Bayar
-                    </Button>
-                </div>
+                <Button size="sm" onClick={() => handlePay(item)} disabled={(item.paidTenor || 0) >= (item.tenor || 0)}>
+                    Bayar
+                </Button>
               </TableCell>
             </TableRow>
           ))}
@@ -246,9 +234,15 @@ export default function ExpensesPage() {
         </TabsContent>
         <TabsContent value="angsuran" className="space-y-4">
           <Card className="bg-muted/30">
-            <CardHeader>
-              <CardTitle>Angsuran</CardTitle>
-              <CardDescription>Cicilan atau pinjaman dengan tenor tertentu.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Angsuran</CardTitle>
+                    <CardDescription>Cicilan atau pinjaman dengan tenor tertentu.</CardDescription>
+                </div>
+                <Button variant="outline" size="sm">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Kelola Angsuran
+                </Button>
             </CardHeader>
             <CardContent>
               {renderPayableTable(expenses.angsuran, 'angsuran')}
