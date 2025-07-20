@@ -218,12 +218,14 @@ export default function ExpensesPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((item) => (
+          {data.map((item) => {
+            const isInstallmentPaidOff = item.category === 'angsuran' && (item.paidTenor || 0) >= (item.tenor || 0);
+            return (
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.name}</TableCell>
               {categoryName === 'angsuran' && (
                 <TableCell>
-                   <Badge variant={(item.paidTenor || 0) >= (item.tenor || 0) ? "default" : "outline"} className={(item.paidTenor || 0) >= (item.tenor || 0) ? "bg-green-100 text-green-800" : ""}>
+                   <Badge variant={isInstallmentPaidOff ? "default" : "outline"} className={isInstallmentPaidOff ? "bg-green-100 text-green-800" : ""}>
                     {item.paidTenor || 0} / {item.tenor}
                   </Badge>
                 </TableCell>
@@ -240,12 +242,12 @@ export default function ExpensesPage() {
               )}
               <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
               <TableCell className="text-right">
-                <Button size="sm" onClick={() => handlePay(item)} disabled={(item.paidTenor || 0) >= (item.tenor || 0)}>
-                    {(item.paidTenor || 0) >= (item.tenor || 0) ? "Lunas" : "Bayar"}
+                <Button size="sm" onClick={() => handlePay(item)} disabled={isInstallmentPaidOff}>
+                    {isInstallmentPaidOff ? "Lunas" : "Bayar"}
                 </Button>
               </TableCell>
             </TableRow>
-          ))}
+          )})}
         </TableBody>
       </Table>
     );
