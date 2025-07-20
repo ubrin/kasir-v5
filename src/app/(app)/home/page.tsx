@@ -4,8 +4,11 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CreditCard, BarChart3, Users, LayoutDashboard } from "lucide-react";
+import { useAuth } from '@/context/auth-context';
 
 export default function HomePage() {
+  const { user } = useAuth();
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -57,19 +60,21 @@ export default function HomePage() {
             </CardHeader>
           </Card>
         </Link>
-        <Link href="/finance">
-          <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-            <CardHeader className="flex flex-row items-center gap-4">
-              <div className="bg-primary text-primary-foreground p-3 rounded-md">
-                <LayoutDashboard className="h-6 w-6" />
-              </div>
-              <div>
-                <CardTitle>Keuangan</CardTitle>
-                <CardDescription>Lihat ringkasan dan statistik keuangan.</CardDescription>
-              </div>
-            </CardHeader>
-          </Card>
-        </Link>
+        {user?.role === 'admin' && (
+            <Link href="/finance">
+            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+                <CardHeader className="flex flex-row items-center gap-4">
+                <div className="bg-primary text-primary-foreground p-3 rounded-md">
+                    <LayoutDashboard className="h-6 w-6" />
+                </div>
+                <div>
+                    <CardTitle>Keuangan</CardTitle>
+                    <CardDescription>Lihat ringkasan dan statistik keuangan.</CardDescription>
+                </div>
+                </CardHeader>
+            </Card>
+            </Link>
+        )}
       </div>
     </div>
   );
