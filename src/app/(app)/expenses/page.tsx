@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const payWajibSchema = z.object({
   amount: z.preprocess(
@@ -137,11 +138,11 @@ export default function ExpensesPage() {
     wajib: [],
     angsuran: [],
   });
-  const [history, setHistory] = React.useState<{ wajib: Expense[], angsuran: Expense[], lainnya: Expense[], lainnyaThisMonth: Expense[] }>({
+  const [history, setHistory] = React.useState<{ wajib: Expense[], angsuran: Expense[], lainnyaThisMonth: Expense[], lainnyaByMonth: Record<string, Expense[]> }>({
     wajib: [],
     angsuran: [],
-    lainnya: [],
-    lainnyaThisMonth: []
+    lainnyaThisMonth: [],
+    lainnyaByMonth: {}
   });
   const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
   const [historyToDelete, setHistoryToDelete] = React.useState<Expense | null>(null);
@@ -169,11 +170,20 @@ export default function ExpensesPage() {
           return isSameMonth(expenseDate, today) && isSameYear(expenseDate, today);
       });
 
+      const groupedLainnya = allHistoryLainnya.reduce((acc, expense) => {
+        const monthYear = format(parseISO(expense.date!), 'MMMM yyyy', { locale: id });
+        if (!acc[monthYear]) {
+          acc[monthYear] = [];
+        }
+        acc[monthYear].push(expense);
+        return acc;
+      }, {} as Record<string, Expense[]>);
+
       const historyRecords = {
         wajib: allExpenses.filter(exp => exp.category === 'utama' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
         angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
-        lainnya: allHistoryLainnya,
         lainnyaThisMonth: historyLainnyaThisMonth,
+        lainnyaByMonth: groupedLainnya,
       };
 
       setExpenses(templates);
@@ -474,7 +484,7 @@ export default function ExpensesPage() {
     );
   };
   
-  const renderHistoryTable = (data: Expense[], categoryName: string) => {
+  const renderHistoryTable = (data: Expense[], categoryName: string, withActions: boolean = true) => {
     if (loading) {
       return (
         <div className="flex items-center justify-center h-48">
@@ -497,7 +507,7 @@ export default function ExpensesPage() {
             <TableHead>Tanggal</TableHead>
             <TableHead>Nama</TableHead>
             <TableHead className="text-right">Jumlah</TableHead>
-            <TableHead className="text-right">Aksi</TableHead>
+            {withActions && <TableHead className="text-right">Aksi</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -506,30 +516,71 @@ export default function ExpensesPage() {
               <TableCell>{item.date ? format(parseISO(item.date), 'd MMMM yyyy', { locale: id }) : ''}</TableCell>
               <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell className="text-right">Rp{(item.amount || 0).toLocaleString('id-ID')}</TableCell>
-              <TableCell className="text-right">
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Buka menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                      <DropdownMenuItem 
-                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                        onClick={() => handleHistoryDeleteClick(item)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Hapus
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-              </TableCell>
+              {withActions && (
+                <TableCell className="text-right">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Buka menu</span>
+                        </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                        <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                            onClick={() => handleHistoryDeleteClick(item)}
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Hapus
+                        </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
       </Table>
+    );
+  };
+
+  const renderGroupedHistory = (data: Record<string, Expense[]>) => {
+    const sortedMonths = Object.keys(data).sort((a, b) => {
+        const dateA = parse(a, 'MMMM yyyy', new Date(), { locale: id });
+        const dateB = parse(b, 'MMMM yyyy', new Date(), { locale: id });
+        return dateB.getTime() - dateA.getTime();
+    });
+
+    if (sortedMonths.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-48 gap-2 text-center">
+                <p className="text-lg font-medium">Tidak Ada Riwayat</p>
+                <p className="text-muted-foreground">Belum ada pengeluaran 'Lainnya' yang tercatat.</p>
+            </div>
+        );
+    }
+
+    return (
+        <Accordion type="multiple" className="w-full">
+            {sortedMonths.map(month => {
+                const expensesForMonth = data[month];
+                const totalForMonth = expensesForMonth.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+                return (
+                    <AccordionItem value={month} key={month}>
+                        <AccordionTrigger>
+                            <div className="flex justify-between w-full pr-4">
+                                <span>{month}</span>
+                                <span className="font-semibold">Total: Rp{totalForMonth.toLocaleString('id-ID')}</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="p-0">
+                            {renderHistoryTable(expensesForMonth, 'lainnya', true)}
+                        </AccordionContent>
+                    </AccordionItem>
+                );
+            })}
+        </Accordion>
     );
   };
 
@@ -627,10 +678,10 @@ export default function ExpensesPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Semua Riwayat Pengeluaran Lainnya</CardTitle>
-                <CardDescription>Seluruh pengeluaran insidental yang pernah tercatat.</CardDescription>
+                <CardDescription>Seluruh pengeluaran insidental yang pernah tercatat, dikelompokkan per bulan.</CardDescription>
               </CardHeader>
               <CardContent>
-                {renderHistoryTable(history.lainnya, 'lainnya')}
+                 {renderGroupedHistory(history.lainnyaByMonth)}
               </CardContent>
             </Card>
           </TabsContent>
