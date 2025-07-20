@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from "react";
-import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc, increment, updateDoc } from "firebase/firestore";
+import { collection, query, getDocs, addDoc, writeBatch, doc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from "@/lib/types";
 import { format } from 'date-fns';
@@ -10,12 +10,13 @@ import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, Edit, Trash2, Settings } from "lucide-react";
+import { Loader2, Edit, Trash2, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { AddExpenseDialog } from "@/components/add-expense-dialog";
 
 export default function ExpensesPage() {
   const { toast } = useToast();
@@ -40,7 +41,7 @@ export default function ExpensesPage() {
 
       const templates = {
         wajib: allExpenses.filter(exp => exp.category === 'utama' && !exp.date),
-        angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && !exp.date),
+        angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && !exp.date && (exp.paidTenor || 0) < (exp.tenor || 0)),
         lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && !exp.date)
       };
 
@@ -73,16 +74,15 @@ export default function ExpensesPage() {
     try {
         const batch = writeBatch(db);
 
-        // Create history record
-        const historyRecord = {
-            ...expense,
+        const historyRecord: Omit<Expense, 'id'> = {
+            name: expense.name,
+            amount: expense.amount,
+            category: expense.category,
             date: format(new Date(), 'yyyy-MM-dd'),
         };
-        delete (historyRecord as any).id;
         const historyRef = doc(collection(db, "expenses"));
         batch.set(historyRef, historyRecord);
 
-        // Update installment tenor if applicable
         if (expense.category === 'angsuran' && expense.id) {
             const expenseRef = doc(db, "expenses", expense.id);
             batch.update(expenseRef, {
@@ -102,6 +102,27 @@ export default function ExpensesPage() {
         toast({
             title: "Gagal Mencatat Pembayaran",
             variant: "destructive"
+        });
+    }
+  };
+  
+  const handleExpenseAdded = async (newExpenseData: Omit<Expense, 'id'>) => {
+    try {
+        await addDoc(collection(db, "expenses"), {
+            ...newExpenseData,
+            paidTenor: newExpenseData.category === 'angsuran' ? 0 : undefined,
+        });
+        toast({
+            title: "Pengeluaran Ditambahkan",
+            description: `${newExpenseData.name} telah berhasil ditambahkan.`,
+        });
+        fetchExpenses();
+    } catch (error) {
+        console.error("Error adding expense:", error);
+        toast({
+            title: "Gagal Menambahkan",
+            description: "Terjadi kesalahan saat menyimpan data.",
+            variant: "destructive",
         });
     }
   };
@@ -202,9 +223,7 @@ export default function ExpensesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Pengeluaran</h1>
           <p className="text-muted-foreground">Catat dan kelola semua pengeluaran Anda.</p>
         </div>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" /> Tambah Pengeluaran
-        </Button>
+        <AddExpenseDialog onExpenseAdded={handleExpenseAdded} />
       </div>
       
       <Tabs defaultValue="wajib" className="w-full">
