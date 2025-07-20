@@ -5,7 +5,7 @@ import * as React from "react";
 import { collection, query, getDocs, addDoc, writeBatch, doc, increment, deleteDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Expense } from "@/lib/types";
-import { format, getDate, getYear, getMonth, differenceInDays, isSameMonth, isSameYear, parseISO, startOfMonth } from 'date-fns';
+import { format, getDate, getYear, getMonth, isSameMonth, isSameYear, parseISO, startOfMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -137,10 +137,11 @@ export default function ExpensesPage() {
     wajib: [],
     angsuran: [],
   });
-  const [history, setHistory] = React.useState<{ wajib: Expense[], angsuran: Expense[], lainnya: Expense[] }>({
+  const [history, setHistory] = React.useState<{ wajib: Expense[], angsuran: Expense[], lainnya: Expense[], lainnyaThisMonth: Expense[] }>({
     wajib: [],
     angsuran: [],
-    lainnya: []
+    lainnya: [],
+    lainnyaThisMonth: []
   });
   const [expenseToDelete, setExpenseToDelete] = React.useState<Expense | null>(null);
   const [historyToDelete, setHistoryToDelete] = React.useState<Expense | null>(null);
@@ -160,10 +161,19 @@ export default function ExpensesPage() {
         angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && !exp.date),
       };
       
+      const allHistoryLainnya = allExpenses.filter(exp => exp.category === 'lainnya' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime());
+      
+      const today = new Date();
+      const historyLainnyaThisMonth = allHistoryLainnya.filter(exp => {
+          const expenseDate = parseISO(exp.date!);
+          return isSameMonth(expenseDate, today) && isSameYear(expenseDate, today);
+      });
+
       const historyRecords = {
         wajib: allExpenses.filter(exp => exp.category === 'utama' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
         angsuran: allExpenses.filter(exp => exp.category === 'angsuran' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
-        lainnya: allExpenses.filter(exp => exp.category === 'lainnya' && exp.date).sort((a,b) => parseISO(b.date!).getTime() - parseISO(a.date!).getTime()),
+        lainnya: allHistoryLainnya,
+        lainnyaThisMonth: historyLainnyaThisMonth,
       };
 
       setExpenses(templates);
@@ -607,8 +617,17 @@ export default function ExpensesPage() {
           <TabsContent value="lainnya" className="space-y-4">
              <Card>
               <CardHeader>
-                <CardTitle>Riwayat Pengeluaran Lainnya</CardTitle>
-                <CardDescription>Pengeluaran insidental yang pernah tercatat.</CardDescription>
+                <CardTitle>Riwayat Bulan Ini</CardTitle>
+                <CardDescription>Pengeluaran insidental yang tercatat bulan ini.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {renderHistoryTable(history.lainnyaThisMonth, 'lainnya')}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Semua Riwayat Pengeluaran Lainnya</CardTitle>
+                <CardDescription>Seluruh pengeluaran insidental yang pernah tercatat.</CardDescription>
               </CardHeader>
               <CardContent>
                 {renderHistoryTable(history.lainnya, 'lainnya')}
@@ -643,7 +662,7 @@ export default function ExpensesPage() {
                 <AlertDialogHeader>
                 <AlertDialogTitle>Anda yakin ingin menghapus riwayat ini?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Tindakan ini akan menghapus riwayat pembayaran untuk <span className="font-bold">{historyToDelete?.name}</span> pada tanggal <span className="font-bold">{historyToDelete?.date ? format(parseISO(historyToDelete.date), 'd MMMM yyyy') : ''}</span>. Tindakan ini tidak dapat dibatalkan.
+                    Tindakan ini akan menghapus riwayat pembayaran untuk <span className="font-bold">{historyToDelete?.name}</span> pada tanggal <span className="font-bold">{historyToDelete?.date ? format(parseISO(historyToDelete.date), 'd MMMM yyyy', {locale: id}) : ''}</span>. Tindakan ini tidak dapat dibatalkan.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -667,5 +686,3 @@ export default function ExpensesPage() {
     </>
   );
 }
-
-    
