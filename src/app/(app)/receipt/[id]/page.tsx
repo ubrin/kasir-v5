@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useParams, notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, Invoice, Payment } from '@/lib/types';
@@ -20,11 +20,10 @@ import html2canvas from 'html2canvas';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 
-export default function ReceiptPage() {
-    const params = useParams();
+export default function ReceiptPage({ params }: { params: { id: string } }) {
     const router = useRouter();
     const { toast } = useToast();
-    const paymentId = params.id as string;
+    const { id: paymentId } = params;
     const receiptRef = React.useRef<HTMLDivElement>(null);
     
     const [loading, setLoading] = React.useState(true);

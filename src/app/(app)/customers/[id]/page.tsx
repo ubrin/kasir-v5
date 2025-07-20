@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { id: customerId } = params;
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
   const [customerPayments, setCustomerPayments] = useState<Payment[]>([]);
@@ -32,15 +33,15 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   const [editableInvoices, setEditableInvoices] = useState<Invoice[]>([]);
 
   useEffect(() => {
-    if (!params.id) return;
+    if (!customerId) return;
 
     const fetchCustomerData = async () => {
         setLoading(true);
         try {
             // Fetch all data in parallel
-            const customerDocRef = doc(db, "customers", params.id);
-            const allInvoicesQuery = query(collection(db, "invoices"), where("customerId", "==", params.id));
-            const paymentsQuery = query(collection(db, "payments"), where("customerId", "==", params.id));
+            const customerDocRef = doc(db, "customers", customerId);
+            const allInvoicesQuery = query(collection(db, "invoices"), where("customerId", "==", customerId));
+            const paymentsQuery = query(collection(db, "payments"), where("customerId", "==", customerId));
 
             const [customerDocSnap, invoicesSnapshot, paymentsSnapshot] = await Promise.all([
                 getDoc(customerDocRef),
@@ -83,7 +84,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     };
 
     fetchCustomerData();
-  }, [params.id, toast]);
+  }, [customerId, toast]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,3 +410,5 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   )
 }
+
+    

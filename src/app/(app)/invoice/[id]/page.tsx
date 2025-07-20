@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useParams, notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, Invoice } from '@/lib/types';
@@ -19,11 +19,10 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 
-export default function InvoicePage() {
-    const params = useParams();
+export default function InvoicePage({ params }: { params: { id: string } }) {
     const router = useRouter();
     const { toast } = useToast();
-    const customerId = params.id as string;
+    const { id: customerId } = params;
     const invoiceRef = React.useRef<HTMLDivElement>(null);
     
     const [loading, setLoading] = React.useState(true);
@@ -244,3 +243,5 @@ export default function InvoicePage() {
         </div>
     );
 }
+
+    
