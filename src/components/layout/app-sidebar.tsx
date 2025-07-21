@@ -89,7 +89,7 @@ export default function AppSidebar() {
         <div className="flex items-center gap-2 p-2 justify-start">
             <Link href="/home" className="flex items-center gap-2">
                 <Image src="/icon-512x512.png" alt="Logo Aplikasi" width={40} height={40} />
-                <h1 className="text-lg font-semibold text-foreground hidden group-data-[state=expanded]:block">Keuangan</h1>
+                <h1 className="text-lg font-semibold text-foreground hidden group-data-[state=expanded]:block">Tagihan Adit</h1>
             </Link>
         </div>
       </SidebarHeader>

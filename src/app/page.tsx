@@ -75,7 +75,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
-          <CardTitle className="text-2xl text-center pt-6">Keuangan</CardTitle>
+          <CardTitle className="text-2xl text-center pt-6">Tagihan Adit</CardTitle>
           <CardDescription className="text-center">
             Selamat datang! Masuk untuk melanjutkan.
           </CardDescription>
