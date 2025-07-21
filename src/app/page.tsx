@@ -3,7 +3,7 @@
 import Link from "next/link"
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, signInAnonymously } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/context/auth-context";
 
@@ -63,30 +63,6 @@ export default function LoginPage() {
         }
     };
     
-    const handleAnonymousLogin = async () => {
-        setLoading(true);
-        setError("");
-        try {
-            await signInAnonymously(auth);
-             toast({
-                title: "Login Berhasil",
-                description: "Anda masuk sebagai tamu.",
-            });
-            router.push('/home');
-        } catch (error) {
-            console.error("Anonymous login failed:", error);
-            const errorMessage = "Login sebagai tamu gagal. Pastikan sudah diaktifkan di Firebase Console.";
-            setError(errorMessage);
-            toast({
-                title: "Login Gagal",
-                description: errorMessage,
-                variant: "destructive",
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
     if (authLoading || (!authLoading && user)) {
         return (
              <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -99,9 +75,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
-          <CardTitle className="text-2xl text-center pt-6">APP GANTENG</CardTitle>
+          <CardTitle className="text-2xl text-center pt-6">Keuangan</CardTitle>
           <CardDescription className="text-center">
-            Selamat datang! Masuk untuk melanjutkan atau coba sebagai tamu.
+            Selamat datang! Masuk untuk melanjutkan.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -143,21 +119,6 @@ export default function LoginPage() {
             </Button>
           </form>
           
-          <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t"></span>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Atau lanjutkan dengan</span>
-              </div>
-          </div>
-
-          <div className="grid gap-2">
-              <Button variant="outline" className="w-full" disabled={loading} onClick={handleAnonymousLogin}>
-                  Masuk sebagai Tamu
-              </Button>
-          </div>
-
           <div className="mt-4 text-center text-sm">
             Belum punya akun?{" "}
             <Link href="/signup" className="underline">

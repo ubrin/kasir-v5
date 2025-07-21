@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 
-const APP_NAME = "InvoiceFlow";
+const APP_NAME = "Keuangan";
 const APP_DESCRIPTION = "Kelola pelanggan dan penagihan dengan wawasan bertenaga AI.";
 
 export const metadata: Metadata = {
