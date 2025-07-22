@@ -84,15 +84,15 @@ export default function CustomersPage() {
       const customersWithStatus: CustomerWithStatus[] = customersList.map(customer => {
         const customerInvoices = unpaidInvoices.filter(inv => inv.customerId === customer.id);
         if (customerInvoices.length === 0) {
-            return customer;
+            return { ...customer, hasArrears: false };
         }
+        
+        const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
 
         const nearestDueDate = customerInvoices
             .map(inv => inv.dueDate)
             .sort((a,b) => new Date(a).getTime() - new Date(b).getTime())[0];
         
-        const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
-
         return { ...customer, nearestDueDate, hasArrears };
       });
 
@@ -269,24 +269,26 @@ export default function CustomersPage() {
   };
 
   const formatDueDateStatus = (dueDate?: string, hasArrears?: boolean) => {
-    if (!isClient || !dueDate) {
-        return <Badge variant="secondary" className="bg-green-100 text-green-800">Lunas</Badge>;
+    if (!isClient) return null;
+  
+    if (!dueDate) {
+      return <Badge variant="secondary" className="bg-green-100 text-green-800">Lunas</Badge>;
     }
-
+  
     if (hasArrears) {
-        return <Badge variant="destructive">Menunggak</Badge>;
+      return <Badge variant="destructive">Menunggak</Badge>;
     }
-
+  
     const daysDiff = differenceInDays(parseISO(dueDate), startOfToday());
-
+  
     if (daysDiff < 0) {
-        return <Badge variant="destructive">Jatuh Tempo</Badge>;
+      return <Badge variant="destructive">Jatuh Tempo</Badge>;
     }
     if (daysDiff === 0) {
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
+      return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
     }
     return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>;
-}
+  }
 
 
   if (loading) {
@@ -296,6 +298,33 @@ export default function CustomersPage() {
         </div>
     );
   }
+
+  const renderActionsMenu = (customer: CustomerWithStatus) => (
+    <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+        <Button 
+            aria-haspopup="true" 
+            size="icon" 
+            variant="ghost"
+            onClick={(e) => e.stopPropagation()}
+        >
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Buka menu</span>
+        </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>Ubah</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push(`/invoice/${customer.id}`)}>Lihat Faktur</DropdownMenuItem>
+        <DropdownMenuItem 
+            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+            onClick={() => handleDeleteClick(customer)}
+        >
+            Hapus
+        </DropdownMenuItem>
+        </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -335,65 +364,69 @@ export default function CustomersPage() {
                         <CardTitle>Tanggal {code}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Pelanggan</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="hidden md:table-cell">Paket</TableHead>
-                            <TableHead className="hidden sm:table-cell">Alamat</TableHead>
-                            <TableHead className="text-right">Harga</TableHead>
-                            <TableHead>
-                                <span className="sr-only">Aksi</span>
-                            </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                        {/* Desktop Table */}
+                        <div className="hidden md:block">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead>Pelanggan</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Paket</TableHead>
+                                    <TableHead>Alamat</TableHead>
+                                    <TableHead className="text-right">Harga</TableHead>
+                                    <TableHead>
+                                        <span className="sr-only">Aksi</span>
+                                    </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {groupedCustomers[code].map((customer) => (
+                                        <TableRow 
+                                            key={customer.id} 
+                                            onClick={() => handleRowClick(customer.id)}
+                                            className="cursor-pointer"
+                                        >
+                                            <TableCell className="font-semibold">
+                                                {customer.name}
+                                            </TableCell>
+                                            <TableCell>
+                                            {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                            </TableCell>
+                                            <TableCell>{customer.subscriptionMbps} Mbps</TableCell>
+                                            <TableCell>{customer.address}</TableCell>
+                                            <TableCell className="text-right">Rp{customer.packagePrice.toLocaleString('id-ID')}</TableCell>
+                                            <TableCell>
+                                                {renderActionsMenu(customer)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+
+                        {/* Mobile Cards */}
+                        <div className="md:hidden space-y-4">
                             {groupedCustomers[code].map((customer) => (
-                                <TableRow 
-                                    key={customer.id} 
-                                    onClick={() => handleRowClick(customer.id)}
-                                    className="cursor-pointer"
-                                >
-                                    <TableCell className="font-semibold">
-                                        {customer.name}
-                                    </TableCell>
-                                    <TableCell>
-                                    {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
-                                    </TableCell>
-                                    <TableCell className="hidden md:table-cell">{customer.subscriptionMbps} Mbps</TableCell>
-                                    <TableCell className="hidden sm:table-cell">{customer.address}</TableCell>
-                                    <TableCell className="text-right">Rp{customer.packagePrice.toLocaleString('id-ID')}</TableCell>
-                                    <TableCell>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                        <Button 
-                                            aria-haspopup="true" 
-                                            size="icon" 
-                                            variant="ghost"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <MoreHorizontal className="h-4 w-4" />
-                                            <span className="sr-only">Buka menu</span>
-                                        </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>Ubah</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => router.push(`/invoice/${customer.id}`)}>Lihat Faktur</DropdownMenuItem>
-                                        <DropdownMenuItem 
-                                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                            onClick={() => handleDeleteClick(customer)}
-                                        >
-                                            Hapus
-                                        </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
+                                <div key={customer.id} onClick={() => handleRowClick(customer.id)} className="cursor-pointer rounded-lg border bg-card text-card-foreground shadow-sm p-4 flex flex-col gap-3">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold truncate">{customer.name}</p>
+                                            <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
+                                        </div>
+                                        {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                    </div>
+                                    <div className="border-t pt-3 flex justify-between items-center">
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">{customer.subscriptionMbps} Mbps</p>
+                                            <p className="font-semibold">Rp{customer.packagePrice.toLocaleString('id-ID')}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {renderActionsMenu(customer)}
+                                        </div>
+                                    </div>
+                                </div>
                             ))}
-                        </TableBody>
-                        </Table>
+                        </div>
                     </CardContent>
                 </Card>
             ))
