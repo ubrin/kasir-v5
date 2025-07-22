@@ -159,10 +159,10 @@ export default function PaymentReportPage() {
                         return (
                              <AccordionItem value={dateStr} key={dateStr}>
                                 <AccordionTrigger className="hover:no-underline">
-                                    <div className="flex justify-between w-full items-center pr-4">
-                                        <div className="flex flex-col items-start">
+                                    <div className="flex flex-col sm:flex-row justify-between w-full items-start sm:items-center pr-4">
+                                        <div className="flex flex-col items-start mb-2 sm:mb-0">
                                             <span className="font-semibold text-base">{format(parseISO(dateStr), 'eeee, d MMMM yyyy', { locale: id })}</span>
-                                            <div className="flex gap-4 text-sm text-muted-foreground pt-1">
+                                            <div className="flex flex-col sm:flex-row sm:gap-4 text-sm text-muted-foreground pt-1">
                                                 <span>Cash: <span className="font-medium text-foreground">Rp{dateData.cash.toLocaleString('id-ID')}</span></span>
                                                 <span>BRI: <span className="font-medium text-foreground">Rp{dateData.bri.toLocaleString('id-ID')}</span></span>
                                                 <span>DANA: <span className="font-medium text-foreground">Rp{dateData.dana.toLocaleString('id-ID')}</span></span>
@@ -216,5 +216,3 @@ export default function PaymentReportPage() {
     </div>
   );
 }
-
-    

@@ -355,9 +355,9 @@ export default function DelinquencyPage() {
                                     <Card key={customer.id} onClick={() => handleRowClick(customer.id)} className="cursor-pointer">
                                         <CardContent className="p-4 flex flex-col gap-3">
                                             <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="font-semibold">{customer.name}</p>
-                                                    <p className="text-sm text-muted-foreground">{customer.address}</p>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold truncate">{customer.name}</p>
+                                                    <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
                                                 </div>
                                                 {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
                                             </div>

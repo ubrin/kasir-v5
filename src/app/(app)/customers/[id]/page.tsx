@@ -249,7 +249,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     </div>
                 </div>
             ) : (
-                <div className={cn("grid gap-6 sm:grid-cols-2 lg:grid-cols-3", (hasArrears && hasCredit) ? "lg:grid-cols-4" : (hasArrears || hasCredit) ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
+                <div className="grid gap-x-6 gap-y-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                     <div className="grid gap-1">
                         <p className="text-sm font-medium text-muted-foreground">Status</p>
                         <Badge variant={hasUnpaidInvoices ? "destructive" : "secondary"} className={`${hasUnpaidInvoices ? "" : "bg-green-100 text-green-800"} w-fit`}>
