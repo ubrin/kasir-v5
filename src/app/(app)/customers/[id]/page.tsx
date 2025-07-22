@@ -292,10 +292,6 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <p className="text-sm font-medium text-muted-foreground">Paket</p>
                     <p>{editableCustomer?.subscriptionMbps} Mbps</p>
                     </div>
-                    <div className="grid gap-1 col-span-full">
-                    <p className="text-sm font-medium text-muted-foreground">Catatan</p>
-                    <p className="whitespace-pre-wrap">{editableCustomer?.paymentHistory || '-'}</p>
-                    </div>
                 </div>
             )}
         </CardContent>
