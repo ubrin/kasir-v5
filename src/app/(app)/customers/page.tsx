@@ -45,14 +45,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, getMonth, getYear, differenceInDays } from 'date-fns';
+import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, getMonth, getYear, differenceInDays, startOfToday } from 'date-fns';
+
+type CustomerWithStatus = Customer & {
+    nearestDueDate?: string;
+    hasArrears?: boolean;
+};
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = React.useState<Customer[]>([]);
+  const [customers, setCustomers] = React.useState<CustomerWithStatus[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
   const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
-  const [unpaidCustomerDetails, setUnpaidCustomerDetails] = React.useState<Map<string, string>>(new Map());
   const [isClient, setIsClient] = React.useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -74,17 +78,25 @@ export default function CustomersPage() {
       ]);
 
       const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-      setCustomers(customersList);
+      const unpaidInvoices = unpaidInvoicesSnapshot.docs.map(doc => doc.data() as Invoice);
+      const startOfCurrentMonth = startOfMonth(new Date());
 
-      const unpaidDetails = new Map<string, string>();
-      unpaidInvoicesSnapshot.docs.forEach(doc => {
-        const invoice = doc.data() as Invoice;
-        const existingDueDate = unpaidDetails.get(invoice.customerId);
-        if (!existingDueDate || new Date(invoice.dueDate) < new Date(existingDueDate)) {
-          unpaidDetails.set(invoice.customerId, invoice.dueDate);
+      const customersWithStatus: CustomerWithStatus[] = customersList.map(customer => {
+        const customerInvoices = unpaidInvoices.filter(inv => inv.customerId === customer.id);
+        if (customerInvoices.length === 0) {
+            return customer;
         }
+
+        const nearestDueDate = customerInvoices
+            .map(inv => inv.dueDate)
+            .sort((a,b) => new Date(a).getTime() - new Date(b).getTime())[0];
+        
+        const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
+
+        return { ...customer, nearestDueDate, hasArrears };
       });
-      setUnpaidCustomerDetails(unpaidDetails);
+
+      setCustomers(customersWithStatus);
 
     } catch (error) {
       console.error("Error fetching customers:", error);
@@ -236,7 +248,7 @@ export default function CustomersPage() {
     }
     acc[code].push(customer);
     return acc;
-  }, {} as Record<number, Customer[]>);
+  }, {} as Record<number, CustomerWithStatus[]>);
 
   const groupKeys = Object.keys(groupedCustomers).map(Number).sort((a, b) => a - b);
   
@@ -256,18 +268,25 @@ export default function CustomersPage() {
     fetchCustomers();
   };
 
-  const formatDueDateCountdown = (dueDate: string) => {
-    if (!isClient || !dueDate) return null;
-    const daysDiff = differenceInDays(parseISO(dueDate), new Date());
+  const formatDueDateStatus = (dueDate?: string, hasArrears?: boolean) => {
+    if (!isClient || !dueDate) {
+        return <Badge variant="secondary" className="bg-green-100 text-green-800">Lunas</Badge>;
+    }
+
+    if (hasArrears) {
+        return <Badge variant="destructive">Menunggak</Badge>;
+    }
+
+    const daysDiff = differenceInDays(parseISO(dueDate), startOfToday());
 
     if (daysDiff < 0) {
-        return <Badge variant="destructive">Jatuh Tempo</Badge>
+        return <Badge variant="destructive">Jatuh Tempo</Badge>;
     }
     if (daysDiff === 0) {
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Hari Ini</Badge>
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
     }
-    return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>
-  }
+    return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>;
+}
 
 
   if (loading) {
@@ -330,9 +349,7 @@ export default function CustomersPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {groupedCustomers[code].map((customer) => {
-                                const nearestDueDate = unpaidCustomerDetails.get(customer.id);
-                                return (
+                            {groupedCustomers[code].map((customer) => (
                                 <TableRow 
                                     key={customer.id} 
                                     onClick={() => handleRowClick(customer.id)}
@@ -342,13 +359,7 @@ export default function CustomersPage() {
                                         {customer.name}
                                     </TableCell>
                                     <TableCell>
-                                    {nearestDueDate ? (
-                                        formatDueDateCountdown(nearestDueDate)
-                                      ) : (
-                                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                          Lunas
-                                        </Badge>
-                                      )}
+                                    {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
                                     </TableCell>
                                     <TableCell className="hidden md:table-cell">{customer.subscriptionMbps} Mbps</TableCell>
                                     <TableCell className="hidden sm:table-cell">{customer.address}</TableCell>
@@ -380,7 +391,7 @@ export default function CustomersPage() {
                                     </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
-                            )})}
+                            ))}
                         </TableBody>
                         </Table>
                     </CardContent>
@@ -418,5 +429,3 @@ export default function CustomersPage() {
     </div>
   )
 }
-
-    

@@ -34,7 +34,7 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select"
-import { differenceInDays, parseISO, format } from "date-fns";
+import { differenceInDays, parseISO, format, startOfToday, startOfMonth } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ type DelinquentCustomer = Customer & {
     overdueInvoicesCount: number;
     nearestDueDate: string;
     invoices: Invoice[];
+    hasArrears: boolean; // Has unpaid invoices from previous months
 };
 
 export default function DelinquencyPage() {
@@ -78,6 +79,7 @@ export default function DelinquencyPage() {
             const overdueInvoices = overdueInvoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
             
             const delinquentCustomerIds = new Set(overdueInvoices.map(inv => inv.customerId));
+            const startOfCurrentMonth = startOfMonth(new Date());
 
             const delinquentsMap: Record<string, DelinquentCustomer> = {};
 
@@ -90,17 +92,19 @@ export default function DelinquencyPage() {
                         const creditBalance = customer.creditBalance ?? 0;
                         const finalOverdueAmount = totalInvoiceAmount - creditBalance;
                         
-                        // Only show if there's an actual amount to be paid after applying credit
                         if (finalOverdueAmount > 0) {
                             const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
                             const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
                             
+                            const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
+
                             delinquentsMap[customerId] = {
                                 ...customer,
                                 overdueAmount: finalOverdueAmount,
                                 overdueInvoicesCount: customerInvoices.length,
                                 nearestDueDate: nearestDueDate,
                                 invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
+                                hasArrears: hasArrears,
                             };
                         }
                     }
@@ -250,17 +254,22 @@ export default function DelinquencyPage() {
         }
     }
 
-    const formatDueDateCountdown = (dueDate: string) => {
+    const formatDueDateStatus = (dueDate: string, hasArrears: boolean) => {
         if (!isClient || !dueDate) return null;
-        const daysDiff = differenceInDays(parseISO(dueDate), new Date());
-
+    
+        if (hasArrears) {
+            return <Badge variant="destructive">Menunggak</Badge>;
+        }
+    
+        const daysDiff = differenceInDays(parseISO(dueDate), startOfToday());
+    
         if (daysDiff < 0) {
-            return <Badge variant="destructive">Jatuh Tempo</Badge>
+            return <Badge variant="destructive">Jatuh Tempo</Badge>;
         }
         if (daysDiff === 0) {
-            return <Badge variant="outline" className="bg-blue-100 text-blue-800">Hari Ini</Badge>
+            return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
         }
-        return <Badge variant="outline" className="bg-blue-100 text-blue-800">{daysDiff + 1} hari lagi</Badge>
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>;
     }
 
   if (loading) {
@@ -304,7 +313,7 @@ export default function DelinquencyPage() {
                                         <TableRow>
                                             <TableHead>Pelanggan</TableHead>
                                             <TableHead>Alamat</TableHead>
-                                            <TableHead className="text-center">Jatuh Tempo</TableHead>
+                                            <TableHead className="text-center">Status</TableHead>
                                             <TableHead className="text-right">Total Tagihan</TableHead>
                                             <TableHead className="text-right pr-6">Aksi</TableHead>
                                         </TableRow>
@@ -319,7 +328,7 @@ export default function DelinquencyPage() {
                                                 <TableCell className="font-semibold">{customer.name}</TableCell>
                                                 <TableCell>{customer.address}</TableCell>
                                                 <TableCell className="text-center">
-                                                {formatDueDateCountdown(customer.nearestDueDate)}
+                                                {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
                                                 </TableCell>
                                                 <TableCell className="text-right font-bold text-destructive">
                                                     Rp{customer.overdueAmount.toLocaleString('id-ID')}
@@ -350,7 +359,7 @@ export default function DelinquencyPage() {
                                                     <p className="font-semibold">{customer.name}</p>
                                                     <p className="text-sm text-muted-foreground">{customer.address}</p>
                                                 </div>
-                                                {formatDueDateCountdown(customer.nearestDueDate)}
+                                                {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
                                             </div>
                                             <div className="border-t pt-3 flex justify-between items-center">
                                                 <div>
