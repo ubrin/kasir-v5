@@ -410,18 +410,21 @@ export default function CustomersPage() {
                         </div>
 
                         {/* Mobile List */}
-                        <div className="md:hidden divide-y divide-border">
+                        <div className="md:hidden divide-y divide-border -mx-6">
                             {groupedCustomers[code].map((customer) => (
                                 <div 
                                     key={customer.id} 
                                     onClick={() => handleRowClick(customer.id)} 
-                                    className="cursor-pointer flex items-center justify-between p-3"
+                                    className="cursor-pointer flex items-center justify-between p-4"
                                 >
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold truncate">{customer.name}</p>
                                         <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {customer.subscriptionMbps} Mbps - Rp{customer.packagePrice.toLocaleString('id-ID')}
+                                        </p>
                                     </div>
-                                    <div className="flex items-center gap-2 ml-2">
+                                    <div className="flex flex-col items-end gap-2 ml-2">
                                         {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
                                         {renderActionsMenu(customer)}
                                     </div>

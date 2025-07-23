@@ -30,14 +30,14 @@ interface ImportCustomerDialogProps {
 }
 
 // Map user's headers to our internal customer fields
-const headerMapping: { [key: string]: keyof Omit<Customer, 'id' | 'outstandingBalance' | 'paymentHistory'> } = {
+const headerMapping: { [key: string]: keyof Omit<Customer, 'id' | 'outstandingBalance' | 'paymentHistory' | 'creditBalance'> } = {
     nama: 'name',
     alamat: 'address',
     kode: 'dueDateCode',
     paket: 'subscriptionMbps',
     harga: 'packagePrice',
     phone: 'phone',
-    installationDate: 'installationDate'
+    installationdate: 'installationDate'
 };
 
 
@@ -63,7 +63,13 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
     }
 
     // Filter out rows where essential fields are missing
-    const validData = data.filter((row: any) => row.nama && row.alamat && row.harga);
+    const validData = data.filter((row: any) => {
+        const lowerCaseRow: { [key: string]: any } = {};
+        for (const key in row) {
+            lowerCaseRow[key.trim().toLowerCase()] = row[key];
+        }
+        return lowerCaseRow.nama && lowerCaseRow.alamat && lowerCaseRow.harga;
+    });
     setParsedData(validData);
   }
 
@@ -94,7 +100,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
                 const data = e.target?.result;
                 if(data) {
                     try {
-                        const workbook = XLSX.read(data, { type: 'binary' });
+                        const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
                         const sheetName = workbook.SheetNames[0];
                         const sheet = workbook.Sheets[sheetName];
                         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
@@ -142,30 +148,27 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         
         let installationDate = new Date();
         const instDateValue = lowerCaseRow.installationdate;
-        if (instDateValue) {
-            try {
-                let parsedDate: Date | null = null;
-                if (typeof instDateValue === 'number') { // Handle Excel date serial number
-                    parsedDate = XLSX.SSF.parse_date_code(instDateValue);
-                } else if (typeof instDateValue === 'string') {
-                     // Try parsing common string formats
-                     const formatsToTry = ['dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd'];
-                     for (const fmt of formatsToTry) {
-                         const d = parse(instDateValue, fmt, new Date());
-                         if (!isNaN(d.getTime())) {
-                            parsedDate = d;
-                            break;
-                         }
-                     }
-                     if(!parsedDate) parsedDate = parseISO(instDateValue);
-                }
-                
-                if (parsedDate && !isNaN(parsedDate.getTime())) {
-                    installationDate = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
-                }
 
-            } catch (e) { /* Defaults to today */ }
+        if (instDateValue) {
+            let parsedDate: Date | null = null;
+            if (instDateValue instanceof Date && !isNaN(instDateValue.getTime())) {
+                parsedDate = instDateValue;
+            } else if (typeof instDateValue === 'string') {
+                const formatsToTry = ['dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd', 'd/M/yy'];
+                for (const fmt of formatsToTry) {
+                    const d = parse(instDateValue, fmt, new Date());
+                    if (!isNaN(d.getTime())) {
+                        parsedDate = d;
+                        break;
+                    }
+                }
+                if (!parsedDate) parsedDate = parseISO(instDateValue);
+            }
+            if (parsedDate && !isNaN(parsedDate.getTime())) {
+                installationDate = parsedDate;
+            }
         }
+        
         const installationDateStr = format(installationDate, 'yyyy-MM-dd');
         
         const today = new Date();
@@ -194,7 +197,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
 
         const totalOutstanding = totalInvoices * packagePrice;
 
-        const newCustomer: Omit<Customer, 'id'> = {
+        const newCustomer: Omit<Customer, 'id' | 'paymentHistory' | 'creditBalance'> = {
           name: lowerCaseRow.nama || 'N/A',
           address: lowerCaseRow.alamat || 'N/A',
           phone: String(lowerCaseRow.phone || ''),
@@ -203,10 +206,13 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
           dueDateCode: dueDateCode,
           packagePrice: packagePrice,
           outstandingBalance: totalOutstanding,
-          paymentHistory: `Diimpor pada ${format(new Date(), 'dd/MM/yyyy')}`
         };
         const customerRef = doc(collection(db, 'customers'));
-        batch.set(customerRef, newCustomer);
+        batch.set(customerRef, {
+            ...newCustomer,
+            paymentHistory: `Diimpor pada ${format(new Date(), 'dd/MM/yyyy')}`,
+            creditBalance: 0
+        });
 
         if (packagePrice > 0 && totalInvoices > 0) {
             for (let i = 0; i < totalInvoices; i++) {
@@ -255,7 +261,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         <DialogHeader>
           <DialogTitle>Impor Pelanggan dari CSV/Excel</DialogTitle>
           <DialogDescription>
-            Pilih file .csv, .xls, atau .xlsx. Header wajib: <strong>nama, alamat, harga</strong>. Header opsional: <strong>kode, paket, phone, installationDate</strong> (format dd/MM/yyyy).
+            Pilih file .csv, .xls, atau .xlsx. Header wajib: <strong>nama, alamat, harga</strong>. Header opsional: <strong>kode, paket, phone, installationdate</strong> (format dd/MM/yyyy).
           </DialogDescription>
         </DialogHeader>
         <Alert>
@@ -282,11 +288,18 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
                 <TableBody>
                   {parsedData.slice(0, 10).map((row, index) => (
                     <TableRow key={index}>
-                      {detectedHeaders.map(h => headerMapping[h] && (
-                        <TableCell key={`${index}-${h}`}>
-                           { h === 'harga' ? `Rp${Number(row[h] || 0).toLocaleString('id-ID')}` : row[h] }
-                        </TableCell>
-                      ))}
+                      {detectedHeaders.map(h => {
+                         const lowerCaseHeader = h.trim().toLowerCase();
+                         if (headerMapping[lowerCaseHeader]) {
+                            const value = row[h];
+                            let displayValue = value instanceof Date ? format(value, 'dd/MM/yyyy') : value;
+                             if (lowerCaseHeader === 'harga') {
+                                displayValue = `Rp${Number(value || 0).toLocaleString('id-ID')}`;
+                            }
+                            return <TableCell key={`${index}-${h}`}>{displayValue}</TableCell>
+                         }
+                         return null;
+                      })}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -302,7 +315,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
           </Button>
           <Button
             onClick={handleImport}
-            disabled={!file || parsedData.length === 0 || loading}
+            disabled={!file || parsedData.length === 0 || !!error || loading}
           >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Mulai Impor'}
           </Button>
