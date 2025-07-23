@@ -22,9 +22,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Loader2 } from "lucide-react"
+import { MoreHorizontal, Loader2, Trash2 } from "lucide-react"
 import type { Customer, Invoice } from "@/lib/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
     Select,
     SelectContent,
@@ -46,6 +46,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, getYear, getMonth, differenceInDays, startOfToday } from 'date-fns';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type CustomerWithStatus = Customer & {
     nearestDueDate?: string;
@@ -57,7 +59,9 @@ export default function CustomersPage() {
   const [loading, setLoading] = React.useState(true);
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
   const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
+  const [customersToDelete, setCustomersToDelete] = React.useState<Customer[]>([]);
   const [isClient, setIsClient] = React.useState(false);
+  const [selectedCustomerIds, setSelectedCustomerIds] = React.useState<string[]>([]);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -194,39 +198,53 @@ export default function CustomersPage() {
 
   const handleDeleteClick = (customer: Customer) => {
     setCustomerToDelete(customer);
+    setCustomersToDelete([]);
+  };
+
+  const handleBulkDeleteClick = () => {
+    const toDelete = customers.filter(c => selectedCustomerIds.includes(c.id));
+    if (toDelete.length > 0) {
+      setCustomersToDelete(toDelete);
+      setCustomerToDelete(null);
+    }
   };
 
   const confirmDelete = async () => {
-    if (!customerToDelete) return;
+    const toDelete = customerToDelete ? [customerToDelete] : customersToDelete;
+    if (toDelete.length === 0) return;
 
     try {
-        const batch = writeBatch(db);
-
-        const customerDocRef = doc(db, "customers", customerToDelete.id);
+      const batch = writeBatch(db);
+      
+      for (const customer of toDelete) {
+        const customerDocRef = doc(db, "customers", customer.id);
         batch.delete(customerDocRef);
 
-        const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", customerToDelete.id));
+        const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", customer.id));
         const invoicesSnapshot = await getDocs(invoicesQuery);
         invoicesSnapshot.forEach(doc => {
             batch.delete(doc.ref);
         });
 
-        const paymentsQuery = query(collection(db, "payments"), where("customerId", "==", customerToDelete.id));
+        const paymentsQuery = query(collection(db, "payments"), where("customerId", "==", customer.id));
         const paymentsSnapshot = await getDocs(paymentsQuery);
         paymentsSnapshot.forEach(doc => {
             batch.delete(doc.ref);
         });
+      }
 
-        await batch.commit();
+      await batch.commit();
 
-        toast({
-            title: "Pelanggan Dihapus",
-            description: `${customerToDelete.name} dan semua datanya telah berhasil dihapus.`,
-            variant: "destructive",
-        });
+      toast({
+          title: `Berhasil Menghapus ${toDelete.length} Pelanggan`,
+          description: `Data pelanggan telah dihapus secara permanen.`,
+          variant: "destructive",
+      });
 
-        setCustomerToDelete(null);
-        fetchCustomers();
+      setCustomerToDelete(null);
+      setCustomersToDelete([]);
+      setSelectedCustomerIds([]);
+      fetchCustomers();
     } catch (error) {
         console.error("Error deleting customer and associated data:", error);
         toast({
@@ -261,7 +279,12 @@ export default function CustomersPage() {
     ? groupKeys 
     : groupKeys.filter(key => key.toString() === selectedGroup);
 
-  const handleRowClick = (customerId: string) => {
+  const handleRowClick = (customerId: string, e: React.MouseEvent) => {
+    // Prevent navigation if a checkbox or dropdown is clicked
+    const target = e.target as HTMLElement;
+    if (target.closest('[role="checkbox"]') || target.closest('[role="menu"]')) {
+        return;
+    }
     router.push(`/customers/${customerId}`);
   };
   
@@ -287,7 +310,7 @@ export default function CustomersPage() {
     const daysDiff = differenceInDays(parseISO(dueDate), startOfToday());
   
     if (daysDiff < 0) {
-      return <Badge variant="destructive">Jatuh Tempo</Badge>;
+      return <Badge variant="destructive">Lewat</Badge>;
     }
     if (daysDiff === 0) {
       return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
@@ -295,6 +318,18 @@ export default function CustomersPage() {
     return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>;
   }
 
+  const handleSelectOne = (id: string, isChecked: boolean) => {
+    setSelectedCustomerIds(prev =>
+      isChecked ? [...prev, id] : prev.filter(cid => cid !== id)
+    );
+  };
+
+  const handleSelectGroup = (groupCustomerIds: string[], isChecked: boolean) => {
+    setSelectedCustomerIds(prev => {
+      const otherIds = prev.filter(id => !groupCustomerIds.includes(id));
+      return isChecked ? [...otherIds, ...groupCustomerIds] : otherIds;
+    });
+  };
 
   if (loading) {
     return (
@@ -311,13 +346,12 @@ export default function CustomersPage() {
             aria-haspopup="true" 
             size="icon" 
             variant="ghost"
-            onClick={(e) => e.stopPropagation()}
         >
             <MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">Buka menu</span>
         </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuContent align="end">
         <DropdownMenuLabel>Aksi</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>Ubah</DropdownMenuItem>
         <DropdownMenuItem onClick={() => router.push(`/invoice/${customer.id}`)}>Lihat Faktur</DropdownMenuItem>
@@ -354,6 +388,15 @@ export default function CustomersPage() {
             </div>
         </div>
         
+        {selectedCustomerIds.length > 0 && (
+            <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                <span className="text-sm font-medium">{selectedCustomerIds.length} pelanggan dipilih</span>
+                <Button variant="destructive" size="sm" onClick={handleBulkDeleteClick}>
+                    <Trash2 className="mr-2 h-4 w-4" /> Hapus Terpilih
+                </Button>
+            </div>
+        )}
+
         {searchQuery && (
             <div className="text-sm text-muted-foreground">
                 Menampilkan {filteredCustomers.length} hasil untuk pencarian <span className="font-semibold text-foreground">"{searchQuery}"</span>.
@@ -363,77 +406,106 @@ export default function CustomersPage() {
 
 
         {filteredGroupKeys.length > 0 ? (
-            filteredGroupKeys.map((code) => (
-                <Card key={code}>
-                    <CardHeader>
-                        <CardTitle>Tanggal {code}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {/* Desktop Table */}
-                        <div className="hidden md:block">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                    <TableHead>Pelanggan</TableHead>
-                                    <TableHead>Alamat</TableHead>
-                                    <TableHead>Paket</TableHead>
-                                    <TableHead className="text-right">Harga</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>
-                                        <span className="sr-only">Aksi</span>
-                                    </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {groupedCustomers[code].map((customer) => (
-                                        <TableRow 
-                                            key={customer.id} 
-                                            onClick={() => handleRowClick(customer.id)}
-                                            className="cursor-pointer"
-                                        >
-                                            <TableCell className="font-semibold">
-                                                {customer.name}
-                                            </TableCell>
-                                            <TableCell>{customer.address}</TableCell>
-                                            <TableCell>{customer.subscriptionMbps} Mbps</TableCell>
-                                            <TableCell className="text-right">Rp{customer.packagePrice.toLocaleString('id-ID')}</TableCell>
-                                            <TableCell>
-                                            {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
-                                            </TableCell>
-                                            <TableCell>
-                                                {renderActionsMenu(customer)}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+            <Accordion type="multiple" className="w-full space-y-4" defaultValue={filteredGroupKeys.map(String)}>
+                {filteredGroupKeys.map((code) => {
+                    const groupCustomerIds = groupedCustomers[code].map(c => c.id);
+                    const isAllSelectedInGroup = groupCustomerIds.every(id => selectedCustomerIds.includes(id));
 
-                        {/* Mobile List */}
-                        <div className="md:hidden divide-y divide-border -mx-6">
-                            {groupedCustomers[code].map((customer) => (
-                                <div 
-                                    key={customer.id} 
-                                    onClick={() => handleRowClick(customer.id)} 
-                                    className="cursor-pointer flex items-center justify-between p-4"
-                                >
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold truncate">{customer.name}</p>
-                                        <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {customer.subscriptionMbps} Mbps - Rp{customer.packagePrice.toLocaleString('id-ID')}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-2 ml-2">
-                                        {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
-                                        {renderActionsMenu(customer)}
-                                    </div>
+                    return (
+                        <AccordionItem value={String(code)} key={code} className="border rounded-lg bg-card overflow-hidden">
+                            <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-2">
+                                <div className="flex items-center gap-4">
+                                    <Checkbox
+                                        checked={isAllSelectedInGroup}
+                                        onCheckedChange={(isChecked) => handleSelectGroup(groupCustomerIds, !!isChecked)}
+                                        aria-label="Pilih semua di grup ini"
+                                    />
+                                    <span className="font-semibold text-lg">Tanggal {code}</span>
                                 </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            ))
+                            </AccordionTrigger>
+                            <AccordionContent className="p-0">
+                                {/* Desktop Table */}
+                                <div className="hidden md:block">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-12"></TableHead>
+                                                <TableHead>Pelanggan</TableHead>
+                                                <TableHead>Alamat</TableHead>
+                                                <TableHead>Paket</TableHead>
+                                                <TableHead className="text-right">Harga</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>
+                                                    <span className="sr-only">Aksi</span>
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {groupedCustomers[code].map((customer) => (
+                                                <TableRow 
+                                                    key={customer.id} 
+                                                    onClick={(e) => handleRowClick(customer.id, e)}
+                                                    className="cursor-pointer"
+                                                >
+                                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                                        <Checkbox
+                                                            checked={selectedCustomerIds.includes(customer.id)}
+                                                            onCheckedChange={(isChecked) => handleSelectOne(customer.id, !!isChecked)}
+                                                            aria-label={`Pilih ${customer.name}`}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="font-semibold">{customer.name}</TableCell>
+                                                    <TableCell>{customer.address}</TableCell>
+                                                    <TableCell>{customer.subscriptionMbps} Mbps</TableCell>
+                                                    <TableCell className="text-right">Rp{customer.packagePrice.toLocaleString('id-ID')}</TableCell>
+                                                    <TableCell>
+                                                        {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                                    </TableCell>
+                                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                                        {renderActionsMenu(customer)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                {/* Mobile List */}
+                                <div className="md:hidden divide-y divide-border">
+                                    {groupedCustomers[code].map((customer) => (
+                                        <div 
+                                            key={customer.id} 
+                                            onClick={(e) => handleRowClick(customer.id, e)} 
+                                            className="cursor-pointer flex items-center justify-between p-4"
+                                        >
+                                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                <Checkbox
+                                                    checked={selectedCustomerIds.includes(customer.id)}
+                                                    onCheckedChange={(isChecked) => handleSelectOne(customer.id, !!isChecked)}
+                                                    aria-label={`Pilih ${customer.name}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold truncate">{customer.name}</p>
+                                                    <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {customer.subscriptionMbps} Mbps - Rp{customer.packagePrice.toLocaleString('id-ID')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1 ml-2">
+                                                {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                                <div onClick={(e) => e.stopPropagation()}>{renderActionsMenu(customer)}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    )
+                })
+            }
+            </Accordion>
         ) : (
              <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
@@ -443,16 +515,25 @@ export default function CustomersPage() {
             </Card>
         )}
 
-        <AlertDialog open={!!customerToDelete} onOpenChange={(isOpen) => !isOpen && setCustomerToDelete(null)}>
+        <AlertDialog open={!!customerToDelete || customersToDelete.length > 0} onOpenChange={(isOpen) => {
+            if (!isOpen) {
+                setCustomerToDelete(null);
+                setCustomersToDelete([]);
+            }
+        }}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>Anda yakin ingin menghapus pelanggan?</AlertDialogTitle>
+                <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data pelanggan <span className="font-bold">{customerToDelete?.name}</span> secara permanen beserta semua riwayat fakturnya.
+                    {customersToDelete.length > 1 
+                        ? `Tindakan ini akan menghapus data ${customersToDelete.length} pelanggan secara permanen, beserta semua riwayat fakturnya.`
+                        : `Tindakan ini akan menghapus data pelanggan ${customerToDelete?.name} secara permanen beserta semua riwayat fakturnya.`
+                    }
+                    Tindakan ini tidak dapat dibatalkan.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>Batal</AlertDialogCancel>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
                 <AlertDialogAction
                     onClick={confirmDelete}
                     className="bg-destructive hover:bg-destructive/90"
@@ -466,3 +547,5 @@ export default function CustomersPage() {
     </div>
   )
 }
+
+    
