@@ -9,10 +9,7 @@ import {
   getDocs,
   writeBatch,
   doc,
-  addDoc,
-  updateDoc,
   increment,
-  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -158,7 +155,6 @@ export default function DelinquencyPage() {
         try {
             const batch = writeBatch(db);
     
-            // 1. Fetch selected invoices to be paid
             const selectedInvoicesQuery = query(
                 collection(db, "invoices"),
                 where("customerId", "==", customerId),
@@ -174,13 +170,11 @@ export default function DelinquencyPage() {
                 return;
             }
             
-            // 2. Calculate amounts
             const totalBilledAmountToClear = invoicesToPay.reduce((sum, inv) => sum + inv.amount, 0);
             const discountAmount = paymentDetails.discount; 
             const creditUsed = paymentDetails.creditUsed;
             let creditedAmount = paymentDetails.paidAmount + creditUsed;
     
-            // 3. Create a new payment record
             const newPaymentRef = doc(collection(db, "payments"));
             const newPayment: Omit<Payment, 'id'> = {
                 customerId: customerId,
@@ -191,12 +185,11 @@ export default function DelinquencyPage() {
                 invoiceIds: paymentDetails.selectedInvoices,
                 totalBill: totalBilledAmountToClear,
                 discount: discountAmount,
-                totalPayment: paymentDetails.paidAmount, // The actual cash/transfer received
+                totalPayment: paymentDetails.paidAmount,
                 changeAmount: Math.max(0, paymentDetails.paidAmount - paymentDetails.totalPayment),
             };
             batch.set(newPaymentRef, newPayment);
             
-            // 4. Update invoices and calculate balance reduction
             let balanceReduction = 0;
             for (const invoice of invoicesToPay) {
                 const invoiceRef = doc(db, "invoices", invoice.id);
@@ -215,7 +208,6 @@ export default function DelinquencyPage() {
                 }
             }
     
-            // 5. Update the customer's outstanding balance and credit balance
             const customerRef = doc(db, "customers", customerId);
             const customerUpdates: { [key: string]: any } = {
                 outstandingBalance: increment(-balanceReduction)
@@ -228,7 +220,6 @@ export default function DelinquencyPage() {
 
             batch.update(customerRef, customerUpdates);
     
-            // 6. Commit all changes
             await batch.commit();
         
             toast({
@@ -254,7 +245,7 @@ export default function DelinquencyPage() {
         }
     }
 
-    const formatDueDateStatus = (dueDate: string, hasArrears: boolean) => {
+    const formatDueDateCountdown = (dueDate: string, hasArrears: boolean) => {
         if (!isClient || !dueDate) return null;
     
         if (hasArrears) {
@@ -328,7 +319,7 @@ export default function DelinquencyPage() {
                                                 <TableCell className="font-semibold">{customer.name}</TableCell>
                                                 <TableCell>{customer.address}</TableCell>
                                                 <TableCell className="text-center">
-                                                {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                                {formatDueDateCountdown(customer.nearestDueDate, customer.hasArrears)}
                                                 </TableCell>
                                                 <TableCell className="text-right font-bold text-destructive">
                                                     Rp{customer.overdueAmount.toLocaleString('id-ID')}
@@ -359,7 +350,7 @@ export default function DelinquencyPage() {
                                                     <p className="font-semibold truncate">{customer.name}</p>
                                                     <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
                                                 </div>
-                                                {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                                {formatDueDateCountdown(customer.nearestDueDate, customer.hasArrears)}
                                             </div>
                                             <div className="border-t pt-3 flex justify-between items-center">
                                                 <div>
@@ -405,3 +396,5 @@ export default function DelinquencyPage() {
     </div>
   )
 }
+
+    

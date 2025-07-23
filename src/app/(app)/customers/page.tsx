@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { collection, addDoc, getDocs, doc, deleteDoc, writeBatch, query, where } from "firebase/firestore";
+import { collection, getDocs, writeBatch, doc, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   Table,
@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, getMonth, getYear, differenceInDays, startOfToday } from 'date-fns';
+import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, getYear, getMonth, differenceInDays, startOfToday } from 'date-fns';
 
 type CustomerWithStatus = Customer & {
     nearestDueDate?: string;
@@ -114,7 +114,7 @@ export default function CustomersPage() {
     fetchCustomers();
   }, [fetchCustomers]);
 
-  const handleCustomerAdded = async (newCustomerData: Omit<Customer, 'id' | 'outstandingBalance' | 'paymentHistory'>) => {
+  const handleCustomerAdded = async (newCustomerData: Omit<Customer, 'id' | 'outstandingBalance' | 'paymentHistory' | 'creditBalance'>) => {
     try {
         const batch = writeBatch(db);
         const customerRef = doc(collection(db, "customers"));
@@ -149,7 +149,8 @@ export default function CustomersPage() {
         const customerToAdd: Omit<Customer, 'id'> = {
             ...newCustomerData,
             outstandingBalance: totalOutstanding,
-            paymentHistory: `Didaftarkan pada ${format(new Date(), 'dd/MM/yyyy')}`
+            paymentHistory: `Didaftarkan pada ${format(new Date(), 'dd/MM/yyyy')}`,
+            creditBalance: 0,
         };
 
         batch.set(customerRef, customerToAdd);
@@ -462,3 +463,5 @@ export default function CustomersPage() {
     </div>
   )
 }
+
+    
