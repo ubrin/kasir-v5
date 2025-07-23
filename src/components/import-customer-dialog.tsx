@@ -3,6 +3,7 @@
 
 import * as React from 'react';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { db } from '@/lib/firebase';
 import { writeBatch, collection, doc } from 'firebase/firestore';
 import { format, parse, differenceInCalendarMonths, addMonths, startOfMonth, parseISO, getDate, getYear, getMonth, differenceInDays } from 'date-fns';
@@ -49,36 +50,74 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
   const { toast } = useToast();
   const [detectedHeaders, setDetectedHeaders] = React.useState<string[]>([]);
 
+  const processData = (data: any[], headers: string[]) => {
+    setDetectedHeaders(headers);
+
+    const requiredUserHeaders = ['nama', 'alamat', 'harga'];
+    const missingHeaders = requiredUserHeaders.filter(h => !headers.includes(h));
+
+    if (missingHeaders.length > 0) {
+        setError(`File tidak valid. Header wajib berikut tidak ditemukan: ${missingHeaders.join(', ')}`);
+        setParsedData([]);
+        return;
+    }
+
+    // Filter out rows where essential fields are missing
+    const validData = data.filter((row: any) => row.nama && row.alamat && row.harga);
+    setParsedData(validData);
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
-      setFile(selectedFile);
-      setError(null);
-      setParsedData([]);
-      Papa.parse(selectedFile, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-            const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
-            setDetectedHeaders(headers);
+        setFile(selectedFile);
+        setError(null);
+        setParsedData([]);
 
-            const requiredUserHeaders = ['nama', 'alamat', 'harga'];
-            const missingHeaders = requiredUserHeaders.filter(h => !headers.includes(h));
+        const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
 
-            if (missingHeaders.length > 0) {
-                 setError(`File CSV tidak valid. Header wajib berikut tidak ditemukan: ${missingHeaders.join(', ')}`);
-                 setParsedData([]);
-                 return;
+        if (fileExtension === 'csv') {
+            Papa.parse(selectedFile, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    const headers = (results.meta.fields || []).map(h => h.trim().toLowerCase());
+                    processData(results.data as any[], headers);
+                },
+                error: (err: any) => {
+                    setError(`Gagal mem-parsing file CSV: ${err.message}`);
+                },
+            });
+        } else if (fileExtension === 'xls' || fileExtension === 'xlsx') {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = e.target?.result;
+                if(data) {
+                    try {
+                        const workbook = XLSX.read(data, { type: 'binary' });
+                        const sheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        
+                        if (jsonData.length > 0) {
+                            const headers: string[] = (jsonData[0] as string[]).map(h => String(h).trim().toLowerCase());
+                            const dataRows = XLSX.utils.sheet_to_json(sheet);
+                            processData(dataRows as any[], headers);
+                        } else {
+                            setError('File Excel kosong atau tidak memiliki header.');
+                        }
+                    } catch (err) {
+                        setError(`Gagal mem-parsing file Excel. Pastikan formatnya benar.`);
+                    }
+                }
+            };
+            reader.onerror = () => {
+                 setError('Gagal membaca file.');
             }
-
-            // Filter out rows where essential fields are missing
-            const validData = results.data.filter((row: any) => row.nama && row.alamat && row.harga);
-            setParsedData(validData as any[]);
-        },
-        error: (err: any) => {
-          setError(`Gagal mem-parsing file: ${err.message}`);
-        },
-      });
+            reader.readAsBinaryString(selectedFile);
+        } else {
+            setError('Format file tidak didukung. Harap gunakan file .csv, .xls, atau .xlsx');
+        }
     }
   };
 
@@ -102,18 +141,29 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         const dueDateCode = Number(lowerCaseRow.kode) || 1;
         
         let installationDate = new Date();
-        if (lowerCaseRow.installationdate) {
+        const instDateValue = lowerCaseRow.installationdate;
+        if (instDateValue) {
             try {
-                // Handle different date formats, default to dd/MM/yyyy
-                const parsedDate = parse(lowerCaseRow.installationdate, 'dd/MM/yyyy', new Date());
-                if (!isNaN(parsedDate.getTime())) {
-                    installationDate = parsedDate;
-                } else {
-                    const parsedDateISO = parseISO(lowerCaseRow.installationdate);
-                     if (!isNaN(parsedDateISO.getTime())) {
-                        installationDate = parsedDateISO;
-                    }
+                let parsedDate: Date | null = null;
+                if (typeof instDateValue === 'number') { // Handle Excel date serial number
+                    parsedDate = XLSX.SSF.parse_date_code(instDateValue);
+                } else if (typeof instDateValue === 'string') {
+                     // Try parsing common string formats
+                     const formatsToTry = ['dd/MM/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd'];
+                     for (const fmt of formatsToTry) {
+                         const d = parse(instDateValue, fmt, new Date());
+                         if (!isNaN(d.getTime())) {
+                            parsedDate = d;
+                            break;
+                         }
+                     }
+                     if(!parsedDate) parsedDate = parseISO(instDateValue);
                 }
+                
+                if (parsedDate && !isNaN(parsedDate.getTime())) {
+                    installationDate = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
+                }
+
             } catch (e) { /* Defaults to today */ }
         }
         const installationDateStr = format(installationDate, 'yyyy-MM-dd');
@@ -147,7 +197,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         const newCustomer: Omit<Customer, 'id'> = {
           name: lowerCaseRow.nama || 'N/A',
           address: lowerCaseRow.alamat || 'N/A',
-          phone: lowerCaseRow.phone || '',
+          phone: String(lowerCaseRow.phone || ''),
           installationDate: installationDateStr,
           subscriptionMbps: Number(lowerCaseRow.paket) || 0,
           dueDateCode: dueDateCode,
@@ -203,9 +253,9 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Impor Pelanggan dari CSV</DialogTitle>
+          <DialogTitle>Impor Pelanggan dari CSV/Excel</DialogTitle>
           <DialogDescription>
-            Pilih file CSV. Header wajib: <strong>nama, alamat, harga</strong>. Header opsional: <strong>kode, paket, phone, installationDate</strong> (format dd/MM/yyyy).
+            Pilih file .csv, .xls, atau .xlsx. Header wajib: <strong>nama, alamat, harga</strong>. Header opsional: <strong>kode, paket, phone, installationDate</strong> (format dd/MM/yyyy).
           </DialogDescription>
         </DialogHeader>
         <Alert>
@@ -215,7 +265,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
           </AlertDescription>
         </Alert>
         <div className="grid gap-4 py-4">
-          <Input id="csvFile" type="file" accept=".csv" onChange={handleFileChange} />
+          <Input id="csvFile" type="file" accept=".csv, .xls, .xlsx" onChange={handleFileChange} />
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
