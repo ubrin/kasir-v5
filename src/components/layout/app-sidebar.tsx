@@ -39,6 +39,7 @@ const menuItems = [
     ]
   },
   { href: '/expenses', label: 'Pengeluaran', icon: Wallet, roles: ['admin'] },
+  { href: '/collectors', label: 'Daftar Penagih', icon: BookText, roles: ['admin'] },
 ];
 
 export default function AppSidebar() {
