@@ -238,9 +238,13 @@ export default function CustomersPage() {
   };
 
   const searchQuery = searchParams.get('q') || '';
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCustomers = customers.filter(customer => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+        customer.name.toLowerCase().includes(searchLower) ||
+        customer.address.toLowerCase().includes(searchLower)
+    );
+  });
 
   const groupedCustomers = filteredCustomers.reduce((acc, customer) => {
     const code = customer.dueDateCode;
