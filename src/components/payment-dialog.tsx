@@ -29,7 +29,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { Customer, Invoice } from '@/lib/types';
+import type { Customer, Invoice, Collector } from '@/lib/types';
 import { Checkbox } from './ui/checkbox';
 import {
   Tooltip,
@@ -37,8 +37,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
-import { invoices } from '@/lib/data';
 import { ScrollArea } from './ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const paymentSchema = z.object({
   selectedInvoices: z.array(z.string()).nonempty({
@@ -56,9 +58,10 @@ const paymentSchema = z.object({
     z.number().min(0, "Diskon tidak boleh negatif").optional()
   ),
   paidAmount: z.preprocess(
-    (a) => (a ? parseInt(String(a), 10) : 0),
+    (a) => (a ? parseInt(String(a).replace(/\D/g, ''), 10) : 0),
     z.number().min(0)
   ),
+  collectorId: z.string().optional(),
 }).refine(data => {
     if (data.discountType === 'percentage') {
         return data.discount === undefined || (data.discount >= 0 && data.discount <= 100);
@@ -83,6 +86,7 @@ interface PaymentDialogProps {
 
 export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [collectors, setCollectors] = React.useState<Collector[]>([]);
 
   const {
     handleSubmit,
@@ -100,6 +104,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       paymentMethod: 'cash',
       selectedInvoices: [],
       paidAmount: 0,
+      collectorId: undefined,
     },
   });
 
@@ -108,6 +113,18 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   const discountType = watch('discountType');
   const paidAmount = watch('paidAmount') || 0;
   const creditBalance = customer.creditBalance ?? 0;
+  const collectorId = watch('collectorId');
+
+  React.useEffect(() => {
+    const fetchCollectors = async () => {
+        if (open) {
+            const querySnapshot = await getDocs(collection(db, "collectors"));
+            const collectorsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector));
+            setCollectors(collectorsList);
+        }
+    };
+    fetchCollectors();
+  }, [open]);
 
   const billToPay = React.useMemo(() => {
     return customer.invoices
@@ -131,11 +148,24 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   const totalPayment = Math.max(0, billAfterDiscount - creditApplied);
   const paymentDifference = paidAmount - totalPayment;
 
+  const handlePaidAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    const numberValue = parseInt(rawValue.replace(/\D/g, ''), 10);
+    if (isNaN(numberValue)) {
+      setValue('paidAmount', 0);
+      e.target.value = '';
+    } else {
+      setValue('paidAmount', numberValue);
+      e.target.value = numberValue.toLocaleString('id-ID');
+    }
+  };
+
   React.useEffect(() => {
     setValue('paidAmount', Math.round(totalPayment));
   }, [totalPayment, setValue]);
 
   const onSubmit = (data: PaymentFormValues) => {
+    const selectedCollector = collectors.find(c => c.id === data.collectorId);
     const paymentDetails = {
       ...data,
       billToPay,
@@ -145,6 +175,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       shortageAmount: Math.max(0, -paymentDifference),
       discount: discountAmount,
       creditUsed: creditApplied,
+      collectorId: data.collectorId,
+      collectorName: selectedCollector?.name
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
     setOpen(false);
@@ -215,6 +247,28 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                     />
                     {errors.selectedInvoices && <p className="text-sm text-destructive">{errors.selectedInvoices.message}</p>}
                 </div>
+
+                <div className="grid gap-3">
+                    <Label>Diterima Oleh</Label>
+                    <Controller
+                        name="collectorId"
+                        control={control}
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih penagih..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="unassigned">Tidak Ada (Bayar Sendiri)</SelectItem>
+                                    {collectors.map(c => (
+                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                </div>
+
 
                 <div className="grid gap-3">
                     <Label>Metode Pembayaran</Label>
@@ -336,17 +390,18 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         {errors.discount && <p className="text-sm text-destructive">{errors.discount.message}</p>}
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="paidAmount">Jumlah Dibayar (Rp)</Label>
-                        <Controller
+                        <Label htmlFor="paidAmount">Jumlah Dibayar</Label>
+                         <Controller
                             name="paidAmount"
                             control={control}
                             render={({ field }) => (
                                 <Input
                                 {...field}
                                 id="paidAmount"
-                                type="number"
+                                type="text"
                                 placeholder="0"
-                                onChange={e => field.onChange(e.target.value)}
+                                onChange={handlePaidAmountChange}
+                                value={field.value ? Number(field.value).toLocaleString('id-ID') : ''}
                                 />
                             )}
                         />

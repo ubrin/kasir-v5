@@ -45,6 +45,8 @@ export type Payment = {
   discount: number;
   totalPayment: number;
   changeAmount: number;
+  collectorId?: string;
+  collectorName?: string;
 };
 
 export type AppUser = {
@@ -71,3 +73,8 @@ export type Expense = {
   lastPaidDate?: string; // 'yyyy-MM-dd'
   paymentHistory?: string[]; // Array of payment dates
 };
+
+export type Collector = {
+    id: string;
+    name: string;
+}

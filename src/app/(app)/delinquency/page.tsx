@@ -35,7 +35,7 @@ import { differenceInDays, parseISO, format, startOfToday, startOfMonth } from "
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { Button } from "@/components/ui/button";
-import { FileText, Receipt, Loader2 } from "lucide-react";
+import { FileText, Receipt, Loader2, Wallet } from "lucide-react";
 import {
     Accordion,
     AccordionContent,
@@ -187,6 +187,8 @@ export default function DelinquencyPage() {
                 discount: discountAmount,
                 totalPayment: paymentDetails.paidAmount,
                 changeAmount: Math.max(0, paymentDetails.paidAmount - paymentDetails.totalPayment),
+                collectorId: paymentDetails.collectorId,
+                collectorName: paymentDetails.collectorName,
             };
             batch.set(newPaymentRef, newPayment);
             
@@ -248,14 +250,16 @@ export default function DelinquencyPage() {
     const formatDueDateCountdown = (dueDate: string, hasArrears: boolean) => {
         if (!isClient || !dueDate) return null;
     
-        if (hasArrears) {
+        const today = startOfToday();
+        const dueDateParsed = parseISO(dueDate);
+        const daysDiff = differenceInDays(dueDateParsed, today);
+
+        if (hasArrears && daysDiff < 0) {
             return <Badge variant="destructive">Menunggak</Badge>;
         }
     
-        const daysDiff = differenceInDays(parseISO(dueDate), startOfToday());
-    
         if (daysDiff < 0) {
-            return <Badge variant="destructive">Jatuh Tempo</Badge>;
+          return <Badge variant="destructive">Lewat</Badge>;
         }
         if (daysDiff === 0) {
             return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
@@ -341,35 +345,33 @@ export default function DelinquencyPage() {
                                     </TableBody>
                                 </Table>
                              </div>
-                             <div className="md:hidden space-y-4 p-4">
+                             <div className="md:hidden divide-y">
                                 {groupedDelinquentCustomers[code].map((customer) => (
-                                    <Card key={customer.id} onClick={() => handleRowClick(customer.id)} className="cursor-pointer">
-                                        <CardContent className="p-4 flex flex-col gap-3">
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-semibold truncate">{customer.name}</p>
-                                                    <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
-                                                </div>
-                                                {formatDueDateCountdown(customer.nearestDueDate, customer.hasArrears)}
+                                    <div key={customer.id} onClick={() => handleRowClick(customer.id)} className="cursor-pointer p-4">
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold truncate">{customer.name}</p>
+                                                <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
                                             </div>
-                                            <div className="border-t pt-3 flex justify-between items-center">
-                                                <div>
-                                                    <p className="text-sm text-muted-foreground">Total Tagihan</p>
-                                                    <p className="font-bold text-destructive">Rp{customer.overdueAmount.toLocaleString('id-ID')}</p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                     <Button variant="outline" size="icon" onClick={(e) => handleInvoiceClick(e, customer.id)}>
-                                                        <FileText className="h-4 w-4" />
-                                                        <span className="sr-only">Buat Invoice</span>
-                                                    </Button>
-                                                    <PaymentDialog
-                                                        customer={customer}
-                                                        onPaymentSuccess={handlePaymentSuccess}
-                                                    />
-                                                </div>
+                                            {formatDueDateCountdown(customer.nearestDueDate, customer.hasArrears)}
+                                        </div>
+                                        <div className="mt-4 pt-3 border-t flex justify-between items-center">
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Total Tagihan</p>
+                                                <p className="font-bold text-destructive">Rp{customer.overdueAmount.toLocaleString('id-ID')}</p>
                                             </div>
-                                        </CardContent>
-                                    </Card>
+                                            <div className="flex items-center gap-2">
+                                                 <Button variant="outline" size="icon" onClick={(e) => handleInvoiceClick(e, customer.id)}>
+                                                    <FileText className="h-4 w-4" />
+                                                    <span className="sr-only">Buat Invoice</span>
+                                                </Button>
+                                                <PaymentDialog
+                                                    customer={customer}
+                                                    onPaymentSuccess={handlePaymentSuccess}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
                              </div>
                         </AccordionContent>
@@ -379,15 +381,11 @@ export default function DelinquencyPage() {
         ) : (
              <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
-                    {selectedGroup === "all" && isClient ? (
+                    {isClient ? (
                         <>
-                            <p className="text-lg font-medium">Tidak ada tunggakan!</p>
+                            <Wallet className="w-12 h-12 text-muted-foreground" />
+                            <p className="text-lg font-medium">Semua Tagihan Lunas!</p>
                             <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!</p>
-                        </>
-                    ) : isClient ? (
-                        <>
-                            <p className="text-lg font-medium">Grup Tidak Ditemukan</p>
-                            <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak dalam grup yang dipilih.</p>
                         </>
                     ) : null}
                 </CardContent>
@@ -396,5 +394,3 @@ export default function DelinquencyPage() {
     </div>
   )
 }
-
-    
