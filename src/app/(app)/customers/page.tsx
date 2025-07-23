@@ -268,7 +268,7 @@ export default function CustomersPage() {
   const handleImportSuccess = () => {
     toast({
       title: "Impor Berhasil",
-      description: "Data pelanggan telah berhasil diimpor dari file CSV.",
+      description: "Data pelanggan telah berhasil diimpor dari file.",
     });
     fetchCustomers();
   };
@@ -409,25 +409,21 @@ export default function CustomersPage() {
                             </Table>
                         </div>
 
-                        {/* Mobile Cards */}
-                        <div className="md:hidden space-y-4">
+                        {/* Mobile List */}
+                        <div className="md:hidden divide-y divide-border">
                             {groupedCustomers[code].map((customer) => (
-                                <div key={customer.id} onClick={() => handleRowClick(customer.id)} className="cursor-pointer rounded-lg border bg-card text-card-foreground shadow-sm p-4 flex flex-col gap-3">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-semibold truncate">{customer.name}</p>
-                                            <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
-                                        </div>
-                                        {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                <div 
+                                    key={customer.id} 
+                                    onClick={() => handleRowClick(customer.id)} 
+                                    className="cursor-pointer flex items-center justify-between p-3"
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold truncate">{customer.name}</p>
+                                        <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
                                     </div>
-                                    <div className="border-t pt-3 flex justify-between items-center">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">{customer.subscriptionMbps} Mbps</p>
-                                            <p className="font-semibold">Rp{customer.packagePrice.toLocaleString('id-ID')}</p>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {renderActionsMenu(customer)}
-                                        </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                        {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                        {renderActionsMenu(customer)}
                                     </div>
                                 </div>
                             ))}
