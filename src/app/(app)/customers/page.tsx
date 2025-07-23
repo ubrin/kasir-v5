@@ -375,10 +375,10 @@ export default function CustomersPage() {
                                 <TableHeader>
                                     <TableRow>
                                     <TableHead>Pelanggan</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Paket</TableHead>
                                     <TableHead>Alamat</TableHead>
+                                    <TableHead>Paket</TableHead>
                                     <TableHead className="text-right">Harga</TableHead>
+                                    <TableHead>Status</TableHead>
                                     <TableHead>
                                         <span className="sr-only">Aksi</span>
                                     </TableHead>
@@ -394,12 +394,12 @@ export default function CustomersPage() {
                                             <TableCell className="font-semibold">
                                                 {customer.name}
                                             </TableCell>
+                                            <TableCell>{customer.address}</TableCell>
+                                            <TableCell>{customer.subscriptionMbps} Mbps</TableCell>
+                                            <TableCell className="text-right">Rp{customer.packagePrice.toLocaleString('id-ID')}</TableCell>
                                             <TableCell>
                                             {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
                                             </TableCell>
-                                            <TableCell>{customer.subscriptionMbps} Mbps</TableCell>
-                                            <TableCell>{customer.address}</TableCell>
-                                            <TableCell className="text-right">Rp{customer.packagePrice.toLocaleString('id-ID')}</TableCell>
                                             <TableCell>
                                                 {renderActionsMenu(customer)}
                                             </TableCell>
@@ -467,5 +467,3 @@ export default function CustomersPage() {
     </div>
   )
 }
-
-    
