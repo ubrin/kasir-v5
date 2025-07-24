@@ -1,17 +1,21 @@
 
 'use client'
 import * as React from "react";
-import { collection, getDocs, query, where, addDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Expense, OtherIncome } from "@/lib/types";
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { id } from 'date-fns/locale';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart, DollarSign } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart, DollarSign, MoreHorizontal, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { AddOtherIncomeDialog } from "@/components/add-other-income-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function FinancePage() {
   const { toast } = useToast();
@@ -22,6 +26,8 @@ export default function FinancePage() {
       totalOtherIncome: 0,
       balance: 0,
   });
+  const [otherIncomes, setOtherIncomes] = React.useState<OtherIncome[]>([]);
+  const [incomeToDelete, setIncomeToDelete] = React.useState<OtherIncome | null>(null);
 
   const fetchFinanceData = React.useCallback(async () => {
     setLoading(true);
@@ -40,9 +46,10 @@ export default function FinancePage() {
             .map(doc => doc.data() as Expense)
             .reduce((sum, e) => sum + e.amount, 0);
 
-        const totalOtherIncome = otherIncomesSnapshot.docs
-            .map(doc => doc.data() as OtherIncome)
-            .reduce((sum, e) => sum + e.amount, 0);
+        const allOtherIncomes = otherIncomesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OtherIncome)).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+        setOtherIncomes(allOtherIncomes);
+
+        const totalOtherIncome = allOtherIncomes.reduce((sum, e) => sum + e.amount, 0);
         
         const balance = (totalIncome + totalOtherIncome) - totalExpense;
 
@@ -89,6 +96,27 @@ export default function FinancePage() {
     }
   };
 
+  const handleDeleteIncome = async () => {
+    if (!incomeToDelete) return;
+    try {
+        await deleteDoc(doc(db, "otherIncomes", incomeToDelete.id));
+        toast({
+            title: "Data Dihapus",
+            description: "Data pemasukan lainnya telah berhasil dihapus.",
+            variant: "destructive"
+        });
+        fetchFinanceData();
+        setIncomeToDelete(null);
+    } catch (error) {
+        console.error("Error deleting income:", error);
+        toast({
+            title: "Gagal Menghapus",
+            variant: "destructive"
+        });
+    }
+  };
+
+
   if (loading) {
     return (
         <div className="flex flex-col gap-8">
@@ -101,6 +129,7 @@ export default function FinancePage() {
   }
 
   return (
+    <>
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -154,6 +183,58 @@ export default function FinancePage() {
                 </div>
             </CardContent>
         </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Riwayat Pemasukan Lainnya</CardTitle>
+                <CardDescription>Daftar pemasukan di luar dari tagihan rutin pelanggan.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Tanggal</TableHead>
+                            <TableHead>Nama Pemasukan</TableHead>
+                            <TableHead className="text-right">Jumlah</TableHead>
+                            <TableHead className="text-right">Aksi</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {otherIncomes.length > 0 ? otherIncomes.map((income) => (
+                            <TableRow key={income.id}>
+                                <TableCell>{format(parseISO(income.date), 'd MMMM yyyy', {locale: id})}</TableCell>
+                                <TableCell className="font-medium">{income.name}</TableCell>
+                                <TableCell className="text-right">Rp{income.amount.toLocaleString('id-ID')}</TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Buka menu</span>
+                                        </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                        <DropdownMenuItem 
+                                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                            onClick={() => setIncomeToDelete(income)}
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Hapus
+                                        </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        )) : (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">Belum ada pemasukan lainnya yang dicatat.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+
         <div className="flex items-center gap-2">
             <AddOtherIncomeDialog onConfirm={handleAddOtherIncome} />
             <Button asChild>
@@ -170,5 +251,25 @@ export default function FinancePage() {
             </Button>
         </div>
     </div>
+    <AlertDialog open={!!incomeToDelete} onOpenChange={(isOpen) => !isOpen && setIncomeToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Anda yakin ingin menghapus data ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Tindakan ini akan menghapus data pemasukan <span className="font-bold">{incomeToDelete?.name}</span> secara permanen. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIncomeToDelete(null)}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+                onClick={handleDeleteIncome}
+                className="bg-destructive hover:bg-destructive/90"
+            >
+                Ya, Hapus
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }
