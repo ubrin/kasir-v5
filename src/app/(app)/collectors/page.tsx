@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, UserPlus, UsersRound } from "lucide-react";
-import { collection, addDoc, onSnapshot, query, where, orderBy } from "firebase/firestore";
+import { Loader2, UserPlus, UsersRound, Trash2 } from "lucide-react";
+import { collection, addDoc, onSnapshot, query, where, orderBy, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import type { Collector, Payment } from "@/lib/types";
@@ -17,6 +17,16 @@ import { Label } from "@/components/ui/label";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { id as localeId } from 'date-fns/locale';
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 function AddCollectorDialog({ onCollectorAdded }: { onCollectorAdded: () => void }) {
     const [open, setOpen] = React.useState(false);
@@ -33,7 +43,7 @@ function AddCollectorDialog({ onCollectorAdded }: { onCollectorAdded: () => void
         try {
             await addDoc(collection(db, "collectors"), { name });
             toast({ title: "Penagih Ditambahkan", description: `${name} telah berhasil ditambahkan.` });
-            onCollectorAdded(); // This is more for immediate feedback, onSnapshot will handle the rest
+            onCollectorAdded(); 
             setOpen(false);
             setName("");
         } catch (error) {
@@ -96,6 +106,8 @@ export default function CollectorsPage() {
     const { toast } = useToast();
     const [loading, setLoading] = React.useState(true);
     const [collectionsByDate, setCollectionsByDate] = React.useState<DailyCollection[]>([]);
+    const [allCollectors, setAllCollectors] = React.useState<Collector[]>([]);
+    const [collectorToDelete, setCollectorToDelete] = React.useState<Collector | null>(null);
 
     React.useEffect(() => {
         setLoading(true);
@@ -103,7 +115,6 @@ export default function CollectorsPage() {
         const start = format(startOfMonth(today), 'yyyy-MM-dd');
         const end = format(endOfMonth(today), 'yyyy-MM-dd');
 
-        // Query for payments in the current month
         const paymentsQuery = query(
             collection(db, "payments"),
             where("paymentDate", ">=", start),
@@ -111,10 +122,11 @@ export default function CollectorsPage() {
             orderBy("paymentDate", "desc")
         );
         
-        // Listen to collectors and payments in real-time
         const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), (collectorsSnapshot) => {
-            const allCollectors = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector));
-            const collectorsMap = new Map(allCollectors.map(c => [c.id, c.name]));
+            const collectorsList = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a, b) => a.name.localeCompare(b.name));
+            setAllCollectors(collectorsList);
+
+            const collectorsMap = new Map(collectorsList.map(c => [c.id, c.name]));
             collectorsMap.set('unassigned', 'Tidak Ditentukan');
 
             const unsubscribePayments = onSnapshot(paymentsQuery, (paymentsSnapshot) => {
@@ -153,7 +165,6 @@ export default function CollectorsPage() {
                  setLoading(false);
             });
 
-            // Return the payment listener unsub function to be called when collector listener reruns
             return () => unsubscribePayments();
 
         }, (error) => {
@@ -162,22 +173,78 @@ export default function CollectorsPage() {
             setLoading(false);
         });
 
-        // Clean up main collector listener on component unmount
         return () => {
             unsubscribeCollectors();
         };
 
     }, [toast]);
 
+    const handleDeleteCollector = async () => {
+        if (!collectorToDelete) return;
+        try {
+            await deleteDoc(doc(db, "collectors", collectorToDelete.id));
+            toast({
+                title: "Penagih Dihapus",
+                description: `${collectorToDelete.name} telah berhasil dihapus.`,
+                variant: "destructive"
+            });
+            setCollectorToDelete(null);
+        } catch (error) {
+            console.error("Error deleting collector:", error);
+            toast({
+                title: "Gagal Menghapus",
+                variant: "destructive"
+            });
+        }
+    };
+
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Laporan Penagih</h1>
-          <p className="text-muted-foreground">Laporan setoran dari penagih di lapangan per bulan ini.</p>
+          <p className="text-muted-foreground">Kelola penagih dan lihat laporan setoran per bulan ini.</p>
         </div>
         <AddCollectorDialog onCollectorAdded={() => {}} />
       </div>
+
+       <Card>
+            <CardHeader>
+                <CardTitle>Semua Penagih Terdaftar</CardTitle>
+                <CardDescription>Daftar semua penagih yang ada di sistem.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {loading ? (
+                    <div className="flex justify-center items-center h-24">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                ) : allCollectors.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nama Penagih</TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {allCollectors.map((collector) => (
+                                <TableRow key={collector.id}>
+                                    <TableCell className="font-medium">{collector.name}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" onClick={() => setCollectorToDelete(collector)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <p className="text-muted-foreground text-center py-8">Belum ada penagih yang ditambahkan.</p>
+                )}
+            </CardContent>
+        </Card>
 
       {loading ? (
         <div className="flex justify-center items-center h-64">
@@ -236,6 +303,9 @@ export default function CollectorsPage() {
         </Card>
       ) : (
         <Card>
+             <CardHeader>
+                <CardTitle>Setoran Bulan Ini</CardTitle>
+            </CardHeader>
             <CardContent className="flex flex-col items-center justify-center h-48 gap-4 text-center">
                 <UsersRound className="w-16 h-16 text-muted-foreground" />
                 <p className="text-lg font-medium">Belum Ada Setoran</p>
@@ -243,6 +313,27 @@ export default function CollectorsPage() {
             </CardContent>
         </Card>
       )}
+
+        <AlertDialog open={!!collectorToDelete} onOpenChange={(isOpen) => !isOpen && setCollectorToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Anda yakin ingin menghapus penagih ini?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tindakan ini akan menghapus <span className="font-bold">{collectorToDelete?.name}</span> secara permanen. Tindakan ini tidak dapat dibatalkan.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setCollectorToDelete(null)}>Batal</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={handleDeleteCollector}
+                        className="bg-destructive hover:bg-destructive/90"
+                    >
+                        Ya, Hapus
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
     </div>
   );
 }
