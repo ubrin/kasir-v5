@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CreditCard, BarChart3, Users, LayoutDashboard } from "lucide-react";
+import { FileClock, FilePieChart, Users, Wallet } from "lucide-react";
 import { useAuth } from '@/context/auth-context';
 
 export default function HomePage() {
@@ -25,7 +25,7 @@ export default function HomePage() {
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center gap-4">
               <div className="bg-primary text-primary-foreground p-3 rounded-md">
-                <CreditCard className="h-6 w-6" />
+                <FileClock className="h-6 w-6" />
               </div>
               <div>
                 <CardTitle>Tagihan</CardTitle>
@@ -38,7 +38,7 @@ export default function HomePage() {
           <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center gap-4">
               <div className="bg-primary text-primary-foreground p-3 rounded-md">
-                <BarChart3 className="h-6 w-6" />
+                <FilePieChart className="h-6 w-6" />
               </div>
               <div>
                 <CardTitle>Laporan</CardTitle>
@@ -65,7 +65,7 @@ export default function HomePage() {
             <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
               <CardHeader className="flex flex-row items-center gap-4">
                 <div className="bg-primary text-primary-foreground p-3 rounded-md">
-                  <LayoutDashboard className="h-6 w-6" />
+                  <Wallet className="h-6 w-6" />
                 </div>
                 <div>
                   <CardTitle>Keuangan</CardTitle>

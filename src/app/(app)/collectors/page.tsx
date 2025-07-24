@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, PlusCircle, UserPlus, Wallet } from "lucide-react";
+import { Loader2, PlusCircle, UserPlus, Wallet, UsersRound } from "lucide-react";
 import { collection, addDoc, getDocs, query, where, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -219,10 +219,10 @@ export default function CollectorsPage() {
         </Card>
       ) : (
         <Card>
-            <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
-                <Wallet className="w-12 h-12 text-muted-foreground" />
+            <CardContent className="flex flex-col items-center justify-center h-48 gap-4 text-center">
+                <UsersRound className="w-16 h-16 text-muted-foreground" />
                 <p className="text-lg font-medium">Belum Ada Setoran</p>
-                <p className="text-muted-foreground">Tidak ada data pembayaran yang tercatat bulan ini.</p>
+                <p className="text-muted-foreground">Tidak ada data pembayaran yang tercatat dari penagih bulan ini.</p>
             </CardContent>
         </Card>
       )}

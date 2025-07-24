@@ -13,8 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, ArrowLeft, Loader2 } from 'lucide-react';
-import Image from 'next/image';
+import { Download, ArrowLeft, Loader2, Building2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
@@ -141,7 +140,9 @@ export default function InvoicePage({ params }: { params: { id: string } }) {
                         <div className="flex justify-between items-start">
                             <div>
                                 <div className="flex items-center gap-3 mb-4">
-                                    <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={48} height={48} />
+                                    <div className="p-3 bg-primary/10 rounded-lg text-primary">
+                                        <Building2 className="h-8 w-8" />
+                                    </div>
                                     <div>
                                         <h1 className="text-2xl font-bold text-primary">PT CYBERNETWORK CORP</h1>
                                         <p className="text-muted-foreground">suport by NAVAZ</p>

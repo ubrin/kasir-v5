@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown, History, Wallet, AreaChart } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown, History, Wallet, AreaChart, Coins, UsersRound } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -26,11 +26,11 @@ import { useSidebar } from '@/components/ui/sidebar';
 
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
-  { href: '/finance', label: 'Keuangan', icon: LayoutDashboard, roles: ['admin'] },
+  { href: '/finance', label: 'Keuangan', icon: Wallet, roles: ['admin'] },
   { href: '/monthly-statistics', label: 'Statistik Bulanan', icon: AreaChart, roles: ['admin'] },
   {
     label: 'Transaksi',
-    icon: Package,
+    icon: Coins,
     roles: ['admin', 'user'],
     subItems: [
       { href: '/delinquency', label: 'Tagihan', icon: CreditCard, roles: ['admin', 'user'] },
@@ -38,8 +38,8 @@ const menuItems = [
       { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
     ]
   },
-  { href: '/expenses', label: 'Pengeluaran', icon: Wallet, roles: ['admin'] },
-  { href: '/collectors', label: 'Daftar Penagih', icon: BookText, roles: ['admin'] },
+  { href: '/expenses', label: 'Pengeluaran', icon: TrendingDown, roles: ['admin'] },
+  { href: '/collectors', label: 'Daftar Penagih', icon: UsersRound, roles: ['admin'] },
 ];
 
 export default function AppSidebar() {
