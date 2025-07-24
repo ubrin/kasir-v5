@@ -78,3 +78,10 @@ export type Collector = {
     id: string;
     name: string;
 }
+
+export type OtherIncome = {
+  id: string;
+  name: string;
+  amount: number;
+  date: string; // 'yyyy-MM-dd'
+};

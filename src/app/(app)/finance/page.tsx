@@ -1,15 +1,17 @@
 
 'use client'
 import * as React from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Payment, Expense } from "@/lib/types";
+import type { Payment, Expense, OtherIncome } from "@/lib/types";
 import Link from "next/link";
+import { format } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart } from "lucide-react"
+import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart, DollarSign } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { AddOtherIncomeDialog } from "@/components/add-other-income-dialog";
 
 export default function FinancePage() {
   const { toast } = useToast();
@@ -17,48 +19,75 @@ export default function FinancePage() {
   const [stats, setStats] = React.useState({
       totalIncome: 0,
       totalExpense: 0,
+      totalOtherIncome: 0,
       balance: 0,
   });
 
-  React.useEffect(() => {
-    const fetchFinanceData = async () => {
-        setLoading(true);
-        try {
-            const [paymentsSnapshot, expensesSnapshot] = await Promise.all([
-                getDocs(collection(db, "payments")),
-                getDocs(query(collection(db, "expenses"), where("date", "!=", null)))
-            ]);
+  const fetchFinanceData = React.useCallback(async () => {
+    setLoading(true);
+    try {
+        const [paymentsSnapshot, expensesSnapshot, otherIncomesSnapshot] = await Promise.all([
+            getDocs(collection(db, "payments")),
+            getDocs(query(collection(db, "expenses"), where("date", "!=", null))),
+            getDocs(collection(db, "otherIncomes"))
+        ]);
 
-            const totalIncome = paymentsSnapshot.docs
-                .map(doc => doc.data() as Payment)
-                .reduce((sum, p) => sum + (p.totalPayment || p.paidAmount), 0);
+        const totalIncome = paymentsSnapshot.docs
+            .map(doc => doc.data() as Payment)
+            .reduce((sum, p) => sum + (p.totalPayment || p.paidAmount), 0);
 
-            const totalExpense = expensesSnapshot.docs
-                .map(doc => doc.data() as Expense)
-                .reduce((sum, e) => sum + e.amount, 0);
-            
-            const balance = totalIncome - totalExpense;
+        const totalExpense = expensesSnapshot.docs
+            .map(doc => doc.data() as Expense)
+            .reduce((sum, e) => sum + e.amount, 0);
 
-            setStats({
-                totalIncome,
-                totalExpense,
-                balance,
-            });
+        const totalOtherIncome = otherIncomesSnapshot.docs
+            .map(doc => doc.data() as OtherIncome)
+            .reduce((sum, e) => sum + e.amount, 0);
+        
+        const balance = (totalIncome + totalOtherIncome) - totalExpense;
 
-        } catch (error) {
-            console.error("Failed to fetch finance data:", error);
-            toast({
-                title: "Gagal memuat data",
-                description: "Tidak dapat mengambil data keuangan.",
-                variant: "destructive"
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    fetchFinanceData();
+        setStats({
+            totalIncome,
+            totalExpense,
+            totalOtherIncome,
+            balance,
+        });
+
+    } catch (error) {
+        console.error("Failed to fetch finance data:", error);
+        toast({
+            title: "Gagal memuat data",
+            description: "Tidak dapat mengambil data keuangan.",
+            variant: "destructive"
+        });
+    } finally {
+        setLoading(false);
+    }
   }, [toast]);
+  
+  React.useEffect(() => {
+    fetchFinanceData();
+  }, [fetchFinanceData, toast]);
+
+  const handleAddOtherIncome = async (data: { name: string; amount: number }) => {
+     try {
+        await addDoc(collection(db, "otherIncomes"), {
+            ...data,
+            date: format(new Date(), 'yyyy-MM-dd')
+        });
+        toast({
+            title: "Berhasil Ditambahkan",
+            description: `${data.name} telah ditambahkan ke pemasukan lainnya.`
+        });
+        fetchFinanceData(); // Refetch data
+    } catch (error) {
+        console.error("Error adding other income:", error);
+        toast({
+            title: "Gagal Menambahkan",
+            variant: "destructive"
+        });
+    }
+  };
 
   if (loading) {
     return (
@@ -79,12 +108,7 @@ export default function FinancePage() {
             <p className="text-muted-foreground">Akumulasi pemasukan, pengeluaran, dan saldo dari seluruh riwayat transaksi.</p>
         </div>
         <div className="flex items-center gap-2">
-            <Button asChild variant="outline">
-                <Link href="/monthly-statistics">
-                    <AreaChart className="mr-2 h-4 w-4" />
-                    Statistik Bulanan
-                </Link>
-            </Button>
+            <AddOtherIncomeDialog onConfirm={handleAddOtherIncome} />
             <Button asChild>
                 <Link href="/expenses">
                     <Wallet className="mr-2 h-4 w-4" />
@@ -99,14 +123,23 @@ export default function FinancePage() {
                 <CardDescription>Total akumulasi dari seluruh riwayat transaksi.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid gap-8 sm:grid-cols-3">
+                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="flex items-center gap-4">
                          <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-lg">
                             <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">Total Pemasukan</p>
+                            <p className="text-sm text-muted-foreground">Pemasukan Tagihan</p>
                             <p className="text-2xl font-bold">Rp{stats.totalIncome.toLocaleString('id-ID')}</p>
+                        </div>
+                    </div>
+                     <div className="flex items-center gap-4">
+                         <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-lg">
+                            <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Pemasukan Lainnya</p>
+                            <p className="text-2xl font-bold">Rp{stats.totalOtherIncome.toLocaleString('id-ID')}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -130,6 +163,14 @@ export default function FinancePage() {
                 </div>
             </CardContent>
         </Card>
+        <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+                <Link href="/monthly-statistics">
+                    <AreaChart className="mr-2 h-4 w-4" />
+                    Statistik Bulanan
+                </Link>
+            </Button>
+        </div>
     </div>
   )
 }
