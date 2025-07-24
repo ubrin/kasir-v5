@@ -1,18 +1,16 @@
 
 'use client'
 import * as React from "react";
-import { collection, getDocs, query, where, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { OtherIncome, Payment, Expense } from "@/lib/types";
 import Link from "next/link";
-import { format, parseISO } from "date-fns";
-import { id } from 'date-fns/locale';
+import { parseISO } from "date-fns";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart, DollarSign } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { OtherIncomeDialog } from "@/components/other-income-dialog";
 
 export default function FinancePage() {
   const { toast } = useToast();
@@ -23,7 +21,6 @@ export default function FinancePage() {
       totalOtherIncome: 0,
       balance: 0,
   });
-  const [otherIncomes, setOtherIncomes] = React.useState<OtherIncome[]>([]);
 
   const fetchFinanceData = React.useCallback(async () => {
     setLoading(true);
@@ -43,8 +40,7 @@ export default function FinancePage() {
             .reduce((sum, e) => sum + e.amount, 0);
 
         const allOtherIncomes = otherIncomesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OtherIncome)).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
-        setOtherIncomes(allOtherIncomes);
-
+        
         const totalOtherIncome = allOtherIncomes.reduce((sum, e) => sum + e.amount, 0);
         
         const balance = (totalIncome + totalOtherIncome) - totalExpense;
@@ -71,46 +67,6 @@ export default function FinancePage() {
   React.useEffect(() => {
     fetchFinanceData();
   }, [fetchFinanceData, toast]);
-
-  const handleAddOtherIncome = async (data: { name: string; amount: number }) => {
-     try {
-        await addDoc(collection(db, "otherIncomes"), {
-            ...data,
-            date: format(new Date(), 'yyyy-MM-dd')
-        });
-        toast({
-            title: "Berhasil Ditambahkan",
-            description: `${data.name} telah ditambahkan ke pemasukan lainnya.`
-        });
-        fetchFinanceData(); // Refetch data
-    } catch (error) {
-        console.error("Error adding other income:", error);
-        toast({
-            title: "Gagal Menambahkan",
-            variant: "destructive"
-        });
-    }
-  };
-
-  const handleDeleteIncome = async (incomeToDelete: OtherIncome) => {
-    if (!incomeToDelete) return;
-    try {
-        await deleteDoc(doc(db, "otherIncomes", incomeToDelete.id));
-        toast({
-            title: "Data Dihapus",
-            description: "Data pemasukan lainnya telah berhasil dihapus.",
-            variant: "destructive"
-        });
-        fetchFinanceData();
-    } catch (error) {
-        console.error("Error deleting income:", error);
-        toast({
-            title: "Gagal Menghapus",
-            variant: "destructive"
-        });
-    }
-  };
-
 
   if (loading) {
     return (
@@ -180,14 +136,15 @@ export default function FinancePage() {
         </Card>
 
         <div className="flex items-center gap-2">
-            <OtherIncomeDialog 
-                otherIncomes={otherIncomes}
-                onAddIncome={handleAddOtherIncome}
-                onDeleteIncome={handleDeleteIncome}
-            />
+            <Button asChild variant="outline">
+                <Link href="/other-incomes">
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    Pemasukan Lainnya
+                </Link>
+            </Button>
             <Button asChild variant="outline">
                 <Link href="/expenses">
-                    <Wallet className="mr-2 h-4 w-4" />
+                    <TrendingDown className="mr-2 h-4 w-4" />
                     Lihat Pengeluaran
                 </Link>
             </Button>

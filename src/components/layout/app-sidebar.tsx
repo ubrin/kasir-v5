@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown, History, Wallet, AreaChart, Coins, UsersRound } from 'lucide-react';
+import { Bot, LayoutDashboard, Users, FileText, AlertTriangle, Settings, LogOut, Package, CreditCard, ChevronDown, BarChart3, Home, BookText, TrendingDown, History, Wallet, AreaChart, Coins, UsersRound, DollarSign } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -39,6 +39,7 @@ const menuItems = [
     ]
   },
   { href: '/expenses', label: 'Pengeluaran', icon: TrendingDown, roles: ['admin'] },
+  { href: '/other-incomes', label: 'Pemasukan Lainnya', icon: DollarSign, roles: ['admin'] },
   { href: '/collectors', label: 'Daftar Penagih', icon: UsersRound, roles: ['admin'] },
 ];
 
