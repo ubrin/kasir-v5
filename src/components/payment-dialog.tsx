@@ -39,7 +39,7 @@ import {
 } from './ui/tooltip';
 import { ScrollArea } from './ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const paymentSchema = z.object({
@@ -104,7 +104,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       paymentMethod: 'cash',
       selectedInvoices: [],
       paidAmount: 0,
-      collectorId: undefined,
+      collectorId: "unassigned",
     },
   });
 
@@ -116,14 +116,13 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   const collectorId = watch('collectorId');
 
   React.useEffect(() => {
-    const fetchCollectors = async () => {
-        if (open) {
-            const querySnapshot = await getDocs(collection(db, "collectors"));
-            const collectorsList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector));
+    if (open) {
+        const unsubscribe = onSnapshot(collection(db, "collectors"), (snapshot) => {
+            const collectorsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a,b) => a.name.localeCompare(b.name));
             setCollectors(collectorsList);
-        }
-    };
-    fetchCollectors();
+        });
+        return () => unsubscribe();
+    }
   }, [open]);
 
   const billToPay = React.useMemo(() => {
@@ -176,7 +175,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       discount: discountAmount,
       creditUsed: creditApplied,
       collectorId: data.collectorId,
-      collectorName: selectedCollector?.name
+      collectorName: data.collectorId === 'unassigned' ? 'Bayar Sendiri' : selectedCollector?.name,
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
     setOpen(false);
@@ -189,6 +188,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
         // Automatically select all unpaid invoices for this customer
         const allUnpaidInvoiceIds = customer.invoices.map(inv => inv.id);
         setValue('selectedInvoices', allUnpaidInvoiceIds);
+        setValue('collectorId', 'unassigned');
     } else {
         reset();
     }
@@ -254,17 +254,22 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         name="collectorId"
                         control={control}
                         render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih penagih..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="unassigned">Tidak Ada (Bayar Sendiri)</SelectItem>
-                                    {collectors.map(c => (
-                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                           <RadioGroup
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                className="grid gap-2 rounded-md border p-3"
+                            >
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="unassigned" id="unassigned" />
+                                    <Label htmlFor="unassigned" className="font-normal">Tidak Ada (Bayar Sendiri)</Label>
+                                </div>
+                                {collectors.map(c => (
+                                    <div key={c.id} className="flex items-center space-x-2">
+                                        <RadioGroupItem value={c.id} id={c.id} />
+                                        <Label htmlFor={c.id} className="font-normal">{c.name}</Label>
+                                    </div>
+                                ))}
+                            </RadioGroup>
                         )}
                     />
                 </div>
