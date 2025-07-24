@@ -172,21 +172,19 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         const installationDateStr = format(installationDate, 'yyyy-MM-dd');
         
         const today = new Date();
-        const startOfInstallationMonth = startOfMonth(installationDate);
         const startOfCurrentMonth = startOfMonth(today);
 
         // --- REVISED LOGIC ---
-        const installationDay = getDate(installationDate);
-        let firstInvoiceMonth = startOfInstallationMonth;
+        const dueDateInInstallationMonth = new Date(installationDate.getFullYear(), installationDate.getMonth(), dueDateCode);
         
-        // If installation date is on or after the due date code for that month, the first bill is for the next month.
-        if (installationDay >= dueDateCode) {
-            firstInvoiceMonth = addMonths(startOfInstallationMonth, 1);
+        let firstInvoiceMonth = startOfMonth(installationDate);
+        if (installationDate > dueDateInInstallationMonth) {
+          firstInvoiceMonth = addMonths(firstInvoiceMonth, 1);
         }
         // --- END REVISED LOGIC ---
         
         let totalInvoices = 0;
-        // Ensure we don't create invoices for future months
+        // Ensure we don't create invoices for future months and the first invoice month is not in the future
         if (firstInvoiceMonth <= startOfCurrentMonth) {
             totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, firstInvoiceMonth) + 1;
         }
@@ -287,12 +285,12 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
                       {detectedHeaders.map(h => {
                          const lowerCaseHeader = h.trim().toLowerCase();
                          if (headerMapping[lowerCaseHeader]) {
-                            const value = row[h];
+                            const value = row[h] || row[Object.keys(row).find(k => k.trim().toLowerCase() === lowerCaseHeader)!];
                             let displayValue = value instanceof Date ? format(value, 'dd/MM/yyyy') : value;
                              if (lowerCaseHeader === 'harga') {
                                 displayValue = `Rp${Number(value || 0).toLocaleString('id-ID')}`;
                             }
-                            return <TableCell key={`${index}-${h}`}>{displayValue}</TableCell>
+                            return <TableCell key={`${index}-${h}`}>{String(displayValue ?? '')}</TableCell>
                          }
                          return null;
                       })}
@@ -320,5 +318,3 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
     </Dialog>
   );
 }
-
-    

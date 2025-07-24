@@ -125,21 +125,19 @@ export default function CustomersPage() {
 
         const installationDate = parseISO(newCustomerData.installationDate);
         const today = new Date();
-        const startOfInstallationMonth = startOfMonth(installationDate);
         const startOfCurrentMonth = startOfMonth(today);
 
         // --- REVISED LOGIC ---
-        const installationDay = getDate(installationDate);
-        let firstInvoiceMonth = startOfInstallationMonth;
+        const dueDateInInstallationMonth = new Date(installationDate.getFullYear(), installationDate.getMonth(), newCustomerData.dueDateCode);
         
-        // If installation date is on or after the due date code for that month, the first bill is for the next month.
-        if (installationDay >= newCustomerData.dueDateCode) {
-            firstInvoiceMonth = addMonths(startOfInstallationMonth, 1);
+        let firstInvoiceMonth = startOfMonth(installationDate);
+        if (installationDate > dueDateInInstallationMonth) {
+          firstInvoiceMonth = addMonths(firstInvoiceMonth, 1);
         }
         // --- END REVISED LOGIC ---
         
         let totalInvoices = 0;
-        // Ensure we don't create invoices for future months
+        // Ensure we don't create invoices for future months and the first invoice month is not in the future
         if (firstInvoiceMonth <= startOfCurrentMonth) {
             totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, firstInvoiceMonth) + 1;
         }
@@ -469,29 +467,31 @@ export default function CustomersPage() {
                                 {/* Mobile List */}
                                 <div className="md:hidden divide-y divide-border">
                                     {groupedCustomers[code].map((customer) => (
-                                        <div 
-                                            key={customer.id} 
-                                            onClick={(e) => handleRowClick(customer.id, e)} 
-                                            className="cursor-pointer flex items-center justify-between p-4"
-                                        >
-                                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                <Checkbox
-                                                    checked={selectedCustomerIds.includes(customer.id)}
-                                                    onCheckedChange={(isChecked) => handleSelectOne(customer.id, !!isChecked)}
-                                                    aria-label={`Pilih ${customer.name}`}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-semibold truncate">{customer.name}</p>
-                                                    <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {customer.subscriptionMbps} Mbps - Rp{customer.packagePrice.toLocaleString('id-ID')}
-                                                    </p>
+                                        <div key={customer.id} className="p-4">
+                                            <div 
+                                                onClick={(e) => handleRowClick(customer.id, e)} 
+                                                className="cursor-pointer flex items-start justify-between"
+                                            >
+                                                <div className="flex items-start gap-4 flex-1 min-w-0">
+                                                    <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                                                        <Checkbox
+                                                            checked={selectedCustomerIds.includes(customer.id)}
+                                                            onCheckedChange={(isChecked) => handleSelectOne(customer.id, !!isChecked)}
+                                                            aria-label={`Pilih ${customer.name}`}
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-semibold truncate">{customer.name}</p>
+                                                        <p className="text-sm text-muted-foreground truncate">{customer.address}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1 ml-2">
+                                                    {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                                    <div onClick={(e) => e.stopPropagation()}>{renderActionsMenu(customer)}</div>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col items-end gap-1 ml-2">
-                                                {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
-                                                <div onClick={(e) => e.stopPropagation()}>{renderActionsMenu(customer)}</div>
+                                             <div className="text-sm text-muted-foreground mt-2 pt-2 border-t">
+                                                <span>{customer.subscriptionMbps} Mbps</span> - <span>Rp{customer.packagePrice.toLocaleString('id-ID')}</span>
                                             </div>
                                         </div>
                                     ))}
@@ -543,7 +543,3 @@ export default function CustomersPage() {
     </div>
   )
 }
-
-    
-
-    
