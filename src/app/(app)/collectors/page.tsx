@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, PlusCircle, UserPlus, Wallet, UsersRound } from "lucide-react";
-import { collection, addDoc, getDocs, query, where, orderBy } from "firebase/firestore";
+import { Loader2, UserPlus, UsersRound } from "lucide-react";
+import { collection, addDoc, getDocs, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import type { Collector, Payment } from "@/lib/types";
@@ -33,7 +33,7 @@ function AddCollectorDialog({ onCollectorAdded }: { onCollectorAdded: () => void
         try {
             await addDoc(collection(db, "collectors"), { name });
             toast({ title: "Penagih Ditambahkan", description: `${name} telah berhasil ditambahkan.` });
-            onCollectorAdded();
+            onCollectorAdded(); // This will trigger a re-fetch in the parent
             setOpen(false);
             setName("");
         } catch (error) {
@@ -80,7 +80,6 @@ const getMethodBadge = (method: 'cash' | 'bri' | 'dana') => {
     }
 }
 
-
 type DailyCollection = {
     date: string;
     collectors: {
@@ -105,16 +104,23 @@ export default function CollectorsPage() {
             const start = format(startOfMonth(today), 'yyyy-MM-dd');
             const end = format(endOfMonth(today), 'yyyy-MM-dd');
 
+            // Fetch all payments for the current month
             const paymentsQuery = query(
                 collection(db, "payments"),
                 where("paymentDate", ">=", start),
                 where("paymentDate", "<=", end),
                 orderBy("paymentDate", "desc")
             );
-
             const paymentsSnapshot = await getDocs(paymentsQuery);
             const monthlyPayments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 
+            // Fetch all collectors
+            const collectorsSnapshot = await getDocs(collection(db, "collectors"));
+            const allCollectors = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector));
+            const collectorsMap = new Map(allCollectors.map(c => [c.id, c.name]));
+            collectorsMap.set('unassigned', 'Tidak Ditentukan');
+
+            // Group payments by date
             const groupedByDate: { [date: string]: DailyCollection } = {};
 
             for (const payment of monthlyPayments) {
@@ -124,7 +130,7 @@ export default function CollectorsPage() {
                 }
 
                 const collectorId = payment.collectorId || 'unassigned';
-                const collectorName = payment.collectorName || 'Tidak Ditentukan';
+                const collectorName = collectorsMap.get(collectorId) || 'Nama Tidak Ditemukan';
 
                 if (!groupedByDate[dateStr].collectors[collectorId]) {
                     groupedByDate[dateStr].collectors[collectorId] = {
@@ -138,8 +144,9 @@ export default function CollectorsPage() {
                 groupedByDate[dateStr].collectors[collectorId].total += payment.totalPayment;
                 groupedByDate[dateStr].total += payment.totalPayment;
             }
-
-            setCollectionsByDate(Object.values(groupedByDate));
+            
+            const sortedCollections = Object.values(groupedByDate).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setCollectionsByDate(sortedCollections);
 
         } catch (error) {
             console.error("Error fetching collections data:", error);
@@ -150,9 +157,24 @@ export default function CollectorsPage() {
     }, [toast]);
 
     React.useEffect(() => {
+        // Initial fetch
         fetchCollections();
-    }, [fetchCollections]);
 
+        // Set up a listener for real-time updates on payments and collectors
+        const unsubscribePayments = onSnapshot(collection(db, "payments"), () => {
+            fetchCollections();
+        });
+        const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), () => {
+            fetchCollections();
+        });
+        
+        // Clean up listeners on component unmount
+        return () => {
+            unsubscribePayments();
+            unsubscribeCollectors();
+        };
+
+    }, [fetchCollections]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -175,7 +197,7 @@ export default function CollectorsPage() {
                 <CardDescription>Rincian setoran harian dari semua penagih.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Accordion type="multiple" className="w-full space-y-4">
+                <Accordion type="multiple" className="w-full space-y-4" defaultValue={collectionsByDate.map(d => d.date)}>
                     {collectionsByDate.map((daily) => (
                         <AccordionItem value={daily.date} key={daily.date} className="border rounded-lg bg-card overflow-hidden">
                              <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-3">
@@ -185,7 +207,9 @@ export default function CollectorsPage() {
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="p-0">
-                                {Object.values(daily.collectors).map(collectorData => (
+                                {Object.values(daily.collectors)
+                                    .sort((a,b) => a.name.localeCompare(b.name))
+                                    .map(collectorData => (
                                     <div key={collectorData.name} className="border-t">
                                         <div className="bg-muted/30 px-4 sm:px-6 py-2 flex justify-between items-center">
                                             <h3 className="font-semibold">{collectorData.name}</h3>
