@@ -88,7 +88,7 @@ export default function CustomersPage() {
       const customersWithStatus: CustomerWithStatus[] = customersList.map(customer => {
         const customerInvoices = unpaidInvoices.filter(inv => inv.customerId === customer.id);
         if (customerInvoices.length === 0) {
-            return { ...customer, hasArrears: false };
+            return { ...customer, hasArrears: false, nearestDueDate: undefined };
         }
         
         const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
@@ -126,18 +126,15 @@ export default function CustomersPage() {
         const installationDate = parseISO(newCustomerData.installationDate);
         const today = new Date();
         const startOfCurrentMonth = startOfMonth(today);
-
-        // --- REVISED LOGIC ---
+        
         const dueDateInInstallationMonth = new Date(installationDate.getFullYear(), installationDate.getMonth(), newCustomerData.dueDateCode);
         
         let firstInvoiceMonth = startOfMonth(installationDate);
         if (installationDate > dueDateInInstallationMonth) {
           firstInvoiceMonth = addMonths(firstInvoiceMonth, 1);
         }
-        // --- END REVISED LOGIC ---
         
         let totalInvoices = 0;
-        // Ensure we don't create invoices for future months and the first invoice month is not in the future
         if (firstInvoiceMonth <= startOfCurrentMonth) {
             totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, firstInvoiceMonth) + 1;
         }
@@ -293,10 +290,12 @@ export default function CustomersPage() {
   const formatDueDateStatus = (dueDate?: string, hasArrears?: boolean) => {
     if (!isClient) return null;
   
+    // If there's no due date, it means no unpaid invoices exist, so the customer is considered paid up.
     if (!dueDate) {
       return <Badge variant="secondary" className="bg-green-100 text-green-800">Lunas</Badge>;
     }
   
+    // If there are arrears from previous months, show "Menunggak" regardless of the nearest due date.
     if (hasArrears) {
       return <Badge variant="destructive">Menunggak</Badge>;
     }
