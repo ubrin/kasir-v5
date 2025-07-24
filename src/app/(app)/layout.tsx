@@ -8,6 +8,7 @@ import AppSidebar from '@/components/layout/app-sidebar';
 import Header from '@/components/layout/header';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { OfflineIndicator } from '@/components/offline-indicator';
 
 export default function AppLayout({
   children,
@@ -50,6 +51,7 @@ export default function AppLayout({
             {children}
           </main>
         </div>
+        <OfflineIndicator />
       </div>
     </SidebarProvider>
   );
