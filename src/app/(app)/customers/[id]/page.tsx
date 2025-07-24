@@ -8,7 +8,7 @@ import type { Customer, Invoice, Payment } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Save, X, Loader2 } from "lucide-react"
+import { ArrowLeft, Edit, Save, X, Loader2, CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,8 @@ import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
@@ -92,6 +94,12 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     setEditableCustomer(prev => prev ? { ...prev, [id]: id === 'subscriptionMbps' || id === 'packagePrice' || id === 'dueDateCode' || id === 'creditBalance' ? Number(value) : value } : null);
   };
   
+  const handleDateChange = (date: Date | undefined) => {
+    if (date) {
+      setEditableCustomer(prev => prev ? { ...prev, installationDate: format(date, 'yyyy-MM-dd') } : null);
+    }
+  };
+
   const handleInvoiceStatusChange = (invoiceId: string, newStatus: 'lunas' | 'belum lunas') => {
     setEditableInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: newStatus } : inv));
   };
@@ -230,6 +238,38 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <div className="grid gap-2">
                         <Label htmlFor="phone">No. WhatsApp</Label>
                         <Input id="phone" value={editableCustomer?.phone || ''} onChange={handleInputChange} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Tanggal Pemasangan</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant={'outline'}
+                                className={cn(
+                                    'w-full justify-start text-left font-normal',
+                                    !editableCustomer?.installationDate && 'text-muted-foreground'
+                                )}
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {editableCustomer?.installationDate ? (
+                                    format(parseISO(editableCustomer.installationDate), 'PPP', { locale: id })
+                                ) : (
+                                    <span>Pilih tanggal</span>
+                                )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                mode="single"
+                                selected={editableCustomer?.installationDate ? parseISO(editableCustomer.installationDate) : undefined}
+                                onSelect={handleDateChange}
+                                disabled={(date) =>
+                                    date > new Date() || date < new Date('1900-01-01')
+                                }
+                                initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="subscriptionMbps">Paket (Mbps)</Label>
@@ -406,3 +446,5 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   )
 }
+
+    
