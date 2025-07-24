@@ -184,6 +184,22 @@ export default function FinancePage() {
             </CardContent>
         </Card>
 
+        <div className="flex items-center gap-2">
+            <AddOtherIncomeDialog onConfirm={handleAddOtherIncome} />
+            <Button asChild>
+                <Link href="/expenses">
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Lihat Pengeluaran
+                </Link>
+            </Button>
+             <Button asChild variant="outline">
+                <Link href="/monthly-statistics">
+                    <AreaChart className="mr-2 h-4 w-4" />
+                    Statistik Bulanan
+                </Link>
+            </Button>
+        </div>
+
         <Card>
             <CardHeader>
                 <CardTitle>Riwayat Pemasukan Lainnya</CardTitle>
@@ -234,22 +250,6 @@ export default function FinancePage() {
                 </Table>
             </CardContent>
         </Card>
-
-        <div className="flex items-center gap-2">
-            <AddOtherIncomeDialog onConfirm={handleAddOtherIncome} />
-            <Button asChild>
-                <Link href="/expenses">
-                    <Wallet className="mr-2 h-4 w-4" />
-                    Lihat Pengeluaran
-                </Link>
-            </Button>
-             <Button asChild variant="outline">
-                <Link href="/monthly-statistics">
-                    <AreaChart className="mr-2 h-4 w-4" />
-                    Statistik Bulanan
-                </Link>
-            </Button>
-        </div>
     </div>
     <AlertDialog open={!!incomeToDelete} onOpenChange={(isOpen) => !isOpen && setIncomeToDelete(null)}>
         <AlertDialogContent>
