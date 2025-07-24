@@ -41,6 +41,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 const paymentSchema = z.object({
   selectedInvoices: z.array(z.string()).nonempty({
@@ -61,7 +62,7 @@ const paymentSchema = z.object({
     (a) => (a ? parseInt(String(a).replace(/\D/g, ''), 10) : 0),
     z.number().min(0)
   ),
-  collectorId: z.string().optional(),
+  collectorId: z.string({ required_error: 'Penagih harus dipilih.' }),
 }).refine(data => {
     if (data.discountType === 'percentage') {
         return data.discount === undefined || (data.discount >= 0 && data.discount <= 100);
@@ -87,6 +88,7 @@ interface PaymentDialogProps {
 export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps) {
   const [open, setOpen] = React.useState(false);
   const [collectors, setCollectors] = React.useState<Collector[]>([]);
+  const { toast } = useToast();
 
   const {
     handleSubmit,
@@ -104,7 +106,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       paymentMethod: 'cash',
       selectedInvoices: [],
       paidAmount: 0,
-      collectorId: "unassigned",
+      collectorId: undefined,
     },
   });
 
@@ -120,10 +122,14 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
         const unsubscribe = onSnapshot(collection(db, "collectors"), (snapshot) => {
             const collectorsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a,b) => a.name.localeCompare(b.name));
             setCollectors(collectorsList);
+            // Set default collector to the first one in the list if it's not set yet
+            if (collectorsList.length > 0 && !watch('collectorId')) {
+                setValue('collectorId', collectorsList[0].id);
+            }
         });
         return () => unsubscribe();
     }
-  }, [open]);
+  }, [open, watch, setValue]);
 
   const billToPay = React.useMemo(() => {
     return customer.invoices
@@ -165,6 +171,14 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
 
   const onSubmit = (data: PaymentFormValues) => {
     const selectedCollector = collectors.find(c => c.id === data.collectorId);
+    if (!selectedCollector) {
+        toast({
+            title: "Penagih tidak valid",
+            description: "Silakan pilih penagih yang valid.",
+            variant: "destructive"
+        });
+        return;
+    }
     const paymentDetails = {
       ...data,
       billToPay,
@@ -175,7 +189,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       discount: discountAmount,
       creditUsed: creditApplied,
       collectorId: data.collectorId,
-      collectorName: data.collectorId === 'unassigned' ? 'Bayar Sendiri' : selectedCollector?.name,
+      collectorName: selectedCollector.name,
     };
     onPaymentSuccess(customer.id, customer.name, paymentDetails);
     setOpen(false);
@@ -188,11 +202,13 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
         // Automatically select all unpaid invoices for this customer
         const allUnpaidInvoiceIds = customer.invoices.map(inv => inv.id);
         setValue('selectedInvoices', allUnpaidInvoiceIds);
-        setValue('collectorId', 'unassigned');
+        if (collectors.length > 0) {
+            setValue('collectorId', collectors[0].id);
+        }
     } else {
         reset();
     }
-  }, [open, customer.invoices, setValue, reset]);
+  }, [open, customer.invoices, setValue, reset, collectors]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -259,19 +275,20 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                                 value={field.value}
                                 className="grid gap-2 rounded-md border p-3"
                             >
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="unassigned" id="unassigned" />
-                                    <Label htmlFor="unassigned" className="font-normal">Tidak Ada (Bayar Sendiri)</Label>
-                                </div>
-                                {collectors.map(c => (
-                                    <div key={c.id} className="flex items-center space-x-2">
-                                        <RadioGroupItem value={c.id} id={c.id} />
-                                        <Label htmlFor={c.id} className="font-normal">{c.name}</Label>
-                                    </div>
-                                ))}
+                                {collectors.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">Tidak ada penagih. Tambahkan penagih di halaman Daftar Penagih.</p>
+                                ) : (
+                                    collectors.map(c => (
+                                        <div key={c.id} className="flex items-center space-x-2">
+                                            <RadioGroupItem value={c.id} id={c.id} />
+                                            <Label htmlFor={c.id} className="font-normal">{c.name}</Label>
+                                        </div>
+                                    ))
+                                )}
                             </RadioGroup>
                         )}
                     />
+                     {errors.collectorId && <p className="text-sm text-destructive">{errors.collectorId.message}</p>}
                 </div>
 
 
@@ -438,3 +455,5 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     </Dialog>
   );
 }
+
+    
