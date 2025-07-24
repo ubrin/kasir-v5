@@ -6,7 +6,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { db } from '@/lib/firebase';
 import { writeBatch, collection, doc } from 'firebase/firestore';
-import { format, parse, differenceInCalendarMonths, addMonths, startOfMonth, parseISO, getDate, getYear, getMonth, differenceInDays } from 'date-fns';
+import { format, parse, differenceInCalendarMonths, addMonths, startOfMonth, parseISO, getDate } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -175,24 +175,20 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
         const startOfInstallationMonth = startOfMonth(installationDate);
         const startOfCurrentMonth = startOfMonth(today);
 
+        // --- REVISED LOGIC ---
         const installationDay = getDate(installationDate);
-        let firstDueDate;
-        if (installationDay < dueDateCode) {
-            firstDueDate = new Date(getYear(installationDate), getMonth(installationDate), dueDateCode);
-        } else {
-            firstDueDate = addMonths(new Date(getYear(installationDate), getMonth(installationDate), dueDateCode), 1);
-        }
+        let firstInvoiceMonth = startOfInstallationMonth;
         
-        const daysToFirstDueDate = differenceInDays(firstDueDate, installationDate);
-        
-        let invoiceStartDate = startOfInstallationMonth;
-        if (daysToFirstDueDate <= 25) {
-            invoiceStartDate = addMonths(startOfInstallationMonth, 1);
+        // If installation date is on or after the due date code for that month, the first bill is for the next month.
+        if (installationDay >= dueDateCode) {
+            firstInvoiceMonth = addMonths(startOfInstallationMonth, 1);
         }
-
+        // --- END REVISED LOGIC ---
+        
         let totalInvoices = 0;
-        if (invoiceStartDate <= startOfCurrentMonth) {
-            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, invoiceStartDate) + 1;
+        // Ensure we don't create invoices for future months
+        if (firstInvoiceMonth <= startOfCurrentMonth) {
+            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, firstInvoiceMonth) + 1;
         }
 
         const totalOutstanding = totalInvoices * packagePrice;
@@ -216,7 +212,7 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
 
         if (packagePrice > 0 && totalInvoices > 0) {
             for (let i = 0; i < totalInvoices; i++) {
-                const invoiceMonthDate = addMonths(invoiceStartDate, i);
+                const invoiceMonthDate = addMonths(firstInvoiceMonth, i);
                 const invoiceDueDate = new Date(invoiceMonthDate.getFullYear(), invoiceMonthDate.getMonth(), newCustomer.dueDateCode);
                 
                 const newInvoice: Omit<Invoice, 'id'> = {
@@ -324,3 +320,5 @@ export function ImportCustomerDialog({ onSuccess }: ImportCustomerDialogProps) {
     </Dialog>
   );
 }
+
+    

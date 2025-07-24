@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, getYear, getMonth, differenceInDays, startOfToday } from 'date-fns';
+import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, startOfToday, differenceInDays } from 'date-fns';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -128,24 +128,20 @@ export default function CustomersPage() {
         const startOfInstallationMonth = startOfMonth(installationDate);
         const startOfCurrentMonth = startOfMonth(today);
 
+        // --- REVISED LOGIC ---
         const installationDay = getDate(installationDate);
-        let firstDueDate;
-        if (installationDay < newCustomerData.dueDateCode) {
-            firstDueDate = new Date(getYear(installationDate), getMonth(installationDate), newCustomerData.dueDateCode);
-        } else {
-            firstDueDate = addMonths(new Date(getYear(installationDate), getMonth(installationDate), newCustomerData.dueDateCode), 1);
-        }
-
-        const daysToFirstDueDate = differenceInDays(firstDueDate, installationDate);
+        let firstInvoiceMonth = startOfInstallationMonth;
         
-        let invoiceStartDate = startOfInstallationMonth;
-        if (daysToFirstDueDate <= 25) {
-            invoiceStartDate = addMonths(startOfInstallationMonth, 1);
+        // If installation date is on or after the due date code for that month, the first bill is for the next month.
+        if (installationDay >= newCustomerData.dueDateCode) {
+            firstInvoiceMonth = addMonths(startOfInstallationMonth, 1);
         }
+        // --- END REVISED LOGIC ---
         
         let totalInvoices = 0;
-        if (invoiceStartDate <= startOfCurrentMonth) {
-            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, invoiceStartDate) + 1;
+        // Ensure we don't create invoices for future months
+        if (firstInvoiceMonth <= startOfCurrentMonth) {
+            totalInvoices = differenceInCalendarMonths(startOfCurrentMonth, firstInvoiceMonth) + 1;
         }
 
         const totalOutstanding = totalInvoices * newCustomerData.packagePrice;
@@ -161,7 +157,7 @@ export default function CustomersPage() {
 
         if (newCustomerData.packagePrice > 0 && totalInvoices > 0) {
             for (let i = 0; i < totalInvoices; i++) {
-                const invoiceMonthDate = addMonths(invoiceStartDate, i);
+                const invoiceMonthDate = addMonths(firstInvoiceMonth, i);
                 const invoiceDueDate = new Date(invoiceMonthDate.getFullYear(), invoiceMonthDate.getMonth(), newCustomerData.dueDateCode);
 
                 const newInvoice: Omit<Invoice, 'id'> = {
@@ -547,5 +543,7 @@ export default function CustomersPage() {
     </div>
   )
 }
+
+    
 
     
