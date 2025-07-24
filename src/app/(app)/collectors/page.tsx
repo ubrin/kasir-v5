@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Loader2, UserPlus, UsersRound } from "lucide-react";
-import { collection, addDoc, getDocs, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, where, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import type { Collector, Payment } from "@/lib/types";
@@ -33,7 +33,7 @@ function AddCollectorDialog({ onCollectorAdded }: { onCollectorAdded: () => void
         try {
             await addDoc(collection(db, "collectors"), { name });
             toast({ title: "Penagih Ditambahkan", description: `${name} telah berhasil ditambahkan.` });
-            onCollectorAdded(); // This will trigger a re-fetch in the parent
+            onCollectorAdded(); // This is more for immediate feedback, onSnapshot will handle the rest
             setOpen(false);
             setName("");
         } catch (error) {
@@ -97,84 +97,77 @@ export default function CollectorsPage() {
     const [loading, setLoading] = React.useState(true);
     const [collectionsByDate, setCollectionsByDate] = React.useState<DailyCollection[]>([]);
 
-    const fetchCollections = React.useCallback(async () => {
+    React.useEffect(() => {
         setLoading(true);
-        try {
-            const today = new Date();
-            const start = format(startOfMonth(today), 'yyyy-MM-dd');
-            const end = format(endOfMonth(today), 'yyyy-MM-dd');
+        const today = new Date();
+        const start = format(startOfMonth(today), 'yyyy-MM-dd');
+        const end = format(endOfMonth(today), 'yyyy-MM-dd');
 
-            // Fetch all payments for the current month
-            const paymentsQuery = query(
-                collection(db, "payments"),
-                where("paymentDate", ">=", start),
-                where("paymentDate", "<=", end),
-                orderBy("paymentDate", "desc")
-            );
-            const paymentsSnapshot = await getDocs(paymentsQuery);
-            const monthlyPayments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
-
-            // Fetch all collectors
-            const collectorsSnapshot = await getDocs(collection(db, "collectors"));
+        // Query for payments in the current month
+        const paymentsQuery = query(
+            collection(db, "payments"),
+            where("paymentDate", ">=", start),
+            where("paymentDate", "<=", end),
+            orderBy("paymentDate", "desc")
+        );
+        
+        // Listen to collectors and payments in real-time
+        const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), (collectorsSnapshot) => {
             const allCollectors = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector));
             const collectorsMap = new Map(allCollectors.map(c => [c.id, c.name]));
             collectorsMap.set('unassigned', 'Tidak Ditentukan');
 
-            // Group payments by date
-            const groupedByDate: { [date: string]: DailyCollection } = {};
+            const unsubscribePayments = onSnapshot(paymentsQuery, (paymentsSnapshot) => {
+                const monthlyPayments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 
-            for (const payment of monthlyPayments) {
-                const dateStr = payment.paymentDate;
-                if (!groupedByDate[dateStr]) {
-                    groupedByDate[dateStr] = { date: dateStr, collectors: {}, total: 0 };
-                }
+                const groupedByDate: { [date: string]: DailyCollection } = {};
 
-                const collectorId = payment.collectorId || 'unassigned';
-                const collectorName = collectorsMap.get(collectorId) || 'Nama Tidak Ditemukan';
+                for (const payment of monthlyPayments) {
+                    const dateStr = payment.paymentDate;
+                    if (!groupedByDate[dateStr]) {
+                        groupedByDate[dateStr] = { date: dateStr, collectors: {}, total: 0 };
+                    }
 
-                if (!groupedByDate[dateStr].collectors[collectorId]) {
-                    groupedByDate[dateStr].collectors[collectorId] = {
-                        name: collectorName,
-                        payments: [],
-                        total: 0
-                    };
+                    const collectorId = payment.collectorId || 'unassigned';
+                    const collectorName = collectorsMap.get(collectorId) || 'Nama Tidak Ditemukan';
+
+                    if (!groupedByDate[dateStr].collectors[collectorId]) {
+                        groupedByDate[dateStr].collectors[collectorId] = {
+                            name: collectorName,
+                            payments: [],
+                            total: 0
+                        };
+                    }
+                    
+                    groupedByDate[dateStr].collectors[collectorId].payments.push(payment);
+                    groupedByDate[dateStr].collectors[collectorId].total += payment.totalPayment;
+                    groupedByDate[dateStr].total += payment.totalPayment;
                 }
                 
-                groupedByDate[dateStr].collectors[collectorId].payments.push(payment);
-                groupedByDate[dateStr].collectors[collectorId].total += payment.totalPayment;
-                groupedByDate[dateStr].total += payment.totalPayment;
-            }
-            
-            const sortedCollections = Object.values(groupedByDate).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            setCollectionsByDate(sortedCollections);
+                const sortedCollections = Object.values(groupedByDate).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                setCollectionsByDate(sortedCollections);
+                setLoading(false);
+            }, (error) => {
+                 console.error("Error fetching payments data:", error);
+                 toast({ title: "Gagal memuat data pembayaran", variant: "destructive" });
+                 setLoading(false);
+            });
 
-        } catch (error) {
-            console.error("Error fetching collections data:", error);
-            toast({ title: "Gagal memuat data koleksi", variant: "destructive" });
-        } finally {
+            // Return the payment listener unsub function to be called when collector listener reruns
+            return () => unsubscribePayments();
+
+        }, (error) => {
+            console.error("Error fetching collectors data:", error);
+            toast({ title: "Gagal memuat data penagih", variant: "destructive" });
             setLoading(false);
-        }
-    }, [toast]);
-
-    React.useEffect(() => {
-        // Initial fetch
-        fetchCollections();
-
-        // Set up a listener for real-time updates on payments and collectors
-        const unsubscribePayments = onSnapshot(collection(db, "payments"), () => {
-            fetchCollections();
         });
-        const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), () => {
-            fetchCollections();
-        });
-        
-        // Clean up listeners on component unmount
+
+        // Clean up main collector listener on component unmount
         return () => {
-            unsubscribePayments();
             unsubscribeCollectors();
         };
 
-    }, [fetchCollections]);
+    }, [toast]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -183,7 +176,7 @@ export default function CollectorsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Laporan Penagih</h1>
           <p className="text-muted-foreground">Laporan setoran dari penagih di lapangan per bulan ini.</p>
         </div>
-        <AddCollectorDialog onCollectorAdded={fetchCollections} />
+        <AddCollectorDialog onCollectorAdded={() => {}} />
       </div>
 
       {loading ? (
@@ -197,7 +190,7 @@ export default function CollectorsPage() {
                 <CardDescription>Rincian setoran harian dari semua penagih.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Accordion type="multiple" className="w-full space-y-4" defaultValue={collectionsByDate.map(d => d.date)}>
+                <Accordion type="multiple" className="w-full space-y-4" defaultValue={collectionsByDate.length > 0 ? [collectionsByDate[0].date] : []}>
                     {collectionsByDate.map((daily) => (
                         <AccordionItem value={daily.date} key={daily.date} className="border rounded-lg bg-card overflow-hidden">
                              <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-3">
