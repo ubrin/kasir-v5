@@ -35,11 +35,11 @@ const otherIncomeSchema = z.object({
 
 type OtherIncomeFormValues = z.infer<typeof otherIncomeSchema>;
 
-interface AddOtherIncomeDialogProps {
+interface OtherIncomeDialogProps {
   onConfirm: (data: OtherIncomeFormValues) => void;
 }
 
-export function AddOtherIncomeDialog({ onConfirm }: AddOtherIncomeDialogProps) {
+export function AddOtherIncomeDialog({ onConfirm }: OtherIncomeDialogProps) {
   const [open, setOpen] = React.useState(false);
   const form = useForm<OtherIncomeFormValues>({
     resolver: zodResolver(otherIncomeSchema),
@@ -72,7 +72,7 @@ export function AddOtherIncomeDialog({ onConfirm }: AddOtherIncomeDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Tambah Pemasukan
+          Pemasukan Lainnya
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
