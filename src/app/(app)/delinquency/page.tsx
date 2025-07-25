@@ -108,7 +108,15 @@ export default function DelinquencyPage() {
                 }
             }
 
-            setDelinquentCustomersList(Object.values(delinquentsMap));
+            const delinquentList = Object.values(delinquentsMap);
+            delinquentList.sort((a, b) => {
+                const nameComparison = a.name.localeCompare(b.name);
+                if (nameComparison !== 0) {
+                    return nameComparison;
+                }
+                return a.address.localeCompare(b.address);
+            });
+            setDelinquentCustomersList(delinquentList);
 
         } catch (error) {
             console.error("Error fetching delinquent data:", error);
@@ -394,3 +402,5 @@ export default function DelinquencyPage() {
     </div>
   )
 }
+
+    

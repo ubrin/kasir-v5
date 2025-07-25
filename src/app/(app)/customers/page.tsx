@@ -82,6 +82,14 @@ export default function CustomersPage() {
       ]);
 
       const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+      customersList.sort((a, b) => {
+        const nameComparison = a.name.localeCompare(b.name);
+        if (nameComparison !== 0) {
+            return nameComparison;
+        }
+        return a.address.localeCompare(b.address);
+      });
+
       const unpaidInvoices = unpaidInvoicesSnapshot.docs.map(doc => doc.data() as Invoice);
       const startOfCurrentMonth = startOfMonth(new Date());
 
@@ -491,7 +499,7 @@ export default function CustomersPage() {
                                             </div>
                                              <div className="text-sm text-muted-foreground mt-2 pt-2 border-t">
                                                 <span>{customer.subscriptionMbps} Mbps</span> - <span>Rp{customer.packagePrice.toLocaleString('id-ID')}</span>
-                                            </div>
+                                             </div>
                                         </div>
                                     ))}
                                 </div>
@@ -542,3 +550,5 @@ export default function CustomersPage() {
     </div>
   )
 }
+
+    
