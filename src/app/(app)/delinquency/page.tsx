@@ -295,7 +295,7 @@ export default function DelinquencyPage() {
         </div>
         
         {isClient && filteredGroupKeys.length > 0 ? (
-            <Accordion type="multiple" className="w-full space-y-4" defaultValue={filteredGroupKeys.map(String)}>
+            <Accordion type="multiple" className="w-full space-y-4">
                 {filteredGroupKeys.map((code) => (
                     <AccordionItem value={String(code)} key={code} className="border rounded-lg overflow-hidden">
                         <AccordionTrigger className="bg-muted/50 hover:bg-muted px-4 sm:px-6 py-4">

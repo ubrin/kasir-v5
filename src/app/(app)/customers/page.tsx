@@ -399,7 +399,7 @@ export default function CustomersPage() {
 
 
         {filteredGroupKeys.length > 0 ? (
-            <Accordion type="multiple" className="w-full space-y-4" defaultValue={filteredGroupKeys.map(String)}>
+            <Accordion type="multiple" className="w-full space-y-4">
                 {filteredGroupKeys.map((code) => {
                     const groupCustomerIds = groupedCustomers[code].map(c => c.id);
                     const isAllSelectedInGroup = groupCustomerIds.every(id => selectedCustomerIds.includes(id));
