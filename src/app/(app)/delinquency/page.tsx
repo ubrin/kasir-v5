@@ -110,11 +110,11 @@ export default function DelinquencyPage() {
 
             const delinquentList = Object.values(delinquentsMap);
             delinquentList.sort((a, b) => {
-                const nameComparison = a.name.localeCompare(b.name);
-                if (nameComparison !== 0) {
-                    return nameComparison;
+                const addressComparison = a.address.localeCompare(b.address);
+                if (addressComparison !== 0) {
+                    return addressComparison;
                 }
-                return a.address.localeCompare(b.address);
+                return a.name.localeCompare(b.name);
             });
             setDelinquentCustomersList(delinquentList);
 

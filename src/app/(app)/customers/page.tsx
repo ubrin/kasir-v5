@@ -83,11 +83,11 @@ export default function CustomersPage() {
 
       const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
       customersList.sort((a, b) => {
-        const nameComparison = a.name.localeCompare(b.name);
-        if (nameComparison !== 0) {
-            return nameComparison;
+        const addressComparison = a.address.localeCompare(b.address);
+        if (addressComparison !== 0) {
+            return addressComparison;
         }
-        return a.address.localeCompare(b.address);
+        return a.name.localeCompare(b.name);
       });
 
       const unpaidInvoices = unpaidInvoicesSnapshot.docs.map(doc => doc.data() as Invoice);
@@ -407,7 +407,7 @@ export default function CustomersPage() {
 
 
         {filteredGroupKeys.length > 0 ? (
-            <Accordion type="multiple" className="w-full space-y-4">
+            <Accordion type="multiple" className="w-full space-y-4" defaultValue={[]}>
                 {filteredGroupKeys.map((code) => {
                     const groupCustomerIds = groupedCustomers[code].map(c => c.id);
                     const isAllSelectedInGroup = groupCustomerIds.every(id => selectedCustomerIds.includes(id));
