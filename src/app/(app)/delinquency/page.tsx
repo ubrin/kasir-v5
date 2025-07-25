@@ -173,7 +173,7 @@ export default function DelinquencyPage() {
             const totalBilledAmountToClear = invoicesToPay.reduce((sum, inv) => sum + inv.amount, 0);
             const discountAmount = paymentDetails.discount; 
             const creditUsed = paymentDetails.creditUsed;
-            let creditedAmount = paymentDetails.paidAmount + creditUsed;
+            let creditedAmount = paymentDetails.paidAmount + creditUsed + discountAmount;
     
             const newPaymentRef = doc(collection(db, "payments"));
             const newPayment: Omit<Payment, 'id'> = {
@@ -295,7 +295,7 @@ export default function DelinquencyPage() {
         </div>
         
         {isClient && filteredGroupKeys.length > 0 ? (
-            <Accordion type="multiple" className="w-full space-y-4">
+            <Accordion type="multiple" className="w-full space-y-4" defaultValue={[]}>
                 {filteredGroupKeys.map((code) => (
                     <AccordionItem value={String(code)} key={code} className="border rounded-lg overflow-hidden">
                         <AccordionTrigger className="bg-muted/50 hover:bg-muted px-4 sm:px-6 py-4">
