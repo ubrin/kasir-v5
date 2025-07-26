@@ -31,15 +31,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { Customer, Invoice, Collector } from '@/lib/types';
 import { Checkbox } from './ui/checkbox';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from './ui/tooltip';
-import { ScrollArea } from './ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -217,90 +209,87 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
           Bayar
         </Button>
       </DialogTrigger>
-      <DialogContent className="p-0" onClick={(e) => e.stopPropagation()}>
-         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-            <DialogHeader className="p-6 pb-4 flex-shrink-0 border-b">
-              <DialogTitle>Pembayaran</DialogTitle>
-              <DialogDescription>
-                  {customer.name}
-              </DialogDescription>
-            </DialogHeader>
+      <DialogContent className="sm:max-w-md p-0 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader className="p-6 pb-4 border-b shrink-0">
+          <DialogTitle>Pembayaran</DialogTitle>
+          <DialogDescription>{customer.name}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid gap-6">
-                
                 <div className="grid gap-3">
-                    <Label>Pilih Tagihan</Label>
-                    <Controller
+                  <Label>Pilih Tagihan</Label>
+                  <Controller
                     name="selectedInvoices"
                     control={control}
                     render={({ field }) => (
-                        <div className="space-y-2 rounded-md border p-3">
+                      <div className="space-y-2 rounded-md border p-3">
                         {customer.invoices.map((invoice) => (
-                            <div key={invoice.id} className="flex items-center justify-between">
+                          <div key={invoice.id} className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Checkbox
+                              <Checkbox
                                 id={invoice.id}
                                 checked={field.value?.includes(invoice.id)}
                                 onCheckedChange={(checked) => {
-                                    return checked
+                                  return checked
                                     ? field.onChange([...(field.value || []), invoice.id])
                                     : field.onChange(
                                         (field.value || []).filter(
-                                            (value) => value !== invoice.id
+                                          (value) => value !== invoice.id
                                         )
-                                        );
+                                      );
                                 }}
-                                />
-                                <Label htmlFor={invoice.id} className="font-normal cursor-pointer">
+                              />
+                              <Label htmlFor={invoice.id} className="font-normal cursor-pointer">
                                 {format(parseISO(invoice.date), 'MMMM yyyy', { locale: id })}
-                                </Label>
+                              </Label>
                             </div>
                             <span className="text-sm font-medium">Rp{invoice.amount.toLocaleString('id-ID')}</span>
-                            </div>
+                          </div>
                         ))}
-                        </div>
+                      </div>
                     )}
-                    />
-                    {errors.selectedInvoices && <p className="text-sm text-destructive">{errors.selectedInvoices.message}</p>}
+                  />
+                  {errors.selectedInvoices && <p className="text-sm text-destructive">{errors.selectedInvoices.message}</p>}
                 </div>
 
                 <div className="grid gap-3">
-                    <Label>Diterima Oleh</Label>
-                    <Controller
-                        name="collectorId"
-                        control={control}
-                        render={({ field }) => (
-                           <RadioGroup
-                                onValueChange={field.onChange}
-                                value={field.value}
-                                className="grid gap-2 rounded-md border p-3"
-                            >
-                                {collectors.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">Tidak ada penagih. Tambahkan penagih di halaman Daftar Penagih.</p>
-                                ) : (
-                                    collectors.map(c => (
-                                        <div key={c.id} className="flex items-center space-x-2">
-                                            <RadioGroupItem value={c.id} id={c.id} />
-                                            <Label htmlFor={c.id} className="font-normal">{c.name}</Label>
-                                        </div>
-                                    ))
-                                )}
-                            </RadioGroup>
+                  <Label>Diterima Oleh</Label>
+                  <Controller
+                    name="collectorId"
+                    control={control}
+                    render={({ field }) => (
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        className="grid gap-2 rounded-md border p-3"
+                      >
+                        {collectors.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Tidak ada penagih. Tambahkan penagih di halaman Daftar Penagih.</p>
+                        ) : (
+                          collectors.map(c => (
+                            <div key={c.id} className="flex items-center space-x-2">
+                              <RadioGroupItem value={c.id} id={c.id} />
+                              <Label htmlFor={c.id} className="font-normal">{c.name}</Label>
+                            </div>
+                          ))
                         )}
-                    />
-                     {errors.collectorId && <p className="text-sm text-destructive">{errors.collectorId.message}</p>}
+                      </RadioGroup>
+                    )}
+                  />
+                  {errors.collectorId && <p className="text-sm text-destructive">{errors.collectorId.message}</p>}
                 </div>
 
 
                 <div className="grid gap-3">
-                    <Label>Metode Pembayaran</Label>
-                    <Controller
+                  <Label>Metode Pembayaran</Label>
+                  <Controller
                     name="paymentMethod"
                     control={control}
                     render={({ field }) => (
                         <RadioGroup
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                         className="flex gap-4"
                         >
                         <div className="flex items-center space-x-2">
@@ -317,141 +306,140 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         </div>
                         </RadioGroup>
                     )}
-                    />
-                    {errors.paymentMethod && <p className="text-sm text-destructive">{errors.paymentMethod.message}</p>}
+                  />
+                  {errors.paymentMethod && <p className="text-sm text-destructive">{errors.paymentMethod.message}</p>}
                 </div>
 
                 <div className="grid gap-3">
-                    <Label htmlFor="paymentDate">Tanggal Pembayaran</Label>
-                    <Controller
+                  <Label htmlFor="paymentDate">Tanggal Pembayaran</Label>
+                  <Controller
                     name="paymentDate"
                     control={control}
                     render={({ field }) => (
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <Button
-                                variant={'outline'}
-                                className={cn(
-                                'w-full justify-start text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? format(field.value, 'PPP', { locale: id }) : <span>Pilih tanggal</span>}
-                            </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                initialFocus
-                            />
-                            </PopoverContent>
-                        </Popover>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={'outline'}
+                            className={cn(
+                              'w-full justify-start text-left font-normal',
+                              !field.value && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? format(field.value, 'PPP', { locale: id }) : <span>Pilih tanggal</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     )}
-                    />
-                    {errors.paymentDate && <p className="text-sm text-destructive">{errors.paymentDate.message}</p>}
+                  />
+                  {errors.paymentDate && <p className="text-sm text-destructive">{errors.paymentDate.message}</p>}
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2 col-span-2">
-                        <Label>Rincian Tagihan</Label>
-                        <div className="border rounded-md p-3 space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span>Total Tagihan</span>
-                                <span className="font-medium">Rp{billToPay.toLocaleString('id-ID')}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Diskon</span>
-                                <span className="font-medium text-green-600">- Rp{discountAmount.toLocaleString('id-ID')}</span>
-                            </div>
-                            {creditApplied > 0 && (
-                                <div className="flex justify-between">
-                                    <span>Saldo Digunakan</span>
-                                    <span className="font-medium text-blue-600">- Rp{creditApplied.toLocaleString('id-ID')}</span>
-                                </div>
-                            )}
+                  <div className="grid gap-2 col-span-2">
+                    <Label>Rincian Tagihan</Label>
+                    <div className="border rounded-md p-3 space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Total Tagihan</span>
+                        <span className="font-medium">Rp{billToPay.toLocaleString('id-ID')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Diskon</span>
+                        <span className="font-medium text-green-600">- Rp{discountAmount.toLocaleString('id-ID')}</span>
+                      </div>
+                      {creditApplied > 0 && (
+                        <div className="flex justify-between">
+                          <span>Saldo Digunakan</span>
+                          <span className="font-medium text-blue-600">- Rp{creditApplied.toLocaleString('id-ID')}</span>
                         </div>
+                      )}
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="discount">Diskon</Label>
-                        <div className="flex items-center gap-2">
-                             <Controller
-                                name="discount"
-                                control={control}
-                                render={({ field }) => (
-                                    <Input
-                                    {...field}
-                                    id="discount"
-                                    type="number"
-                                    placeholder="0"
-                                    className="flex-1"
-                                    onChange={e => field.onChange(e.target.value)}
-                                    />
-                                )}
-                            />
-                             <Controller
-                                name="discountType"
-                                control={control}
-                                render={({ field }) => (
-                                    <RadioGroup
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                    className="flex rounded-md border bg-muted p-1"
-                                    >
-                                        <RadioGroupItem value="rp" id="rp" className="sr-only" />
-                                        <Label htmlFor="rp" className={cn("px-2 py-1 text-xs rounded-sm cursor-pointer", field.value === 'rp' && "bg-background shadow")}>Rp</Label>
-                                        
-                                        <RadioGroupItem value="percentage" id="percentage" className="sr-only"/>
-                                        <Label htmlFor="percentage" className={cn("px-2 py-1 text-xs rounded-sm cursor-pointer", field.value === 'percentage' && "bg-background shadow")}>%</Label>
-                                    </RadioGroup>
-                                )}
-                            />
-                        </div>
-                        {errors.discount && <p className="text-sm text-destructive">{errors.discount.message}</p>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="discount">Diskon</Label>
+                    <div className="flex items-center gap-2">
+                      <Controller
+                        name="discount"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="discount"
+                            type="number"
+                            placeholder="0"
+                            className="flex-1"
+                            onChange={e => field.onChange(e.target.value)}
+                          />
+                        )}
+                      />
+                      <Controller
+                        name="discountType"
+                        control={control}
+                        render={({ field }) => (
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="flex rounded-md border bg-muted p-1"
+                          >
+                            <RadioGroupItem value="rp" id="rp" className="sr-only" />
+                            <Label htmlFor="rp" className={cn("px-2 py-1 text-xs rounded-sm cursor-pointer", field.value === 'rp' && "bg-background shadow")}>Rp</Label>
+                            
+                            <RadioGroupItem value="percentage" id="percentage" className="sr-only"/>
+                            <Label htmlFor="percentage" className={cn("px-2 py-1 text-xs rounded-sm cursor-pointer", field.value === 'percentage' && "bg-background shadow")}>%</Label>
+                          </RadioGroup>
+                        )}
+                      />
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="paidAmount">Jumlah Dibayar</Label>
-                         <Controller
-                            name="paidAmount"
-                            control={control}
-                            render={({ field }) => (
-                                <Input
-                                {...field}
-                                id="paidAmount"
-                                type="text"
-                                placeholder="0"
-                                onChange={handlePaidAmountChange}
-                                value={field.value ? Number(field.value).toLocaleString('id-ID') : ''}
-                                />
-                            )}
+                    {errors.discount && <p className="text-sm text-destructive">{errors.discount.message}</p>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="paidAmount">Jumlah Dibayar</Label>
+                    <Controller
+                      name="paidAmount"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="paidAmount"
+                          type="text"
+                          placeholder="0"
+                          onChange={handlePaidAmountChange}
+                          value={field.value ? Number(field.value).toLocaleString('id-ID') : ''}
                         />
-                    </div>
-                     <div className="grid gap-2 col-span-2">
-                        <Label>Kembalian / Sisa Saldo</Label>
-                        <p className={cn("font-semibold text-lg", paymentDifference < 0 ? "text-destructive" : "text-green-600")}>
-                           {paymentDifference < 0 ? '- ' : ''}Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}
-                        </p>
-                    </div>
+                      )}
+                    />
+                  </div>
+                  <div className="grid gap-2 col-span-2">
+                    <Label>Kembalian / Sisa Saldo</Label>
+                    <p className={cn("font-semibold text-lg", paymentDifference < 0 ? "text-destructive" : "text-green-600")}>
+                      {paymentDifference < 0 ? '- ' : ''}Rp{Math.abs(paymentDifference).toLocaleString('id-ID')}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="mt-4 rounded-lg border bg-secondary/50 p-4">
-                    <div className="flex justify-between items-center">
-                        <span className="text-lg font-medium text-secondary-foreground">Total Pembayaran</span>
-                        <span className="text-xl font-bold text-primary">
-                            Rp{totalPayment.toLocaleString('id-ID')}
-                        </span>
-                    </div>
-                </div>
-                
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-medium text-secondary-foreground">Total Pembayaran</span>
+                    <span className="text-xl font-bold text-primary">
+                      Rp{totalPayment.toLocaleString('id-ID')}
+                    </span>
+                  </div>
                 </div>
               </div>
-            <DialogFooter className="p-6 pt-4 border-t flex-shrink-0 bg-background">
+            </div>
+            <DialogFooter className="p-6 pt-4 border-t shrink-0">
                 <Button variant="outline" type="button" onClick={() => setOpen(false)}>Batal</Button>
                 <Button type="submit">Konfirmasi Pembayaran</Button>
             </DialogFooter>
-         </form>
+        </form>
       </DialogContent>
     </Dialog>
   );
