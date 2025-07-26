@@ -218,8 +218,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
         </Button>
       </DialogTrigger>
       <DialogContent className="p-0" onClick={(e) => e.stopPropagation()}>
-         <form onSubmit={handleSubmit(onSubmit)}>
-            <DialogHeader className="p-6 pb-2">
+         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
+            <DialogHeader>
             <DialogTitle>Pembayaran</DialogTitle>
             <DialogDescription>
                 {customer.name}
@@ -449,7 +449,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                 </div>
               </div>
             </ScrollArea>
-            <DialogFooter className="px-6 pb-6 pt-2 border-t flex-shrink-0">
+            <DialogFooter>
                 <Button type="submit">Konfirmasi Pembayaran</Button>
             </DialogFooter>
          </form>
