@@ -26,8 +26,6 @@ import { useSidebar } from '@/components/ui/sidebar';
 
 const menuItems = [
   { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
-  { href: '/finance', label: 'Keuangan', icon: Wallet, roles: ['admin'] },
-  { href: '/monthly-statistics', label: 'Statistik Bulanan', icon: AreaChart, roles: ['admin'] },
   {
     label: 'Transaksi',
     icon: Coins,
@@ -38,9 +36,25 @@ const menuItems = [
     ]
   },
   { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
-  { href: '/expenses', label: 'Pengeluaran', icon: TrendingDown, roles: ['admin'] },
-  { href: '/other-incomes', label: 'Pemasukan Lainnya', icon: DollarSign, roles: ['admin'] },
-  { href: '/collectors', label: 'Daftar Penagih', icon: UsersRound, roles: ['admin'] },
+  {
+    label: 'Keuangan & Laporan',
+    icon: Wallet,
+    roles: ['admin'],
+    subItems: [
+        { href: '/finance', label: 'Keuangan', icon: Wallet, roles: ['admin'] },
+        { href: '/monthly-statistics', label: 'Statistik Bulanan', icon: AreaChart, roles: ['admin'] },
+    ]
+  },
+  {
+    label: 'Pengaturan Lainnya',
+    icon: Settings,
+    roles: ['admin'],
+    subItems: [
+        { href: '/expenses', label: 'Pengeluaran', icon: TrendingDown, roles: ['admin'] },
+        { href: '/other-incomes', label: 'Pemasukan Lainnya', icon: DollarSign, roles: ['admin'] },
+        { href: '/collectors', label: 'Daftar Penagih', icon: UsersRound, roles: ['admin'] },
+    ]
+  }
 ];
 
 export default function AppSidebar() {
@@ -151,12 +165,6 @@ export default function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-2">
           <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarMenuButton tooltip={{children: 'Pengaturan'}}>
-                  <Settings className="h-5 w-5" />
-                  <span>Pengaturan</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarMenuButton onClick={handleLogout} tooltip={{children: 'Keluar'}}>
                     <LogOut className="h-5 w-5" />
