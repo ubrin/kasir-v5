@@ -13,11 +13,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, ArrowLeft, Send, Printer, MoreVertical, Loader2, Building2 } from 'lucide-react';
+import { Download, ArrowLeft, Send, Printer, MoreVertical, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import Image from 'next/image';
 
 export default function ReceiptPage({ params }: { params: { id: string } }) {
     const paymentId = params.id;
@@ -186,7 +187,7 @@ Terima kasih telah menggunakan layanan kami.
                 <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="receipt-content">
                     <CardHeader className="p-4 text-center">
                         <div className="flex justify-center items-center gap-2 mb-2">
-                            <Building2 className="h-6 w-6 text-primary" />
+                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={24} height={24} />
                             <h1 className="text-lg font-bold">PT CYBERNETWORK CORP</h1>
                         </div>
                         <p className="text-xs">suport by NAVAZ</p>
