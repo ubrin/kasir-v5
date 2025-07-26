@@ -244,7 +244,12 @@ export default function DelinquencyPage() {
             });
     
             // Instead of refetching, update the state locally
-            const remainingOverdueAmount = customer.overdueAmount - paymentDetails.totalPayment;
+            const customerBeingPaid = delinquentCustomersList.find(c => c.id === customerId);
+            if (!customerBeingPaid) {
+                fetchDelinquentData();
+                return;
+            }
+            const remainingOverdueAmount = customerBeingPaid.overdueAmount - (paymentDetails.totalPayment + paymentDetails.creditUsed);
             
             if (remainingOverdueAmount <= 0 && allInvoicesPaid) {
                  setDelinquentCustomersList(prevList => prevList.filter(c => c.id !== customerId));
