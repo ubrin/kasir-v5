@@ -46,7 +46,7 @@ const menuItems = [
     ]
   },
   {
-    label: 'Pengaturan Lainnya',
+    label: 'Data Master',
     icon: Settings,
     roles: ['admin'],
     subItems: [
