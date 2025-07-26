@@ -1,5 +1,5 @@
-# Firebase Studio
+# Aplikasi Manajemen Tagihan Adit
 
-This is a NextJS starter in Firebase Studio.
+Ini adalah aplikasi manajemen penagihan yang dibuat dengan Next.js dan Firebase di Firebase Studio.
 
-To get started, take a look at src/app/page.tsx.
+Aplikasi ini membantu mengelola pelanggan, faktur, pembayaran, dan keuangan bisnis Anda.
