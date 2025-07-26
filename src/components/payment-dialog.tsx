@@ -217,7 +217,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
           Bayar
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md p-0" onClick={(e) => e.stopPropagation()}>
+      <DialogContent className="p-0" onClick={(e) => e.stopPropagation()}>
          <form onSubmit={handleSubmit(onSubmit)}>
             <DialogHeader className="p-6 pb-2">
             <DialogTitle>Pembayaran</DialogTitle>
@@ -225,7 +225,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                 {customer.name}
             </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="max-h-[70vh] p-6 pt-0">
+            <ScrollArea className="flex-grow overflow-y-auto">
+              <div className="px-6">
                 <div className="grid gap-6 py-6">
                 
                 <div className="grid gap-3">
@@ -446,8 +447,9 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                 </div>
                 
                 </div>
+              </div>
             </ScrollArea>
-            <DialogFooter className="px-6 pb-6 pt-2 border-t">
+            <DialogFooter className="px-6 pb-6 pt-2 border-t flex-shrink-0">
                 <Button type="submit">Konfirmasi Pembayaran</Button>
             </DialogFooter>
          </form>
@@ -455,5 +457,3 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     </Dialog>
   );
 }
-
-    
