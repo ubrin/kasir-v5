@@ -219,15 +219,14 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
       </DialogTrigger>
       <DialogContent className="p-0" onClick={(e) => e.stopPropagation()}>
          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
-            <DialogHeader className="p-6 pb-4 flex-shrink-0">
+            <DialogHeader className="p-6 pb-4 flex-shrink-0 border-b">
               <DialogTitle>Pembayaran</DialogTitle>
               <DialogDescription>
                   {customer.name}
               </DialogDescription>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto">
-              <div className="px-6 py-2">
-                <div className="grid gap-6">
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid gap-6">
                 
                 <div className="grid gap-3">
                     <Label>Pilih Tagihan</Label>
@@ -448,8 +447,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                 
                 </div>
               </div>
-            </div>
-            <DialogFooter className="p-6 pt-4 border-t flex-shrink-0">
+            <DialogFooter className="p-6 pt-4 border-t flex-shrink-0 bg-background">
+                <Button variant="outline" type="button" onClick={() => setOpen(false)}>Batal</Button>
                 <Button type="submit">Konfirmasi Pembayaran</Button>
             </DialogFooter>
          </form>
