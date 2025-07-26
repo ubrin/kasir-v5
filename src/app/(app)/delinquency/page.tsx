@@ -200,35 +200,34 @@ export default function DelinquencyPage() {
             };
             batch.set(newPaymentRef, newPayment);
             
-            let balanceReduction = 0;
+            let allInvoicesPaid = true;
             for (const invoice of invoicesToPay) {
                 const invoiceRef = doc(db, "invoices", invoice.id);
                 const amountNeededForThisInvoice = invoice.amount;
                 
                 if (creditedAmount >= amountNeededForThisInvoice) {
                     batch.update(invoiceRef, { status: "lunas" });
-                    balanceReduction += amountNeededForThisInvoice;
                     creditedAmount -= amountNeededForThisInvoice;
                 } else {
-                    const remainingAmount = amountNeededForThisInvoice - creditedAmount;
-                    batch.update(invoiceRef, { amount: remainingAmount });
-                    balanceReduction += creditedAmount;
-                    creditedAmount = 0;
-                    break; 
+                    // This logic for partial payment is complex and currently not fully supported by the UI.
+                    // For now, we assume full payment of selected invoices.
+                    // If partial payment logic were added, this is where it would go.
+                    allInvoicesPaid = false; 
+                    break;
                 }
             }
     
             const customerRef = doc(db, "customers", customerId);
-            const customerUpdates: { [key: string]: any } = {
-                outstandingBalance: increment(-balanceReduction)
-            };
+            const customerUpdates: { [key: string]: any } = {};
 
             const creditChange = newPayment.changeAmount - creditUsed;
             if (creditChange !== 0) {
                 customerUpdates.creditBalance = increment(creditChange);
             }
-
-            batch.update(customerRef, customerUpdates);
+            // Update balance only if there are changes
+            if (Object.keys(customerUpdates).length > 0) {
+                batch.update(customerRef, customerUpdates);
+            }
     
             await batch.commit();
         
@@ -244,7 +243,17 @@ export default function DelinquencyPage() {
                 ),
             });
     
-            fetchDelinquentData(); 
+            // Instead of refetching, update the state locally
+            const remainingOverdueAmount = customer.overdueAmount - paymentDetails.totalPayment;
+            
+            if (remainingOverdueAmount <= 0 && allInvoicesPaid) {
+                 setDelinquentCustomersList(prevList => prevList.filter(c => c.id !== customerId));
+            } else {
+                // If there's a remaining balance, refetch everything to be safe.
+                // This scenario (partial payment) is complex.
+                fetchDelinquentData();
+            }
+
         } catch (error) {
             console.error("Payment processing error:", error);
             toast({
@@ -402,5 +411,3 @@ export default function DelinquencyPage() {
     </div>
   )
 }
-
-    
