@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, Invoice } from '@/lib/types';
@@ -19,8 +19,9 @@ import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
-export default function InvoicePage({ params }: { params: { id: string } }) {
-    const customerId = params.id;
+export default function InvoicePage() {
+    const params = useParams();
+    const customerId = params.id as string;
     const router = useRouter();
     const { toast } = useToast();
     const invoiceRef = React.useRef<HTMLDivElement>(null);

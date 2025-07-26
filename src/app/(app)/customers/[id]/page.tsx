@@ -1,7 +1,7 @@
 
 'use client';
-import { useState, useEffect } from "react";
-import { notFound, useRouter } from "next/navigation";
+import { useState, useEffect, use } from "react";
+import { notFound, useRouter, useParams } from "next/navigation";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, Invoice, Payment } from "@/lib/types";
@@ -20,8 +20,9 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 
-export default function CustomerDetailPage({ params }: { params: { id: string } }) {
-  const customerId = params.id;
+export default function CustomerDetailPage() {
+  const params = useParams();
+  const customerId = params.id as string;
   const router = useRouter();
   const { toast } = useToast();
   const [customer, setCustomer] = useState<Customer | null>(null);
