@@ -421,16 +421,18 @@ export default function CustomersPage() {
 
                     return (
                         <AccordionItem value={String(code)} key={code} className="border rounded-lg bg-card overflow-hidden">
-                            <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-2">
-                                <div className="flex items-center gap-4">
-                                    <Checkbox
+                            <div className="bg-muted/50 flex items-center px-4 sm:px-6 py-2">
+                                <div onClick={(e) => e.stopPropagation()} className="pr-4">
+                                     <Checkbox
                                         checked={isAllSelectedInGroup}
                                         onCheckedChange={(isChecked) => handleSelectGroup(groupCustomerIds, !!isChecked)}
                                         aria-label="Pilih semua di grup ini"
                                     />
-                                    <span className="font-semibold text-lg">Tanggal {code}</span>
                                 </div>
-                            </AccordionTrigger>
+                                <AccordionTrigger className="hover:no-underline p-0 flex-1">
+                                    <span className="font-semibold text-lg">Tanggal {code}</span>
+                                </AccordionTrigger>
+                            </div>
                             <AccordionContent className="p-0">
                                 {/* Desktop Table */}
                                 <div className="hidden md:block">
