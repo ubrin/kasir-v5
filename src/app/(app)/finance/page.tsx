@@ -87,6 +87,12 @@ export default function FinancePage() {
             <h1 className="text-3xl font-bold tracking-tight">Keuangan</h1>
             <p className="text-muted-foreground">Akumulasi pemasukan, pengeluaran, dan saldo dari seluruh riwayat transaksi.</p>
         </div>
+         <Button asChild>
+            <Link href="/monthly-statistics">
+                <AreaChart className="mr-2 h-4 w-4" />
+                Lihat Statistik Bulanan
+            </Link>
+        </Button>
       </div>
         <Card>
             <CardHeader>
@@ -146,12 +152,6 @@ export default function FinancePage() {
                 <Link href="/expenses">
                     <TrendingDown className="mr-2 h-4 w-4" />
                     Lihat Pengeluaran
-                </Link>
-            </Button>
-             <Button asChild variant="outline">
-                <Link href="/monthly-statistics">
-                    <AreaChart className="mr-2 h-4 w-4" />
-                    Statistik Bulanan
                 </Link>
             </Button>
         </div>
