@@ -90,12 +90,19 @@ export default function CustomersPage() {
         return a.name.localeCompare(b.name);
       });
 
-      const unpaidInvoices = unpaidInvoicesSnapshot.docs.map(doc => doc.data() as Invoice);
+      const unpaidInvoicesByCustomer = new Map<string, Invoice[]>();
+      unpaidInvoicesSnapshot.docs.forEach(doc => {
+          const invoice = doc.data() as Invoice;
+          const existing = unpaidInvoicesByCustomer.get(invoice.customerId) || [];
+          existing.push(invoice);
+          unpaidInvoicesByCustomer.set(invoice.customerId, existing);
+      });
+      
       const startOfCurrentMonth = startOfMonth(new Date());
 
       const customersWithStatus: CustomerWithStatus[] = customersList.map(customer => {
-        const customerInvoices = unpaidInvoices.filter(inv => inv.customerId === customer.id);
-        if (customerInvoices.length === 0) {
+        const customerInvoices = unpaidInvoicesByCustomer.get(customer.id);
+        if (!customerInvoices || customerInvoices.length === 0) {
             return { ...customer, hasArrears: false, nearestDueDate: undefined };
         }
         

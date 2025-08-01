@@ -68,55 +68,69 @@ export default function DelinquencyPage() {
     const fetchDelinquentData = React.useCallback(async () => {
         setLoading(true);
         try {
-            const customersSnapshot = await getDocs(collection(db, "customers"));
-            const allCustomers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-
             const invoicesQuery = query(collection(db, "invoices"), where("status", "==", "belum lunas"));
             const overdueInvoicesSnapshot = await getDocs(invoicesQuery);
-            const overdueInvoices = overdueInvoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
             
-            const delinquentCustomerIds = new Set(overdueInvoices.map(inv => inv.customerId));
+            if (overdueInvoicesSnapshot.empty) {
+                setDelinquentCustomersList([]);
+                setLoading(false);
+                return;
+            }
+
+            const overdueInvoicesByCustomer = new Map<string, Invoice[]>();
+            overdueInvoicesSnapshot.docs.forEach(doc => {
+                const invoice = { id: doc.id, ...doc.data() } as Invoice;
+                const existing = overdueInvoicesByCustomer.get(invoice.customerId) || [];
+                existing.push(invoice);
+                overdueInvoicesByCustomer.set(invoice.customerId, existing);
+            });
+            
+            const delinquentCustomerIds = Array.from(overdueInvoicesByCustomer.keys());
+            if (delinquentCustomerIds.length === 0) {
+                 setDelinquentCustomersList([]);
+                 setLoading(false);
+                 return;
+            }
+
+            // Fetch only the customers who have unpaid invoices
+            const customersQuery = query(collection(db, "customers"), where("__name__", "in", delinquentCustomerIds));
+            const customersSnapshot = await getDocs(customersQuery);
+            const allCustomers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+
             const startOfCurrentMonth = startOfMonth(new Date());
+            const delinquents: DelinquentCustomer[] = [];
 
-            const delinquentsMap: Record<string, DelinquentCustomer> = {};
+            for (const customer of allCustomers) {
+                const customerInvoices = overdueInvoicesByCustomer.get(customer.id);
+                if (customerInvoices && customerInvoices.length > 0) {
+                    const totalInvoiceAmount = customerInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+                    const creditBalance = customer.creditBalance ?? 0;
+                    const finalOverdueAmount = totalInvoiceAmount - creditBalance;
+                    
+                    if (finalOverdueAmount > 0) {
+                        const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
+                        const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
+                        const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
 
-            for (const customerId of Array.from(delinquentCustomerIds)) {
-                const customer = allCustomers.find(c => c.id === customerId);
-                 if (customer) {
-                    const customerInvoices = overdueInvoices.filter(inv => inv.customerId === customerId);
-                    if (customerInvoices.length > 0) {
-                        const totalInvoiceAmount = customerInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-                        const creditBalance = customer.creditBalance ?? 0;
-                        const finalOverdueAmount = totalInvoiceAmount - creditBalance;
-                        
-                        if (finalOverdueAmount > 0) {
-                            const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
-                            const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
-                            
-                            const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
-
-                            delinquentsMap[customerId] = {
-                                ...customer,
-                                overdueAmount: finalOverdueAmount,
-                                overdueInvoicesCount: customerInvoices.length,
-                                nearestDueDate: nearestDueDate,
-                                invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
-                                hasArrears: hasArrears,
-                            };
-                        }
+                        delinquents.push({
+                            ...customer,
+                            overdueAmount: finalOverdueAmount,
+                            overdueInvoicesCount: customerInvoices.length,
+                            nearestDueDate: nearestDueDate,
+                            invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
+                            hasArrears: hasArrears,
+                        });
                     }
                 }
             }
 
-            const delinquentList = Object.values(delinquentsMap);
-            delinquentList.sort((a, b) => {
+            delinquents.sort((a, b) => {
                 const addressComparison = a.address.localeCompare(b.address);
-                if (addressComparison !== 0) {
-                    return addressComparison;
-                }
+                if (addressComparison !== 0) return addressComparison;
                 return a.name.localeCompare(b.name);
             });
-            setDelinquentCustomersList(delinquentList);
+            
+            setDelinquentCustomersList(delinquents);
 
         } catch (error) {
             console.error("Error fetching delinquent data:", error);
@@ -209,9 +223,6 @@ export default function DelinquencyPage() {
                     batch.update(invoiceRef, { status: "lunas" });
                     creditedAmount -= amountNeededForThisInvoice;
                 } else {
-                    // This logic for partial payment is complex and currently not fully supported by the UI.
-                    // For now, we assume full payment of selected invoices.
-                    // If partial payment logic were added, this is where it would go.
                     allInvoicesPaid = false; 
                     break;
                 }
@@ -224,7 +235,6 @@ export default function DelinquencyPage() {
             if (creditChange !== 0) {
                 customerUpdates.creditBalance = increment(creditChange);
             }
-            // Update balance only if there are changes
             if (Object.keys(customerUpdates).length > 0) {
                 batch.update(customerRef, customerUpdates);
             }
@@ -243,20 +253,17 @@ export default function DelinquencyPage() {
                 ),
             });
     
-            // Instead of refetching, update the state locally
             const customerBeingPaid = delinquentCustomersList.find(c => c.id === customerId);
-            if (!customerBeingPaid) {
-                fetchDelinquentData();
-                return;
-            }
-            const remainingOverdueAmount = customerBeingPaid.overdueAmount - (paymentDetails.totalPayment + paymentDetails.creditUsed);
-            
-            if (remainingOverdueAmount <= 0 && allInvoicesPaid) {
-                 setDelinquentCustomersList(prevList => prevList.filter(c => c.id !== customerId));
+            if (customerBeingPaid) {
+                 const remainingOverdueAmount = customerBeingPaid.overdueAmount - (paymentDetails.totalPayment + paymentDetails.creditUsed);
+                if (remainingOverdueAmount <= 0 && allInvoicesPaid) {
+                    setDelinquentCustomersList(prevList => prevList.filter(c => c.id !== customerId));
+                } else {
+                    // If there's a remaining balance, refetch everything to be safe.
+                    fetchDelinquentData();
+                }
             } else {
-                // If there's a remaining balance, refetch everything to be safe.
-                // This scenario (partial payment) is complex.
-                fetchDelinquentData();
+                 fetchDelinquentData();
             }
 
         } catch (error) {
