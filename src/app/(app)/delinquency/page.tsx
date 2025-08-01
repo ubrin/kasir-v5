@@ -92,10 +92,24 @@ export default function DelinquencyPage() {
                  return;
             }
 
-            // Fetch only the customers who have unpaid invoices
-            const customersQuery = query(collection(db, "customers"), where("__name__", "in", delinquentCustomerIds));
-            const customersSnapshot = await getDocs(customersQuery);
-            const allCustomers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+            // Chunk customer IDs to avoid Firestore's 30-item limit for 'in' queries
+            const customerIdChunks: string[][] = [];
+            for (let i = 0; i < delinquentCustomerIds.length; i += 30) {
+                customerIdChunks.push(delinquentCustomerIds.slice(i, i + 30));
+            }
+
+            const customerPromises = customerIdChunks.map(chunk => 
+                getDocs(query(collection(db, "customers"), where("__name__", "in", chunk)))
+            );
+
+            const customerSnapshots = await Promise.all(customerPromises);
+            const allCustomers: Customer[] = [];
+            customerSnapshots.forEach(snapshot => {
+                snapshot.docs.forEach(doc => {
+                    allCustomers.push({ id: doc.id, ...doc.data() } as Customer);
+                });
+            });
+
 
             const startOfCurrentMonth = startOfMonth(new Date());
             const delinquents: DelinquentCustomer[] = [];
@@ -423,3 +437,5 @@ export default function DelinquencyPage() {
     </div>
   )
 }
+
+    
