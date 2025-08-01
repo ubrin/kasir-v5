@@ -12,7 +12,7 @@ import { ArrowLeft, Edit, Save, X, Loader2, CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,7 +29,6 @@ export default function CustomerDetailPage() {
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
   const [customerPayments, setCustomerPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasUnpaidInvoices, setHasUnpaidInvoices] = useState(false);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editableCustomer, setEditableCustomer] = useState<Customer | null>(null);
@@ -65,10 +64,6 @@ export default function CustomerDetailPage() {
             const invoicesList = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice)).sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
             setCustomerInvoices(invoicesList);
             setEditableInvoices(invoicesList);
-
-            // Check for unpaid invoices
-            const unpaidCheck = invoicesList.some(invoice => invoice.status === 'belum lunas');
-            setHasUnpaidInvoices(unpaidCheck);
 
             // Process payments
             const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)).sort((a,b) => parseISO(b.paymentDate).getTime() - parseISO(a.paymentDate).getTime());
@@ -180,9 +175,18 @@ export default function CustomerDetailPage() {
     }
   }
 
-  const calculatedArrears = customerInvoices
-    .filter(invoice => invoice.status === 'belum lunas')
+  const startOfCurrentMonth = startOfMonth(new Date());
+
+  const unpaidInvoices = customerInvoices.filter(invoice => invoice.status === 'belum lunas');
+  
+  const calculatedArrears = unpaidInvoices
+    .filter(invoice => parseISO(invoice.date) < startOfCurrentMonth)
     .reduce((sum, invoice) => sum + invoice.amount, 0);
+
+  const hasArrears = calculatedArrears > 0;
+  
+  const hasUnpaidCurrentMonth = unpaidInvoices.some(invoice => parseISO(invoice.date) >= startOfCurrentMonth);
+
 
   if (loading) {
     return (
@@ -196,7 +200,6 @@ export default function CustomerDetailPage() {
       return notFound();
   }
   
-  const hasArrears = calculatedArrears > 0;
   const hasCredit = (editableCustomer?.creditBalance ?? 0) > 0;
 
 
@@ -293,8 +296,8 @@ export default function CustomerDetailPage() {
                 <div className="grid gap-x-6 gap-y-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                     <div className="grid gap-1">
                         <p className="text-sm font-medium text-muted-foreground">Status</p>
-                        <Badge variant={hasUnpaidInvoices ? "destructive" : "secondary"} className={`${hasUnpaidInvoices ? "" : "bg-green-100 text-green-800"} w-fit`}>
-                            {hasUnpaidInvoices ? "Belum Lunas" : "Lunas"}
+                        <Badge variant={hasArrears || hasUnpaidCurrentMonth ? "destructive" : "secondary"} className={`${!(hasArrears || hasUnpaidCurrentMonth) ? "bg-green-100 text-green-800" : ""} w-fit`}>
+                            {hasArrears ? "Menunggak" : hasUnpaidCurrentMonth ? "Belum Lunas" : "Lunas"}
                         </Badge>
                     </div>
                     {hasArrears && (
