@@ -106,7 +106,7 @@ export default function PaymentReportPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Laporan Pembayaran</h1>
             <p className="text-muted-foreground">Laporan penerimaan pembayaran dari pelanggan.</p>
@@ -116,7 +116,7 @@ export default function PaymentReportPage() {
             <Button
               id="date"
               variant={'outline'}
-              className={cn('w-[300px] justify-start text-left font-normal', !date && 'text-muted-foreground')}
+              className={cn('w-full sm:w-[300px] justify-start text-left font-normal', !date && 'text-muted-foreground')}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {date?.from ? (
@@ -158,10 +158,10 @@ export default function PaymentReportPage() {
                         const dateData = groupedPayments[dateStr];
                         return (
                              <AccordionItem value={dateStr} key={dateStr}>
-                                <AccordionTrigger className="hover:no-underline">
+                                <AccordionTrigger className="hover:no-underline px-2">
                                     <div className="flex flex-col sm:flex-row justify-between w-full items-start sm:items-center pr-4">
                                         <div className="flex flex-col items-start mb-2 sm:mb-0">
-                                            <span className="font-semibold text-base">{format(parseISO(dateStr), 'eeee, d MMMM yyyy', { locale: id })}</span>
+                                            <span className="font-semibold text-base text-left">{format(parseISO(dateStr), 'eeee, d MMMM yyyy', { locale: id })}</span>
                                             <div className="flex flex-col sm:flex-row sm:gap-4 text-sm text-muted-foreground pt-1">
                                                 <span>Cash: <span className="font-medium text-foreground">Rp{dateData.cash.toLocaleString('id-ID')}</span></span>
                                                 <span>BRI: <span className="font-medium text-foreground">Rp{dateData.bri.toLocaleString('id-ID')}</span></span>
@@ -172,32 +172,52 @@ export default function PaymentReportPage() {
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent>
-                                    <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                        <TableHead>Pelanggan</TableHead>
-                                        <TableHead>Metode Bayar</TableHead>
-                                        <TableHead className="text-right">Jumlah Dibayar</TableHead>
-                                        <TableHead className="text-right">Aksi</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
+                                    <div className='md:hidden divide-y'>
                                         {dateData.details.map(payment => (
-                                        <TableRow key={payment.id}>
-                                            <TableCell className="font-medium">{payment.customerName}</TableCell>
-                                            <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
-                                            <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Button asChild variant="outline" size="sm">
-                                                    <Link href={`/receipt/${payment.id}`}>
-                                                        <Receipt className="mr-2 h-4 w-4" /> Lihat Struk
-                                                    </Link>
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
+                                            <div key={payment.id} className="p-4">
+                                                <div className="flex justify-between items-start">
+                                                    <p className="font-medium">{payment.customerName}</p>
+                                                    {getMethodBadge(payment.paymentMethod)}
+                                                </div>
+                                                <div className="flex justify-between items-center mt-2 pt-2 border-t">
+                                                    <p className="font-semibold">Rp{payment.paidAmount.toLocaleString('id-ID')}</p>
+                                                    <Button asChild variant="outline" size="sm">
+                                                        <Link href={`/receipt/${payment.id}`}>
+                                                            <Receipt className="mr-2 h-4 w-4" /> Struk
+                                                        </Link>
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         ))}
-                                    </TableBody>
-                                    </Table>
+                                    </div>
+                                    <div className="hidden md:block">
+                                        <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                            <TableHead>Pelanggan</TableHead>
+                                            <TableHead>Metode Bayar</TableHead>
+                                            <TableHead className="text-right">Jumlah Dibayar</TableHead>
+                                            <TableHead className="text-right">Aksi</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {dateData.details.map(payment => (
+                                            <TableRow key={payment.id}>
+                                                <TableCell className="font-medium">{payment.customerName}</TableCell>
+                                                <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
+                                                <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button asChild variant="outline" size="sm">
+                                                        <Link href={`/receipt/${payment.id}`}>
+                                                            <Receipt className="mr-2 h-4 w-4" /> Lihat Struk
+                                                        </Link>
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                            ))}
+                                        </TableBody>
+                                        </Table>
+                                    </div>
                                 </AccordionContent>
                             </AccordionItem>
                         )
@@ -207,7 +227,7 @@ export default function PaymentReportPage() {
         </Card>
       ) : (
         <Card>
-            <CardContent className="flex flex-col items-center justify-center h-48 gap-2">
+            <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
                 <p className="text-lg font-medium">Tidak Ada Data</p>
                 <p className="text-muted-foreground">Tidak ada pembayaran yang tercatat pada periode tanggal yang dipilih.</p>
             </CardContent>

@@ -261,9 +261,9 @@ export default function CollectorsPage() {
                     {collectionsByDate.map((daily) => (
                         <AccordionItem value={daily.date} key={daily.date} className="border rounded-lg bg-card overflow-hidden">
                              <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-3">
-                                <div className="flex justify-between items-center w-full">
-                                    <span className="font-semibold text-lg">{format(parseISO(daily.date), 'eeee, d MMMM yyyy', { locale: localeId })}</span>
-                                    <span className="font-bold text-lg text-primary mr-4">Total: Rp{daily.total.toLocaleString('id-ID')}</span>
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full">
+                                    <span className="font-semibold text-lg mb-2 sm:mb-0 text-left">{format(parseISO(daily.date), 'eeee, d MMMM yyyy', { locale: localeId })}</span>
+                                    <span className="font-bold text-lg text-primary sm:mr-4">Total: Rp{daily.total.toLocaleString('id-ID')}</span>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="p-0">
@@ -275,24 +275,37 @@ export default function CollectorsPage() {
                                             <h3 className="font-semibold">{collectorData.name}</h3>
                                             <p className="text-sm font-medium">Subtotal: Rp{collectorData.total.toLocaleString('id-ID')}</p>
                                         </div>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Pelanggan</TableHead>
-                                                    <TableHead>Metode</TableHead>
-                                                    <TableHead className="text-right">Jumlah</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {collectorData.payments.map(p => (
-                                                    <TableRow key={p.id}>
-                                                        <TableCell>{p.customerName}</TableCell>
-                                                        <TableCell>{getMethodBadge(p.paymentMethod)}</TableCell>
-                                                        <TableCell className="text-right">Rp{p.totalPayment.toLocaleString('id-ID')}</TableCell>
+                                        <div className='md:hidden divide-y'>
+                                            {collectorData.payments.map(p => (
+                                                <div key={p.id} className="p-4">
+                                                    <div className="flex justify-between items-center">
+                                                        <p className="font-medium">{p.customerName}</p>
+                                                        {getMethodBadge(p.paymentMethod)}
+                                                    </div>
+                                                    <p className="text-right font-semibold mt-1">Rp{p.totalPayment.toLocaleString('id-ID')}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="hidden md:block">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Pelanggan</TableHead>
+                                                        <TableHead>Metode</TableHead>
+                                                        <TableHead className="text-right">Jumlah</TableHead>
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {collectorData.payments.map(p => (
+                                                        <TableRow key={p.id}>
+                                                            <TableCell>{p.customerName}</TableCell>
+                                                            <TableCell>{getMethodBadge(p.paymentMethod)}</TableCell>
+                                                            <TableCell className="text-right">Rp{p.totalPayment.toLocaleString('id-ID')}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
                                     </div>
                                 ))}
                             </AccordionContent>

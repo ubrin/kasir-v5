@@ -191,26 +191,39 @@ export default function DelinquencyPage() {
         try {
             const batch = writeBatch(db);
     
-            const selectedInvoicesQuery = query(
+            const invoicesToPayQuery = query(
                 collection(db, "invoices"),
                 where("customerId", "==", customerId),
                 where("__name__", "in", paymentDetails.selectedInvoices.length > 0 ? paymentDetails.selectedInvoices : ["dummy-id"])
             );
-            const invoicesSnapshot = await getDocs(selectedInvoicesQuery);
-            const invoicesToPay = invoicesSnapshot.docs
-                .map(d => ({ ...d.data(), id: d.id } as Invoice))
-                .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+
+            const invoicesSnapshot = await getDocs(invoicesToPayQuery);
+            const invoicesToPay = invoicesSnapshot.docs.map(d => ({...d.data(), id: d.id} as Invoice));
             
-            if (invoicesToPay.length === 0) {
-                toast({ title: "Tidak ada faktur dipilih", variant: "destructive" });
-                return;
+            if (invoicesToPay.length === 0 && paymentDetails.creditUsed === 0) {
+                 toast({ title: "Tidak ada faktur dipilih", variant: "destructive" });
+                 return;
             }
             
-            const totalBilledAmountToClear = invoicesToPay.reduce((sum, inv) => sum + inv.amount, 0);
-            const discountAmount = paymentDetails.discount; 
-            const creditUsed = paymentDetails.creditUsed;
-            let creditedAmount = paymentDetails.paidAmount + creditUsed + discountAmount;
-    
+            let amountToDistribute = paymentDetails.paidAmount + paymentDetails.creditUsed + paymentDetails.discount;
+            let remainingCredit = 0;
+
+            const sortedInvoices = invoicesToPay.sort((a,b) => parseISO(a.date).getTime() - parseISO(a.date).getTime());
+
+            for (const invoice of sortedInvoices) {
+                 const invoiceRef = doc(db, "invoices", invoice.id);
+                 if (amountToDistribute >= invoice.amount) {
+                     batch.update(invoiceRef, { status: "lunas" });
+                     amountToDistribute -= invoice.amount;
+                 } else {
+                     batch.update(invoiceRef, { amount: invoice.amount - amountToDistribute });
+                     amountToDistribute = 0;
+                     break;
+                 }
+            }
+            
+            remainingCredit = amountToDistribute;
+
             const newPaymentRef = doc(collection(db, "payments"));
             const newPayment: Omit<Payment, 'id'> = {
                 customerId: customerId,
@@ -219,42 +232,22 @@ export default function DelinquencyPage() {
                 paidAmount: paymentDetails.paidAmount,
                 paymentMethod: paymentDetails.paymentMethod,
                 invoiceIds: paymentDetails.selectedInvoices,
-                totalBill: totalBilledAmountToClear,
-                discount: discountAmount,
-                totalPayment: paymentDetails.paidAmount, // totalPayment should reflect what's actually paid
+                totalBill: paymentDetails.billToPay,
+                discount: paymentDetails.discount,
+                totalPayment: paymentDetails.paidAmount,
                 changeAmount: Math.max(0, paymentDetails.paidAmount - paymentDetails.totalPayment),
                 collectorId: paymentDetails.collectorId,
                 collectorName: paymentDetails.collectorName,
             };
             batch.set(newPaymentRef, newPayment);
             
-            let allInvoicesPaid = true;
-            for (const invoice of invoicesToPay) {
-                const invoiceRef = doc(db, "invoices", invoice.id);
-                const amountNeededForThisInvoice = invoice.amount;
-                
-                if (creditedAmount >= amountNeededForThisInvoice) {
-                    batch.update(invoiceRef, { status: "lunas", amount: 0 }); // Mark as lunas and set amount to 0
-                    creditedAmount -= amountNeededForThisInvoice;
-                } else {
-                    // Partial payment logic
-                    const remainingAmount = amountNeededForThisInvoice - creditedAmount;
-                    batch.update(invoiceRef, { amount: remainingAmount });
-                    creditedAmount = 0; // All credited amount is used
-                    allInvoicesPaid = false; 
-                    break; // Stop processing further invoices as payment is used up
-                }
-            }
-    
             const customerRef = doc(db, "customers", customerId);
             const customerUpdates: { [key: string]: any } = {};
 
-            // The leftover creditedAmount becomes the new credit/change. The used credit is deducted.
-            const creditChange = creditedAmount - creditUsed;
-            if (creditChange !== 0) {
+            const creditChange = remainingCredit - paymentDetails.creditUsed;
+             if (creditChange !== 0) {
                 customerUpdates.creditBalance = increment(creditChange);
             }
-
             if (Object.keys(customerUpdates).length > 0) {
                 batch.update(customerRef, customerUpdates);
             }
@@ -272,9 +265,26 @@ export default function DelinquencyPage() {
                     </Button>
                 ),
             });
-    
-            // Just refetch all data to ensure UI is consistent
-            fetchDelinquentData();
+            
+             // Optimistic UI update
+            setDelinquentCustomersList(prevList => {
+                const paidCustomer = prevList.find(c => c.id === customerId);
+                if (!paidCustomer) return prevList;
+
+                const remainingAmount = paidCustomer.overdueAmount - (paymentDetails.paidAmount + paymentDetails.creditUsed + paymentDetails.discount);
+                
+                if (remainingAmount <= 0) {
+                    // Remove customer from list if bill is fully paid
+                    return prevList.filter(c => c.id !== customerId);
+                } else {
+                    // Update customer's overdue amount if partially paid
+                    return prevList.map(c => 
+                        c.id === customerId 
+                            ? { ...c, overdueAmount: remainingAmount } 
+                            : c
+                    );
+                }
+            });
 
         } catch (error) {
             console.error("Payment processing error:", error);
@@ -336,11 +346,12 @@ export default function DelinquencyPage() {
         {isClient && filteredGroupKeys.length > 0 ? (
             <Accordion type="multiple" className="w-full space-y-4" defaultValue={[]}>
                 {filteredGroupKeys.map((code) => (
-                    <AccordionItem value={String(code)} key={code} className="border rounded-lg overflow-hidden">
-                        <AccordionTrigger className="bg-muted/50 hover:bg-muted px-4 sm:px-6 py-4">
-                             <CardTitle>Tanggal {code}</CardTitle>
+                    <AccordionItem value={String(code)} key={code} className="border rounded-lg bg-card overflow-hidden">
+                        <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-4">
+                             <span className="font-semibold text-lg">Tanggal {code}</span>
                         </AccordionTrigger>
                         <AccordionContent className="p-0">
+                             {/* Desktop Table */}
                              <div className="hidden md:block">
                                 <Table>
                                     <TableHeader>
@@ -384,7 +395,8 @@ export default function DelinquencyPage() {
                                     </TableBody>
                                 </Table>
                              </div>
-                             <div className="md:hidden divide-y">
+                             {/* Mobile List */}
+                             <div className="md:hidden divide-y divide-border">
                                 {groupedDelinquentCustomers[code].map((customer) => (
                                     <div key={customer.id} onClick={() => handleRowClick(customer.id)} className="cursor-pointer p-4">
                                         <div className="flex justify-between items-start gap-4">

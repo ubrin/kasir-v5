@@ -262,10 +262,10 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                       <RadioGroup
                         onValueChange={field.onChange}
                         value={field.value}
-                        className="grid gap-2 rounded-md border p-3"
+                        className="grid grid-cols-2 gap-2 rounded-md border p-3"
                       >
                         {collectors.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">Tidak ada penagih. Tambahkan penagih di halaman Daftar Penagih.</p>
+                          <p className="text-sm text-muted-foreground col-span-2">Tidak ada penagih. Tambahkan penagih di halaman Daftar Penagih.</p>
                         ) : (
                           collectors.map(c => (
                             <div key={c.id} className="flex items-center space-x-2">

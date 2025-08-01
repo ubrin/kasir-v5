@@ -426,61 +426,102 @@ export default function ExpensesPage() {
         </div>
       );
     }
-    return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nama</TableHead>
-            {categoryName === 'angsuran' && <TableHead>Tenor</TableHead>}
-            <TableHead>Jatuh Tempo</TableHead>
-            <TableHead>Status</TableHead>
-            {categoryName === 'angsuran' && <TableHead className="text-right">Jumlah</TableHead>}
-            <TableHead className="text-right">Aksi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((item) => {
-            const isInstallmentPaidOff = item.category === 'angsuran' && (item.paidTenor || 0) >= (item.tenor || 0);
-            
-            let isPaidThisMonth = false;
-            if (item.lastPaidDate) {
-                const lastPaid = new Date(item.lastPaidDate);
-                const today = new Date();
-                isPaidThisMonth = isSameMonth(today, lastPaid) && isSameYear(today, lastPaid);
-            }
-            
-            const isButtonDisabled = isInstallmentPaidOff || ((item.category === 'utama' || item.category === 'angsuran') && isPaidThisMonth);
+    
+    const renderPayableItem = (item: Expense) => {
+        const isInstallmentPaidOff = item.category === 'angsuran' && (item.paidTenor || 0) >= (item.tenor || 0);
+        let isPaidThisMonth = false;
+        if (item.lastPaidDate) {
+            const lastPaid = new Date(item.lastPaidDate);
+            const today = new Date();
+            isPaidThisMonth = isSameMonth(today, lastPaid) && isSameYear(today, lastPaid);
+        }
+        const isButtonDisabled = isInstallmentPaidOff || ((item.category === 'utama' || item.category === 'angsuran') && isPaidThisMonth);
 
-            return (
-            <TableRow key={item.id}>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              {categoryName === 'angsuran' && (
-                <TableCell>
-                   <Badge variant={isInstallmentPaidOff ? "default" : "outline"} className={isInstallmentPaidOff ? "bg-green-100 text-green-800" : ""}>
-                    {item.paidTenor || 0} / {item.tenor}
-                  </Badge>
-                </TableCell>
-              )}
-               <>
-                  <TableCell>
-                    {item.dueDateDay ? `Setiap tgl. ${item.dueDateDay}` : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {getExpenseStatusBadge(item)}
-                  </TableCell>
-                </>
-              {categoryName === 'angsuran' && item.amount && (
-                  <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
-              )}
-              <TableCell className="text-right">
-                <Button size="sm" onClick={() => handlePay(item)} disabled={isButtonDisabled}>
-                    {isInstallmentPaidOff ? "Lunas" : isPaidThisMonth ? "Dibayar" : "Bayar"}
-                </Button>
-              </TableCell>
-            </TableRow>
-          )})}
-        </TableBody>
-      </Table>
+        return { isInstallmentPaidOff, isPaidThisMonth, isButtonDisabled };
+    };
+
+    return (
+        <>
+            {/* Desktop Table */}
+            <div className="hidden md:block">
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Nama</TableHead>
+                        {categoryName === 'angsuran' && <TableHead>Tenor</TableHead>}
+                        <TableHead>Jatuh Tempo</TableHead>
+                        <TableHead>Status</TableHead>
+                        {categoryName === 'angsuran' && <TableHead className="text-right">Jumlah</TableHead>}
+                        <TableHead className="text-right">Aksi</TableHead>
+                    </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {data.map((item) => {
+                        const { isInstallmentPaidOff, isPaidThisMonth, isButtonDisabled } = renderPayableItem(item);
+                        return (
+                        <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.name}</TableCell>
+                        {categoryName === 'angsuran' && (
+                            <TableCell>
+                            <Badge variant={isInstallmentPaidOff ? "default" : "outline"} className={isInstallmentPaidOff ? "bg-green-100 text-green-800" : ""}>
+                                {item.paidTenor || 0} / {item.tenor}
+                            </Badge>
+                            </TableCell>
+                        )}
+                        <>
+                            <TableCell>
+                                {item.dueDateDay ? `Setiap tgl. ${item.dueDateDay}` : '-'}
+                            </TableCell>
+                            <TableCell>
+                                {getExpenseStatusBadge(item)}
+                            </TableCell>
+                            </>
+                        {categoryName === 'angsuran' && item.amount && (
+                            <TableCell className="text-right">Rp{item.amount.toLocaleString('id-ID')}</TableCell>
+                        )}
+                        <TableCell className="text-right">
+                            <Button size="sm" onClick={() => handlePay(item)} disabled={isButtonDisabled}>
+                                {isInstallmentPaidOff ? "Lunas" : isPaidThisMonth ? "Dibayar" : "Bayar"}
+                            </Button>
+                        </TableCell>
+                        </TableRow>
+                    )})}
+                    </TableBody>
+                </Table>
+            </div>
+            {/* Mobile List */}
+            <div className="md:hidden divide-y">
+                 {data.map((item) => {
+                    const { isInstallmentPaidOff, isPaidThisMonth, isButtonDisabled } = renderPayableItem(item);
+                     return (
+                         <div key={item.id} className="p-4">
+                             <div className="flex justify-between items-start gap-2">
+                                 <div>
+                                    <p className="font-medium">{item.name}</p>
+                                    <p className="text-sm text-muted-foreground">{item.dueDateDay ? `Jatuh tempo tgl. ${item.dueDateDay}` : 'Tanpa jatuh tempo'}</p>
+                                 </div>
+                                 {getExpenseStatusBadge(item)}
+                             </div>
+                              <div className="mt-2 pt-2 border-t flex justify-between items-center">
+                                 <div>
+                                     {categoryName === 'angsuran' && (
+                                         <div>
+                                            <p className="text-sm">Rp{item.amount?.toLocaleString('id-ID')}</p>
+                                            <Badge variant={isInstallmentPaidOff ? "default" : "outline"} className={`mt-1 ${isInstallmentPaidOff ? "bg-green-100 text-green-800" : ""}`}>
+                                                {item.paidTenor || 0} / {item.tenor}
+                                            </Badge>
+                                         </div>
+                                     )}
+                                 </div>
+                                 <Button size="sm" onClick={() => handlePay(item)} disabled={isButtonDisabled}>
+                                    {isInstallmentPaidOff ? "Lunas" : isPaidThisMonth ? "Dibayar" : "Bayar"}
+                                </Button>
+                             </div>
+                         </div>
+                     )
+                 })}
+            </div>
+        </>
     );
   };
   
@@ -501,47 +542,88 @@ export default function ExpensesPage() {
       );
     }
     return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tanggal</TableHead>
-            <TableHead>Nama</TableHead>
-            <TableHead className="text-right">Jumlah</TableHead>
-            {withActions && <TableHead className="text-right">Aksi</TableHead>}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>{item.date ? format(parseISO(item.date), 'd MMMM yyyy', { locale: id }) : ''}</TableCell>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell className="text-right">Rp{(item.amount || 0).toLocaleString('id-ID')}</TableCell>
-              {withActions && (
-                <TableCell className="text-right">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Buka menu</span>
-                        </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                        <DropdownMenuItem 
-                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                            onClick={() => handleHistoryDeleteClick(item)}
-                        >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Hapus
-                        </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </TableCell>
-              )}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+        <>
+            {/* Desktop Table */}
+            <div className="hidden md:block">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead>Tanggal</TableHead>
+                    <TableHead>Nama</TableHead>
+                    <TableHead className="text-right">Jumlah</TableHead>
+                    {withActions && <TableHead className="text-right">Aksi</TableHead>}
+                </TableRow>
+                </TableHeader>
+                <TableBody>
+                {data.map((item) => (
+                    <TableRow key={item.id}>
+                    <TableCell>{item.date ? format(parseISO(item.date), 'd MMMM yyyy', { locale: id }) : ''}</TableCell>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="text-right">Rp{(item.amount || 0).toLocaleString('id-ID')}</TableCell>
+                    {withActions && (
+                        <TableCell className="text-right">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Buka menu</span>
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                <DropdownMenuItem 
+                                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                    onClick={() => handleHistoryDeleteClick(item)}
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Hapus
+                                </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                    )}
+                    </TableRow>
+                ))}
+                </TableBody>
+            </Table>
+            </div>
+            {/* Mobile List */}
+            <div className="md:hidden divide-y">
+                {data.map(item => (
+                    <div key={item.id} className="p-4">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="font-medium">{item.name}</p>
+                                <p className="text-sm text-muted-foreground">{item.date ? format(parseISO(item.date), 'd MMMM yyyy', { locale: id }) : ''}</p>
+                            </div>
+                            <p className="font-semibold">Rp{(item.amount || 0).toLocaleString('id-ID')}</p>
+                        </div>
+                        {withActions && (
+                            <div className="text-right -mr-2 mt-1">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Buka menu</span>
+                                    </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                    <DropdownMenuItem 
+                                        className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                        onClick={() => handleHistoryDeleteClick(item)}
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Hapus
+                                    </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </>
     );
   };
 
@@ -568,7 +650,7 @@ export default function ExpensesPage() {
                 const totalForMonth = expensesForMonth.reduce((sum, exp) => sum + (exp.amount || 0), 0);
                 return (
                     <AccordionItem value={month} key={month}>
-                        <AccordionTrigger>
+                        <AccordionTrigger className="px-2">
                             <div className="flex justify-between w-full pr-4">
                                 <span>{month}</span>
                                 <span className="font-semibold">Total: Rp{totalForMonth.toLocaleString('id-ID')}</span>
@@ -737,5 +819,3 @@ export default function ExpensesPage() {
     </>
   );
 }
-
-    
