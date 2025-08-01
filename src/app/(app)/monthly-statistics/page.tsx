@@ -8,9 +8,9 @@ import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
-import { DollarSign, Users, CreditCard, Activity, Archive, Loader2, FileClock, Files, TrendingUp, TrendingDown, Wallet } from "lucide-react"
+import { DollarSign, Users, CreditCard, Activity, Archive, Loader2, FileClock, Files, TrendingUp, TrendingDown, Wallet, AreaChart, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { differenceInMonths, parseISO, startOfMonth, subMonths, getMonth, getYear, isSameMonth, isSameYear } from "date-fns"
+import { differenceInMonths, parseISO, startOfMonth, subMonths, getMonth, getYear, isSameMonth, isSameYear, format, differenceInCalendarMonths, addMonths } from "date-fns"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +30,7 @@ const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
 export default function MonthlyStatisticsPage() {
     const { toast } = useToast();
     const [loading, setLoading] = React.useState(true);
+    const [generatingInvoices, setGeneratingInvoices] = React.useState(false);
     const [stats, setStats] = React.useState({
         totalOmset: 0,
         totalArrears: 0,
@@ -191,7 +192,68 @@ export default function MonthlyStatisticsPage() {
                 variant: "destructive",
             });
         }
-    }
+    };
+
+    const handleGenerateMonthlyInvoices = async () => {
+        setGeneratingInvoices(true);
+        try {
+            const customersSnapshot = await getDocs(collection(db, "customers"));
+            if (customersSnapshot.empty) {
+                toast({ title: "Tidak ada pelanggan", description: "Tidak ada pelanggan yang ditemukan untuk dibuatkan faktur." });
+                return;
+            }
+
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            const monthStr = String(month + 1).padStart(2, '0');
+            const yearStr = String(year);
+            const currentInvoiceMonth = `${yearStr}-${monthStr}-01`;
+
+            const batch = writeBatch(db);
+            let invoicesCreatedCount = 0;
+
+            const invoiceQuery = query(collection(db, "invoices"), where("date", ">=", currentInvoiceMonth));
+            const existingInvoicesSnapshot = await getDocs(invoiceQuery);
+            const existingInvoices = existingInvoicesSnapshot.docs.map(doc => ({ ...doc.data() as Invoice, id: doc.id }));
+            
+            for (const docSnap of customersSnapshot.docs) {
+                const customer = { id: docSnap.id, ...docSnap.data() } as Customer;
+
+                const alreadyExists = existingInvoices.some(inv => inv.customerId === customer.id && inv.date === currentInvoiceMonth);
+
+                if (!alreadyExists && customer.packagePrice > 0) {
+                    const dueDate = new Date(year, month, customer.dueDateCode);
+                    const newInvoice: Omit<Invoice, 'id'> = {
+                        customerId: customer.id,
+                        customerName: customer.name,
+                        date: currentInvoiceMonth,
+                        dueDate: format(dueDate, 'yyyy-MM-dd'),
+                        amount: customer.packagePrice,
+                        status: 'belum lunas',
+                    };
+
+                    const newInvoiceRef = doc(collection(db, "invoices"));
+                    batch.set(newInvoiceRef, newInvoice);
+                    invoicesCreatedCount++;
+                }
+            }
+
+            if (invoicesCreatedCount > 0) {
+                await batch.commit();
+                toast({ title: "Penerbitan Berhasil", description: `Berhasil membuat ${invoicesCreatedCount} faktur baru untuk bulan ini.` });
+                fetchData(); // Refresh data on page
+            } else {
+                toast({ title: "Tidak Ada Faktur Baru", description: "Semua faktur untuk bulan ini sudah diterbitkan." });
+            }
+
+        } catch (error) {
+            console.error("Manual invoice generation error:", error);
+            toast({ title: "Gagal Menerbitkan Faktur", variant: "destructive" });
+        } finally {
+            setGeneratingInvoices(false);
+        }
+    };
     
   if (loading) {
     return (
@@ -203,30 +265,36 @@ export default function MonthlyStatisticsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tight">Statistik Bulanan</h1>
-         <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline">
-                <Archive className="mr-2 h-4 w-4" />
-                Arsipkan Faktur Lunas
+        <div className="flex gap-2">
+            <Button onClick={handleGenerateMonthlyInvoices} disabled={generatingInvoices}>
+                {generatingInvoices ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                {generatingInvoices ? "Menerbitkan..." : "Terbitkan Faktur Bulan Ini"}
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Anda yakin ingin mengarsipkan?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tindakan ini akan menghapus semua data faktur dengan status "Lunas" dari daftar aktif. Tindakan ini tidak dapat dibatalkan. Data pelanggan dan faktur yang menunggak tidak akan terpengaruh.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Batal</AlertDialogCancel>
-              <AlertDialogAction onClick={handleArchivePaidInvoices} className="bg-destructive hover:bg-destructive/90">
-                Ya, Arsipkan Sekarang
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+            <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="outline">
+                    <Archive className="mr-2 h-4 w-4" />
+                    Arsipkan Faktur Lunas
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Anda yakin ingin mengarsipkan?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Tindakan ini akan menghapus semua data faktur dengan status "Lunas" dari daftar aktif. Tindakan ini tidak dapat dibatalkan. Data pelanggan dan faktur yang menunggak tidak akan terpengaruh.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={handleArchivePaidInvoices} className="bg-destructive hover:bg-destructive/90">
+                    Ya, Arsipkan Sekarang
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+            </AlertDialog>
+        </div>
       </div>
 
        <Card>
@@ -405,7 +473,3 @@ export default function MonthlyStatisticsPage() {
     </div>
   )
 }
-
-    
-
-    
