@@ -221,7 +221,7 @@ export default function DelinquencyPage() {
                 invoiceIds: paymentDetails.selectedInvoices,
                 totalBill: totalBilledAmountToClear,
                 discount: discountAmount,
-                totalPayment: paymentDetails.paidAmount,
+                totalPayment: paymentDetails.paidAmount, // totalPayment should reflect what's actually paid
                 changeAmount: Math.max(0, paymentDetails.paidAmount - paymentDetails.totalPayment),
                 collectorId: paymentDetails.collectorId,
                 collectorName: paymentDetails.collectorName,
@@ -234,21 +234,27 @@ export default function DelinquencyPage() {
                 const amountNeededForThisInvoice = invoice.amount;
                 
                 if (creditedAmount >= amountNeededForThisInvoice) {
-                    batch.update(invoiceRef, { status: "lunas" });
+                    batch.update(invoiceRef, { status: "lunas", amount: 0 }); // Mark as lunas and set amount to 0
                     creditedAmount -= amountNeededForThisInvoice;
                 } else {
+                    // Partial payment logic
+                    const remainingAmount = amountNeededForThisInvoice - creditedAmount;
+                    batch.update(invoiceRef, { amount: remainingAmount });
+                    creditedAmount = 0; // All credited amount is used
                     allInvoicesPaid = false; 
-                    break;
+                    break; // Stop processing further invoices as payment is used up
                 }
             }
     
             const customerRef = doc(db, "customers", customerId);
             const customerUpdates: { [key: string]: any } = {};
 
-            const creditChange = newPayment.changeAmount - creditUsed;
+            // The leftover creditedAmount becomes the new credit/change. The used credit is deducted.
+            const creditChange = creditedAmount - creditUsed;
             if (creditChange !== 0) {
                 customerUpdates.creditBalance = increment(creditChange);
             }
+
             if (Object.keys(customerUpdates).length > 0) {
                 batch.update(customerRef, customerUpdates);
             }
@@ -267,18 +273,8 @@ export default function DelinquencyPage() {
                 ),
             });
     
-            const customerBeingPaid = delinquentCustomersList.find(c => c.id === customerId);
-            if (customerBeingPaid) {
-                 const remainingOverdueAmount = customerBeingPaid.overdueAmount - (paymentDetails.totalPayment + paymentDetails.creditUsed);
-                if (remainingOverdueAmount <= 0 && allInvoicesPaid) {
-                    setDelinquentCustomersList(prevList => prevList.filter(c => c.id !== customerId));
-                } else {
-                    // If there's a remaining balance, refetch everything to be safe.
-                    fetchDelinquentData();
-                }
-            } else {
-                 fetchDelinquentData();
-            }
+            // Just refetch all data to ensure UI is consistent
+            fetchDelinquentData();
 
         } catch (error) {
             console.error("Payment processing error:", error);
@@ -437,5 +433,3 @@ export default function DelinquencyPage() {
     </div>
   )
 }
-
-    
