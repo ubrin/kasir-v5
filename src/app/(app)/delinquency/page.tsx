@@ -10,6 +10,7 @@ import {
   writeBatch,
   doc,
   increment,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -190,40 +191,42 @@ export default function DelinquencyPage() {
     const handlePaymentSuccess = async (customerId: string, customerName: string, paymentDetails: any) => {
         try {
             const batch = writeBatch(db);
+            let amountToDistribute = paymentDetails.paidAmount + paymentDetails.creditUsed + paymentDetails.discount;
+            let remainingCreditFromPayment = 0;
     
             const invoicesToPayQuery = query(
                 collection(db, "invoices"),
                 where("customerId", "==", customerId),
+                where("status", "==", "belum lunas"),
                 where("__name__", "in", paymentDetails.selectedInvoices.length > 0 ? paymentDetails.selectedInvoices : ["dummy-id"])
             );
-
             const invoicesSnapshot = await getDocs(invoicesToPayQuery);
-            const invoicesToPay = invoicesSnapshot.docs.map(d => ({...d.data(), id: d.id} as Invoice));
-            
-            if (invoicesToPay.length === 0 && paymentDetails.creditUsed === 0) {
-                 toast({ title: "Tidak ada faktur dipilih", variant: "destructive" });
-                 return;
+            const sortedInvoices = invoicesSnapshot.docs
+                .map(d => ({...d.data(), id: d.id} as Invoice))
+                .sort((a, b) => parseISO(a.date).getTime() - parseISO(a.date).getTime());
+    
+            if (sortedInvoices.length === 0 && paymentDetails.creditUsed === 0) {
+                toast({ title: "Tidak ada faktur yang valid untuk dibayar", variant: "destructive" });
+                return;
             }
-            
-            let amountToDistribute = paymentDetails.paidAmount + paymentDetails.creditUsed + paymentDetails.discount;
-            let remainingCredit = 0;
-
-            const sortedInvoices = invoicesToPay.sort((a,b) => parseISO(a.date).getTime() - parseISO(a.date).getTime());
-
+    
             for (const invoice of sortedInvoices) {
-                 const invoiceRef = doc(db, "invoices", invoice.id);
-                 if (amountToDistribute >= invoice.amount) {
-                     batch.update(invoiceRef, { status: "lunas" });
-                     amountToDistribute -= invoice.amount;
-                 } else {
-                     batch.update(invoiceRef, { amount: invoice.amount - amountToDistribute });
-                     amountToDistribute = 0;
-                     break;
-                 }
+                if (amountToDistribute <= 0) break;
+    
+                const invoiceRef = doc(db, "invoices", invoice.id);
+                const paymentForThisInvoice = Math.min(amountToDistribute, invoice.amount);
+    
+                if (paymentForThisInvoice >= invoice.amount) {
+                    batch.update(invoiceRef, { status: "lunas" });
+                    amountToDistribute -= invoice.amount;
+                } else {
+                    batch.update(invoiceRef, { amount: increment(-paymentForThisInvoice) });
+                    amountToDistribute = 0;
+                }
             }
-            
-            remainingCredit = amountToDistribute;
-
+    
+            remainingCreditFromPayment = amountToDistribute;
+    
             const newPaymentRef = doc(collection(db, "payments"));
             const newPayment: Omit<Payment, 'id'> = {
                 customerId: customerId,
@@ -242,14 +245,9 @@ export default function DelinquencyPage() {
             batch.set(newPaymentRef, newPayment);
             
             const customerRef = doc(db, "customers", customerId);
-            const customerUpdates: { [key: string]: any } = {};
-
-            const creditChange = remainingCredit - paymentDetails.creditUsed;
-             if (creditChange !== 0) {
-                customerUpdates.creditBalance = increment(creditChange);
-            }
-            if (Object.keys(customerUpdates).length > 0) {
-                batch.update(customerRef, customerUpdates);
+            const creditChange = remainingCreditFromPayment - paymentDetails.creditUsed;
+            if (creditChange !== 0) {
+                batch.update(customerRef, { creditBalance: increment(creditChange) });
             }
     
             await batch.commit();
@@ -266,23 +264,21 @@ export default function DelinquencyPage() {
                 ),
             });
             
-             // Optimistic UI update
+             // Optimistic UI update without full refresh
             setDelinquentCustomersList(prevList => {
-                const paidCustomer = prevList.find(c => c.id === customerId);
-                if (!paidCustomer) return prevList;
+                const paidCustomerIndex = prevList.findIndex(c => c.id === customerId);
+                if (paidCustomerIndex === -1) return prevList;
 
-                const remainingAmount = paidCustomer.overdueAmount - (paymentDetails.paidAmount + paymentDetails.creditUsed + paymentDetails.discount);
-                
+                const paidCustomer = prevList[paidCustomerIndex];
+                const totalPaid = paymentDetails.paidAmount + paymentDetails.creditUsed + paymentDetails.discount;
+                const remainingAmount = paidCustomer.overdueAmount - totalPaid;
+
                 if (remainingAmount <= 0) {
-                    // Remove customer from list if bill is fully paid
                     return prevList.filter(c => c.id !== customerId);
                 } else {
-                    // Update customer's overdue amount if partially paid
-                    return prevList.map(c => 
-                        c.id === customerId 
-                            ? { ...c, overdueAmount: remainingAmount } 
-                            : c
-                    );
+                    const newList = [...prevList];
+                    newList[paidCustomerIndex] = { ...paidCustomer, overdueAmount: remainingAmount };
+                    return newList;
                 }
             });
 
@@ -303,7 +299,7 @@ export default function DelinquencyPage() {
         const dueDateParsed = parseISO(dueDate);
         const daysDiff = differenceInDays(dueDateParsed, today);
 
-        if (hasArrears && daysDiff < 0) {
+        if (hasArrears) {
             return <Badge variant="destructive">Menunggak</Badge>;
         }
     
@@ -313,7 +309,7 @@ export default function DelinquencyPage() {
         if (daysDiff === 0) {
             return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
         }
-        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>;
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff} hari lagi</Badge>;
     }
 
   if (loading) {
