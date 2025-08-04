@@ -36,7 +36,7 @@ import { differenceInDays, parseISO, format, startOfToday, startOfMonth } from "
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { Button } from "@/components/ui/button";
-import { FileText, Receipt, Loader2, Wallet } from "lucide-react";
+import { FileText, Receipt, Loader2, Wallet, Search, X } from "lucide-react";
 import {
     Accordion,
     AccordionContent,
@@ -44,6 +44,7 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion"
 import Link from "next/link";
+import { Input } from "@/components/ui/input";
 
 
 type DelinquentCustomer = Customer & {
@@ -61,6 +62,7 @@ export default function DelinquencyPage() {
     const [isClient, setIsClient] = React.useState(false);
     const [delinquentCustomersList, setDelinquentCustomersList] = React.useState<DelinquentCustomer[]>([]);
     const [loading, setLoading] = React.useState(true);
+    const [searchQuery, setSearchQuery] = React.useState('');
     
     React.useEffect(() => {
         setIsClient(true);
@@ -163,8 +165,16 @@ export default function DelinquencyPage() {
     React.useEffect(() => {
         fetchDelinquentData();
     }, [fetchDelinquentData]);
+    
+    const filteredDelinquentCustomers = delinquentCustomersList.filter(customer => {
+        const searchLower = searchQuery.toLowerCase();
+        return (
+            customer.name.toLowerCase().includes(searchLower) ||
+            customer.address.toLowerCase().includes(searchLower)
+        );
+    });
 
-    const groupedDelinquentCustomers = delinquentCustomersList.reduce((acc, customer) => {
+    const groupedDelinquentCustomers = filteredDelinquentCustomers.reduce((acc, customer) => {
         const code = customer.dueDateCode;
         if (!acc[code]) {
           acc[code] = [];
@@ -203,7 +213,7 @@ export default function DelinquencyPage() {
             const invoicesSnapshot = await getDocs(invoicesToPayQuery);
             const sortedInvoices = invoicesSnapshot.docs
                 .map(d => ({...d.data(), id: d.id} as Invoice))
-                .sort((a, b) => parseISO(a.date).getTime() - parseISO(a.date).getTime());
+                .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
     
             if (sortedInvoices.length === 0 && paymentDetails.creditUsed === 0) {
                 toast({ title: "Tidak ada faktur yang valid untuk dibayar", variant: "destructive" });
@@ -264,23 +274,7 @@ export default function DelinquencyPage() {
                 ),
             });
             
-             // Optimistic UI update without full refresh
-            setDelinquentCustomersList(prevList => {
-                const paidCustomerIndex = prevList.findIndex(c => c.id === customerId);
-                if (paidCustomerIndex === -1) return prevList;
-
-                const paidCustomer = prevList[paidCustomerIndex];
-                const totalPaid = paymentDetails.paidAmount + paymentDetails.creditUsed + paymentDetails.discount;
-                const remainingAmount = paidCustomer.overdueAmount - totalPaid;
-
-                if (remainingAmount <= 0) {
-                    return prevList.filter(c => c.id !== customerId);
-                } else {
-                    const newList = [...prevList];
-                    newList[paidCustomerIndex] = { ...paidCustomer, overdueAmount: remainingAmount };
-                    return newList;
-                }
-            });
+            fetchDelinquentData();
 
         } catch (error) {
             console.error("Payment processing error:", error);
@@ -309,7 +303,7 @@ export default function DelinquencyPage() {
         if (daysDiff === 0) {
             return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
         }
-        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff} hari lagi</Badge>;
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>;
     }
 
   if (loading) {
@@ -337,6 +331,27 @@ export default function DelinquencyPage() {
                     ))}
                 </SelectContent>
             </Select>
+        </div>
+
+        <div className="relative w-full md:w-1/2 lg:w-1/3">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Cari pelanggan berdasarkan nama atau alamat..."
+              className="w-full appearance-none bg-background pl-8 shadow-none"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full"
+                onClick={() => setSearchQuery('')}
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
         </div>
         
         {isClient && filteredGroupKeys.length > 0 ? (
@@ -431,8 +446,12 @@ export default function DelinquencyPage() {
                     {isClient ? (
                         <>
                             <Wallet className="w-12 h-12 text-muted-foreground" />
-                            <p className="text-lg font-medium">Semua Tagihan Lunas!</p>
-                            <p className="text-muted-foreground">Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!</p>
+                            <p className="text-lg font-medium">
+                                {searchQuery ? 'Tidak Ada Hasil' : 'Semua Tagihan Lunas!'}
+                            </p>
+                            <p className="text-muted-foreground">
+                                {searchQuery ? `Tidak ada pelanggan yang cocok dengan pencarian "${searchQuery}".` : 'Tidak ada pelanggan yang menunggak saat ini. Kerja bagus!'}
+                            </p>
                         </>
                     ) : null}
                 </CardContent>

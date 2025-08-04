@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Loader2, Trash2 } from "lucide-react"
+import { MoreHorizontal, Loader2, Trash2, Search, X } from "lucide-react"
 import type { Customer, Invoice } from "@/lib/types"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -48,6 +48,7 @@ import {
 import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, startOfToday, differenceInDays } from 'date-fns';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 type CustomerWithStatus = Customer & {
     nearestDueDate?: string;
@@ -65,11 +66,39 @@ export default function CustomersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  
+  const searchQuery = searchParams.get('q') || '';
+  const [localSearchQuery, setLocalSearchQuery] = React.useState(searchQuery);
 
   React.useEffect(() => {
     setIsClient(true);
   }, []);
   
+  // Debounced search effect
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      const current = new URLSearchParams(Array.from(searchParams.entries()));
+
+      if (!localSearchQuery.trim()) {
+        current.delete('q');
+      } else {
+        current.set('q', localSearchQuery.trim());
+      }
+      
+      const search = current.toString();
+      const query = search ? `?${search}` : '';
+
+      // Only push if the query is different to avoid redundant re-renders
+      if (`/customers${query}` !== `/customers?${searchParams.toString()}`) {
+         router.push(`/customers${query}`);
+      }
+    }, 300); // 300ms debounce
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [localSearchQuery, router, searchParams]);
+
   const fetchCustomers = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -112,7 +141,7 @@ export default function CustomersPage() {
             .map(inv => inv.dueDate)
             .sort((a,b) => new Date(a).getTime() - new Date(b).getTime())[0];
         
-        return { ...customer, nearestDueDate, hasArrears };
+        return { ...customer, hasArrears, nearestDueDate };
       });
 
       setCustomers(customersWithStatus);
@@ -261,7 +290,6 @@ export default function CustomersPage() {
     }
   };
 
-  const searchQuery = searchParams.get('q') || '';
   const filteredCustomers = customers.filter(customer => {
     const searchLower = searchQuery.toLowerCase();
     return (
@@ -323,7 +351,7 @@ export default function CustomersPage() {
     if (daysDiff === 0) {
       return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
     }
-    return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff} hari lagi</Badge>;
+    return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>;
   }
 
   const handleSelectOne = (id: string, isChecked: boolean) => {
@@ -395,6 +423,27 @@ export default function CustomersPage() {
                 <AddCustomerDialog onCustomerAdded={handleCustomerAdded} />
             </div>
         </div>
+
+        <div className="relative w-full md:w-1/2 lg:w-1/3">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Cari pelanggan berdasarkan nama atau alamat..."
+              className="w-full appearance-none bg-background pl-8 shadow-none"
+              value={localSearchQuery}
+              onChange={(e) => setLocalSearchQuery(e.target.value)}
+            />
+            {localSearchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full"
+                onClick={() => setLocalSearchQuery('')}
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
+        </div>
         
         {selectedCustomerIds.length > 0 && (
             <div className="flex items-center justify-between p-3 bg-muted rounded-md">
@@ -408,7 +457,6 @@ export default function CustomersPage() {
         {searchQuery && (
             <div className="text-sm text-muted-foreground">
                 Menampilkan {filteredCustomers.length} hasil untuk pencarian <span className="font-semibold text-foreground">"{searchQuery}"</span>.
-                <Button variant="link" className="p-1 h-auto" onClick={() => router.push('/customers')}>Hapus filter</Button>
             </div>
         )}
 

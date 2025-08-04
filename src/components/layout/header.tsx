@@ -22,12 +22,9 @@ import * as React from 'react';
 
 export default function Header() {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { installPrompt, canInstall } = usePwaInstall();
-  const [searchQuery, setSearchQuery] = React.useState(searchParams.get('q') || '');
-
+ 
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -44,44 +41,6 @@ export default function Header() {
       });
     }
   };
-  
-  // Debounced search effect
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      // We only want to trigger search on the customers page for now
-      if (pathname !== '/customers') return;
-
-      const current = new URLSearchParams(Array.from(searchParams.entries()));
-
-      if (!searchQuery.trim()) {
-        current.delete('q');
-      } else {
-        current.set('q', searchQuery.trim());
-      }
-      
-      const search = current.toString();
-      const query = search ? `?${search}` : '';
-
-      // Only push if the query is different
-      if (`${pathname}${query}` !== `${pathname}?${searchParams.toString()}`) {
-         router.push(`${pathname}${query}`);
-      }
-    }, 300); // 300ms debounce
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchQuery, pathname, router, searchParams]);
-
-  // Sync search input with URL params on navigation
-  React.useEffect(() => {
-    setSearchQuery(searchParams.get('q') || '');
-  }, [searchParams]);
-
-  const handleResetSearch = () => {
-    setSearchQuery('');
-    router.push('/customers');
-  }
 
 
   return (
@@ -95,26 +54,7 @@ export default function Header() {
             </div>
         </div>
       <div className="w-full flex-1">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Cari pelanggan..."
-              className="w-full appearance-none bg-background pl-8 shadow-none md:w-2/3 lg:w-1/3"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-             {searchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full"
-                onClick={handleResetSearch}
-              >
-                <XIcon className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            )}
-          </div>
+          {/* Search bar is removed from here */}
       </div>
       <Button variant="ghost" size="icon" className="rounded-full">
         <Bell className="h-5 w-5" />
