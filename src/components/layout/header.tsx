@@ -1,7 +1,7 @@
 
 'use client';
 import Link from 'next/link';
-import { Search, Bell, User, LogOut, Download } from 'lucide-react';
+import { Search, Bell, User, LogOut, Download, X as XIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,16 +15,18 @@ import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { usePwaInstall } from '@/hooks/use-pwa-install';
 import * as React from 'react';
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { installPrompt, canInstall } = usePwaInstall();
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const [searchQuery, setSearchQuery] = React.useState(searchParams.get('q') || '');
 
   const handleLogout = async () => {
     try {
@@ -43,12 +45,43 @@ export default function Header() {
     }
   };
   
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/customers?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
+  // Debounced search effect
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      // We only want to trigger search on the customers page for now
+      if (pathname !== '/customers') return;
+
+      const current = new URLSearchParams(Array.from(searchParams.entries()));
+
+      if (!searchQuery.trim()) {
+        current.delete('q');
+      } else {
+        current.set('q', searchQuery.trim());
+      }
+      
+      const search = current.toString();
+      const query = search ? `?${search}` : '';
+
+      // Only push if the query is different
+      if (`${pathname}${query}` !== `${pathname}?${searchParams.toString()}`) {
+         router.push(`${pathname}${query}`);
+      }
+    }, 300); // 300ms debounce
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery, pathname, router, searchParams]);
+
+  // Sync search input with URL params on navigation
+  React.useEffect(() => {
+    setSearchQuery(searchParams.get('q') || '');
+  }, [searchParams]);
+
+  const handleResetSearch = () => {
+    setSearchQuery('');
+    router.push('/customers');
+  }
 
 
   return (
@@ -62,7 +95,6 @@ export default function Header() {
             </div>
         </div>
       <div className="w-full flex-1">
-        <form onSubmit={handleSearchSubmit}>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -72,8 +104,17 @@ export default function Header() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+             {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full"
+                onClick={handleResetSearch}
+              >
+                <XIcon className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
           </div>
-        </form>
       </div>
       <Button variant="ghost" size="icon" className="rounded-full">
         <Bell className="h-5 w-5" />
@@ -107,5 +148,3 @@ export default function Header() {
     </header>
   );
 }
-
-    
