@@ -57,43 +57,42 @@ export default function PaymentReportPage() {
   });
 
   React.useEffect(() => {
-    const fetchInitialData = async () => {
-        setLoading(true);
-        try {
-             const unsubscribePayments = onSnapshot(query(collection(db, "payments")), (paymentsSnapshot) => {
-                const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
-                setPayments(paymentsList);
-                setLoading(false);
-            }, (error) => {
-                 console.error("Error fetching payments:", error);
-                 toast({ title: "Gagal Memuat Laporan", variant: "destructive" });
-                 setLoading(false);
-            });
-            
-            const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), (collectorsSnapshot) => {
-                const collectorsList = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a,b) => a.name.localeCompare(b.name));
-                setCollectors(collectorsList);
-            }, (error) => {
-                 console.error("Error fetching collectors:", error);
-                 toast({ title: "Gagal Memuat Data Penagih", variant: "destructive" });
-            });
+    setLoading(true);
+    try {
+          const unsubscribePayments = onSnapshot(query(collection(db, "payments")), (paymentsSnapshot) => {
+            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+            setPayments(paymentsList);
+            // We set loading to false here, but collector data might still be loading.
+            // This is okay as the UI will update once collectors arrive.
+            setLoading(false); 
+        }, (error) => {
+              console.error("Error fetching payments:", error);
+              toast({ title: "Gagal Memuat Laporan", variant: "destructive" });
+              setLoading(false);
+        });
+        
+        const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), (collectorsSnapshot) => {
+            const collectorsList = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a,b) => a.name.localeCompare(b.name));
+            setCollectors(collectorsList);
+        }, (error) => {
+              console.error("Error fetching collectors:", error);
+              toast({ title: "Gagal Memuat Data Penagih", variant: "destructive" });
+        });
 
-            return () => {
-                unsubscribePayments();
-                unsubscribeCollectors();
-            }
-
-        } catch (error) {
-            console.error("Error fetching initial data:", error);
-            toast({
-                title: "Gagal Memuat Laporan",
-                description: "Tidak dapat mengambil data pembayaran dari database.",
-                variant: "destructive"
-            });
-            setLoading(false);
+        return () => {
+            unsubscribePayments();
+            unsubscribeCollectors();
         }
-    };
-    fetchInitialData();
+
+    } catch (error) {
+        console.error("Error fetching initial data:", error);
+        toast({
+            title: "Gagal Memuat Laporan",
+            description: "Tidak dapat mengambil data pembayaran dari database.",
+            variant: "destructive"
+        });
+        setLoading(false);
+    }
   }, [toast]);
 
   const filteredPayments = payments.filter(payment => {
@@ -314,3 +313,5 @@ export default function PaymentReportPage() {
     </div>
   );
 }
+
+    
