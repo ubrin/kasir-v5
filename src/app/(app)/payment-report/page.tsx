@@ -26,9 +26,11 @@ import {
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 type CollectorCollection = {
+    id: string;
     name: string;
     payments: Payment[];
     total: number;
@@ -64,7 +66,6 @@ export default function PaymentReportPage() {
   });
 
   React.useEffect(() => {
-    setLoading(true);
     const unsubscribePayments = onSnapshot(query(collection(db, "payments")), (paymentsSnapshot) => {
         const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
         setPayments(paymentsList);
@@ -122,6 +123,7 @@ export default function PaymentReportPage() {
 
         if (!groupedByDate[dateStr].collectors[collectorId]) {
             groupedByDate[dateStr].collectors[collectorId] = {
+                id: collectorId,
                 name: collectorName,
                 payments: [],
                 total: 0,
@@ -220,6 +222,7 @@ export default function PaymentReportPage() {
             <CardContent>
                 <Accordion type="multiple" className="w-full space-y-4" defaultValue={sortedCollections.length > 0 ? [sortedCollections[0].date] : []}>
                     {sortedCollections.map((daily) => {
+                        const dailyCollectors = Object.values(daily.collectors).sort((a,b) => a.name.localeCompare(b.name));
                         return (
                              <AccordionItem value={daily.date} key={daily.date} className="border rounded-lg bg-card overflow-hidden">
                                 <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-3">
@@ -235,70 +238,70 @@ export default function PaymentReportPage() {
                                         </div>
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent className="p-0">
-                                   {Object.values(daily.collectors)
-                                    .sort((a,b) => a.name.localeCompare(b.name))
-                                    .map(collectorData => (
-                                    <div key={collectorData.name} className="border-t">
-                                        <div className="bg-muted/30 px-4 sm:px-6 py-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                                            <div>
-                                                <h3 className="font-semibold">{collectorData.name}</h3>
-                                                <p className="text-sm font-medium">Subtotal: Rp{collectorData.total.toLocaleString('id-ID')}</p>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                <Badge variant="secondary">C: Rp{collectorData.paymentMethodTotals.cash.toLocaleString('id-ID')}</Badge>
-                                                <Badge className="bg-blue-600 text-white hover:bg-blue-700">B: Rp{collectorData.paymentMethodTotals.bri.toLocaleString('id-ID')}</Badge>
-                                                <Badge className="bg-sky-500 text-white hover:bg-sky-600">D: Rp{collectorData.paymentMethodTotals.dana.toLocaleString('id-ID')}</Badge>
-                                            </div>
-                                        </div>
-                                        <div className='md:hidden divide-y'>
-                                            {collectorData.payments.map(payment => (
-                                                <div key={payment.id} className="p-4">
-                                                    <div className="flex justify-between items-start">
-                                                        <p className="font-medium">{payment.customerName}</p>
-                                                        {getMethodBadge(payment.paymentMethod)}
-                                                    </div>
-                                                    <div className="flex justify-between items-center mt-2 pt-2 border-t">
-                                                        <p className="font-semibold">Rp{payment.paidAmount.toLocaleString('id-ID')}</p>
-                                                        <Button asChild variant="outline" size="sm">
-                                                            <Link href={`/receipt/${payment.id}`}>
-                                                                <Receipt className="mr-2 h-4 w-4" /> Struk
-                                                            </Link>
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="hidden md:block">
-                                            <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                <TableHead>Pelanggan</TableHead>
-                                                <TableHead>Metode Bayar</TableHead>
-                                                <TableHead className="text-right">Jumlah Dibayar</TableHead>
-                                                <TableHead className="text-right">Aksi</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {collectorData.payments.map(payment => (
-                                                <TableRow key={payment.id}>
-                                                    <TableCell className="font-medium">{payment.customerName}</TableCell>
-                                                    <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
-                                                    <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button asChild variant="outline" size="sm">
-                                                            <Link href={`/receipt/${payment.id}`}>
-                                                                <Receipt className="mr-2 h-4 w-4" /> Lihat Struk
-                                                            </Link>
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
+                                <AccordionContent className="p-4 md:p-6">
+                                    {dailyCollectors.length > 0 && (
+                                        <Tabs defaultValue={dailyCollectors[0].id} className="w-full">
+                                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-5 h-auto">
+                                                {dailyCollectors.map(collectorData => (
+                                                    <TabsTrigger key={collectorData.id} value={collectorData.id} className="flex-col h-auto py-2">
+                                                        <span>{collectorData.name}</span>
+                                                        <span className="text-xs text-muted-foreground">Rp{collectorData.total.toLocaleString('id-ID')}</span>
+                                                    </TabsTrigger>
                                                 ))}
-                                            </TableBody>
-                                            </Table>
-                                        </div>
-                                    </div>
-                                ))}
+                                            </TabsList>
+
+                                            {dailyCollectors.map(collectorData => (
+                                                <TabsContent key={collectorData.id} value={collectorData.id} className="mt-4">
+                                                    <div className='md:hidden divide-y rounded-md border'>
+                                                        {collectorData.payments.map(payment => (
+                                                            <div key={payment.id} className="p-4">
+                                                                <div className="flex justify-between items-start">
+                                                                    <p className="font-medium">{payment.customerName}</p>
+                                                                    {getMethodBadge(payment.paymentMethod)}
+                                                                </div>
+                                                                <div className="flex justify-between items-center mt-2 pt-2 border-t">
+                                                                    <p className="font-semibold">Rp{payment.paidAmount.toLocaleString('id-ID')}</p>
+                                                                    <Button asChild variant="outline" size="sm">
+                                                                        <Link href={`/receipt/${payment.id}`}>
+                                                                            <Receipt className="mr-2 h-4 w-4" /> Struk
+                                                                        </Link>
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="hidden md:block rounded-md border">
+                                                        <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                            <TableHead>Pelanggan</TableHead>
+                                                            <TableHead>Metode Bayar</TableHead>
+                                                            <TableHead className="text-right">Jumlah Dibayar</TableHead>
+                                                            <TableHead className="text-right">Aksi</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {collectorData.payments.map(payment => (
+                                                            <TableRow key={payment.id}>
+                                                                <TableCell className="font-medium">{payment.customerName}</TableCell>
+                                                                <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
+                                                                <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <Button asChild variant="outline" size="sm">
+                                                                        <Link href={`/receipt/${payment.id}`}>
+                                                                            <Receipt className="mr-2 h-4 w-4" /> Lihat Struk
+                                                                        </Link>
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                </TabsContent>
+                                            ))}
+                                        </Tabs>
+                                    )}
                                 </AccordionContent>
                             </AccordionItem>
                         )
