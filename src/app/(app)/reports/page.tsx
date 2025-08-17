@@ -7,7 +7,7 @@ export default function ReportsPage() {
   return (
     <div className="flex flex-col gap-8">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Laporan Lengkap</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Total Keuangan</h1>
             <p className="text-muted-foreground">Halaman ini untuk menampilkan laporan keuangan yang lebih detail.</p>
         </div>
         <Card>

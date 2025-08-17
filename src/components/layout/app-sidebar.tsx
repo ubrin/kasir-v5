@@ -33,7 +33,6 @@ const menuItems = [
     subItems: [
       { href: '/delinquency', label: 'Tagihan', icon: CreditCard, roles: ['admin', 'user'] },
       { href: '/payment-report', label: 'Laporan Bayar', icon: BarChart3, roles: ['admin'] },
-      { href: '/reports', label: 'Laporan Lengkap', icon: BookText, roles: ['admin'] },
     ]
   },
   { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
@@ -46,6 +45,7 @@ const menuItems = [
         { href: '/expenses', label: 'Pengeluaran', icon: TrendingDown, roles: ['admin'] },
         { href: '/other-incomes', label: 'Pemasukan Lainnya', icon: DollarSign, roles: ['admin'] },
         { href: '/collectors', label: 'Daftar Penagih', icon: UsersRound, roles: ['admin'] },
+        { href: '/reports', label: 'Total Keuangan', icon: BookText, roles: ['admin'] },
     ]
   }
 ];

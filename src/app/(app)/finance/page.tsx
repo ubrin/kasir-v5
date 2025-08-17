@@ -295,12 +295,6 @@ export default function FinancePage() {
 
        <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline">
-                <Link href="/reports">
-                    <BookText className="mr-2 h-4 w-4" />
-                    Laporan Lengkap
-                </Link>
-            </Button>
-            <Button asChild variant="outline">
                 <Link href="/other-incomes">
                     <DollarSign className="mr-2 h-4 w-4" />
                     Pemasukan Lainnya
