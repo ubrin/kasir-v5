@@ -37,6 +37,11 @@ type DailyCollection = {
         }
     }
     total: number;
+    paymentMethodTotals: {
+        cash: number;
+        bri: number;
+        dana: number;
+    }
 }
 
 export default function PaymentReportPage() {
@@ -105,7 +110,12 @@ export default function PaymentReportPage() {
     for (const payment of filteredPayments) {
         const dateStr = payment.paymentDate;
         if (!groupedByDate[dateStr]) {
-            groupedByDate[dateStr] = { date: dateStr, collectors: {}, total: 0 };
+            groupedByDate[dateStr] = { 
+                date: dateStr, 
+                collectors: {}, 
+                total: 0,
+                paymentMethodTotals: { cash: 0, bri: 0, dana: 0 }
+            };
         }
 
         const collectorId = payment.collectorId || 'unassigned';
@@ -122,6 +132,7 @@ export default function PaymentReportPage() {
         groupedByDate[dateStr].collectors[collectorId].payments.push(payment);
         groupedByDate[dateStr].collectors[collectorId].total += payment.totalPayment;
         groupedByDate[dateStr].total += payment.totalPayment;
+        groupedByDate[dateStr].paymentMethodTotals[payment.paymentMethod] += payment.totalPayment;
     }
 
   const sortedCollections = Object.values(groupedByDate).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -198,7 +209,14 @@ export default function PaymentReportPage() {
                                 <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-3">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full">
                                         <span className="font-semibold text-lg mb-2 sm:mb-0 text-left">{format(parseISO(daily.date), 'eeee, d MMMM yyyy', { locale: id })}</span>
-                                        <span className="font-bold text-lg text-primary sm:mr-4">Total: Rp{daily.total.toLocaleString('id-ID')}</span>
+                                        <div className="flex flex-col items-start sm:items-end gap-2">
+                                            <span className="font-bold text-lg text-primary sm:mr-4">Total: Rp{daily.total.toLocaleString('id-ID')}</span>
+                                            <div className="flex flex-wrap gap-2 sm:mr-4">
+                                                <Badge variant="secondary">Cash: Rp{daily.paymentMethodTotals.cash.toLocaleString('id-ID')}</Badge>
+                                                <Badge className="bg-blue-600 text-white hover:bg-blue-700">BRI: Rp{daily.paymentMethodTotals.bri.toLocaleString('id-ID')}</Badge>
+                                                <Badge className="bg-sky-500 text-white hover:bg-sky-600">DANA: Rp{daily.paymentMethodTotals.dana.toLocaleString('id-ID')}</Badge>
+                                            </div>
+                                        </div>
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="p-0">
