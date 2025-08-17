@@ -244,34 +244,6 @@ export default function FinancePage() {
             <h1 className="text-3xl font-bold tracking-tight">Keuangan & Statistik</h1>
             <p className="text-muted-foreground">Analisis keuangan bulanan dan total.</p>
         </div>
-        <div className="flex gap-2">
-            <Button onClick={handleGenerateMonthlyInvoices} disabled={generatingInvoices}>
-                {generatingInvoices ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                {generatingInvoices ? "Menerbitkan..." : "Terbitkan Faktur"}
-            </Button>
-            <AlertDialog>
-            <AlertDialogTrigger asChild>
-                <Button variant="outline">
-                    <Archive className="mr-2 h-4 w-4" />
-                    Arsipkan
-                </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Anda yakin ingin mengarsipkan?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Tindakan ini akan menghapus semua data faktur dengan status "Lunas". Tindakan ini tidak dapat dibatalkan.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel>Batal</AlertDialogCancel>
-                <AlertDialogAction onClick={handleArchivePaidInvoices} className="bg-destructive hover:bg-destructive/90">
-                    Ya, Arsipkan
-                </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-            </AlertDialog>
-        </div>
       </div>
 
         <Card>
