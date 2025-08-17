@@ -7,29 +7,27 @@ import type { Customer, Invoice, Payment, Expense, OtherIncome } from "@/lib/typ
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
 import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart, DollarSign, Archive, FileText, FileClock, Users, Coins, BookText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { parseISO, startOfMonth, subMonths, getMonth, getYear, isSameMonth, isSameYear, format, differenceInMonths } from "date-fns";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
+
+type ArrearsDetail = {
+    name: string;
+    amount: number;
+    id: string;
+}
 
 export default function FinancePage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
-  const [generatingInvoices, setGeneratingInvoices] = React.useState(false);
   const [stats, setStats] = React.useState({
       totalIncome: 0,
       totalExpense: 0,
@@ -40,10 +38,12 @@ export default function FinancePage() {
       netProfit: 0,
       totalOmset: 0,
       totalArrears: 0,
-      newCustomers: 0,
+      newCustomersCount: 0,
   });
   const [monthlyRevenueData, setMonthlyRevenueData] = React.useState<any[]>([]);
   const [pieData, setPieData] = React.useState<any[]>([]);
+  const [newCustomers, setNewCustomers] = React.useState<Customer[]>([]);
+  const [arrearsDetails, setArrearsDetails] = React.useState<ArrearsDetail[]>([]);
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
@@ -68,6 +68,34 @@ export default function FinancePage() {
         const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
         const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
 
+        const today = new Date();
+        const startOfCurrentMonth = startOfMonth(today);
+
+        // Pelanggan Baru
+        const newCustomersList = customers.filter(c => c.installationDate && isSameMonth(parseISO(c.installationDate), today) && isSameYear(parseISO(c.installationDate), today));
+        setNewCustomers(newCustomersList);
+
+        // Tunggakan
+        const oldUnpaidInvoices = invoices.filter(invoice => {
+            const invoiceDate = parseISO(invoice.date);
+            return invoice.status === 'belum lunas' && invoiceDate < startOfCurrentMonth;
+        });
+
+        const arrearsByCustomer: { [id: string]: ArrearsDetail } = {};
+        oldUnpaidInvoices.forEach(invoice => {
+            if (!arrearsByCustomer[invoice.customerId]) {
+                arrearsByCustomer[invoice.customerId] = {
+                    id: invoice.customerId,
+                    name: invoice.customerName,
+                    amount: 0,
+                };
+            }
+            arrearsByCustomer[invoice.customerId].amount += invoice.amount;
+        });
+        const arrearsList = Object.values(arrearsByCustomer).sort((a,b) => b.amount - a.amount);
+        setArrearsDetails(arrearsList);
+        const totalArrears = arrearsList.reduce((acc, detail) => acc + detail.amount, 0);
+
         // Total Accumulation Calculations
         const totalIncome = payments.reduce((sum, p) => sum + (p.totalPayment || p.paidAmount), 0);
         const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -75,11 +103,6 @@ export default function FinancePage() {
         const balance = (totalIncome + totalOtherIncome) - totalExpense;
 
         // Monthly Specific Calculations
-        const today = new Date();
-        const currentMonth = getMonth(today);
-        const currentYear = getYear(today);
-        const startOfCurrentMonth = startOfMonth(today);
-
         const thisMonthPayments = payments.filter(p => {
             const paymentDate = parseISO(p.paymentDate);
             return isSameMonth(paymentDate, today) && isSameYear(paymentDate, today);
@@ -95,17 +118,11 @@ export default function FinancePage() {
 
         // General stats for cards
         const totalOmset = customers.reduce((acc, c) => acc + c.packagePrice, 0);
-        const newCustomers = customers.filter(c => c.installationDate && isSameMonth(parseISO(c.installationDate), today) && isSameYear(parseISO(c.installationDate), today)).length;
-        const oldUnpaidInvoices = invoices.filter(invoice => {
-            const invoiceDate = parseISO(invoice.date);
-            return invoice.status === 'belum lunas' && invoiceDate < startOfCurrentMonth;
-        });
-        const totalArrears = oldUnpaidInvoices.reduce((acc, inv) => acc + inv.amount, 0);
-
+        
         // Chart Data
         const thisMonthInvoices = invoices.filter(invoice => {
             const invoiceDate = parseISO(invoice.date);
-            return getMonth(invoiceDate) === currentMonth && getYear(invoiceDate) === currentYear;
+            return isSameMonth(invoiceDate, today) && isSameYear(invoiceDate, today);
         });
         const paidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + inv.amount }), { count: 0, amount: 0 });
         const unpaidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'belum lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + inv.amount }), { count: 0, amount: 0 });
@@ -142,7 +159,7 @@ export default function FinancePage() {
             netProfit,
             totalOmset,
             totalArrears,
-            newCustomers,
+            newCustomersCount: newCustomersList.length,
         });
 
     } catch (error) {
@@ -228,26 +245,85 @@ export default function FinancePage() {
                 <p className="text-xs text-muted-foreground">Potensi pendapatan bulanan</p>
                 </CardContent>
             </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pelanggan Baru Bulan Ini</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                <div className="text-2xl font-bold">+{stats.newCustomers}</div>
-                <p className="text-xs text-muted-foreground">Pelanggan baru bulan ini</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Tunggakan</CardTitle>
-                <FileClock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                <div className="text-2xl font-bold">Rp{stats.totalArrears.toLocaleString('id-ID')}</div>
-                <p className="text-xs text-muted-foreground">Tagihan belum lunas dari bulan lalu</p>
-                </CardContent>
-            </Card>
+
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Card className="cursor-pointer hover:bg-muted/50">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pelanggan Baru Bulan Ini</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                        <div className="text-2xl font-bold">+{stats.newCustomersCount}</div>
+                        <p className="text-xs text-muted-foreground">Pelanggan baru bulan ini</p>
+                        </CardContent>
+                    </Card>
+                </DialogTrigger>
+                 <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                    <DialogTitle>Pelanggan Baru Bulan Ini</DialogTitle>
+                    <DialogDescription>
+                        Berikut adalah daftar pelanggan yang bergabung pada bulan {format(new Date(), 'MMMM yyyy', {locale: id})}.
+                    </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-60">
+                        {newCustomers.length > 0 ? (
+                            <ul className="space-y-2 p-1">
+                                {newCustomers.map(customer => (
+                                    <li key={customer.id} className="text-sm p-2 rounded-md bg-muted/50">{customer.name}</li>
+                                ))}
+                            </ul>
+                        ): (
+                            <p className="text-sm text-muted-foreground text-center py-4">Tidak ada pelanggan baru bulan ini.</p>
+                        )}
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog>
+                 <DialogTrigger asChild>
+                    <Card className="cursor-pointer hover:bg-muted/50">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Tunggakan</CardTitle>
+                        <FileClock className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                        <div className="text-2xl font-bold">Rp{stats.totalArrears.toLocaleString('id-ID')}</div>
+                        <p className="text-xs text-muted-foreground">Tagihan belum lunas dari bulan lalu</p>
+                        </CardContent>
+                    </Card>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rincian Tunggakan</DialogTitle>
+                        <DialogDescription>
+                            Daftar pelanggan yang memiliki tunggakan dari bulan-bulan sebelumnya.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-80">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                <TableHead>Pelanggan</TableHead>
+                                <TableHead className="text-right">Jumlah Tunggakan</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {arrearsDetails.length > 0 ? arrearsDetails.map(detail => (
+                                <TableRow key={detail.id}>
+                                    <TableCell className="font-medium">{detail.name}</TableCell>
+                                    <TableCell className="text-right">Rp{detail.amount.toLocaleString('id-ID')}</TableCell>
+                                </TableRow>
+                                )) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="h-24 text-center">Tidak ada tunggakan.</TableCell>
+                                </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
         </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -292,7 +368,6 @@ export default function FinancePage() {
         </CardContent>
         </Card>
       </div>
-
        <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline">
                 <Link href="/other-incomes">
@@ -307,7 +382,8 @@ export default function FinancePage() {
                 </Link>
             </Button>
         </div>
-
     </div>
   )
 }
+
+    
