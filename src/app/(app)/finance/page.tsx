@@ -300,14 +300,14 @@ export default function FinancePage() {
                         </CardContent>
                     </Card>
                 </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
+                <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+                    <DialogHeader className="p-6 pb-4 border-b shrink-0">
                         <DialogTitle>Rincian Tunggakan</DialogTitle>
                         <DialogDescription>
                             Daftar pelanggan yang memiliki tunggakan dari bulan-bulan sebelumnya.
                         </DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="max-h-80">
+                    <div className="flex-1 overflow-y-auto p-6">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -328,7 +328,7 @@ export default function FinancePage() {
                                 )}
                             </TableBody>
                         </Table>
-                    </ScrollArea>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>
