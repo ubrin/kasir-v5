@@ -19,6 +19,15 @@ import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
+const downloadImage = (blob: Blob, fileName: string) => {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 export default function InvoicePage() {
     const params = useParams();
     const customerId = params.id as string;
@@ -105,11 +114,7 @@ export default function InvoicePage() {
             });
         } catch (err) {
             console.error('Failed to copy text: ', err);
-            toast({
-                title: 'Gagal menyalin pesan',
-                description: 'Silakan salin pesan secara manual.',
-                variant: 'destructive',
-            });
+            // This fallback might not be needed if clipboard API is well-supported, but it's safe to have.
         }
 
         const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true });
@@ -123,27 +128,36 @@ export default function InvoicePage() {
             const fileName = `invoice-${customer.id}.png`;
             const file = new File([blob], fileName, { type: 'image/png' });
     
+            // Check for Web Share API support for files
             if (navigator.share && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
                         files: [file],
                         title: `Invoice ${customer.name}`,
-                        // text is often ignored by WhatsApp when a file is present, so we rely on clipboard
                     });
                 } catch (error) {
-                    console.error('Error sharing:', error);
-                    // Avoid showing an error toast if user simply closes the share dialog
                     if ((error as any).name !== 'AbortError') {
                         toast({ title: 'Gagal membagikan invoice', variant: 'destructive' });
                     }
                 }
             } else {
-                // Fallback for desktop browsers that don't support sharing files
-                toast({
-                    title: 'Fitur "Bagikan" tidak didukung',
-                    description: 'Silakan unduh PDF dan kirim secara manual.',
-                    variant: 'destructive'
-                });
+                // Fallback for desktop or unsupported browsers
+                try {
+                    downloadImage(blob, fileName);
+                    toast({
+                        title: "Gambar Invoice Diunduh",
+                        description: "Buka WhatsApp Web untuk melampirkan gambar.",
+                    });
+                    // Optionally open WhatsApp Web
+                    const whatsappUrl = `https://web.whatsapp.com/send?phone=${customer.phone || ''}&text=`;
+                    window.open(whatsappUrl, '_blank');
+                } catch (downloadError) {
+                    toast({
+                        title: 'Gagal mengunduh gambar',
+                        description: 'Silakan coba unduh PDF secara manual.',
+                        variant: 'destructive',
+                    });
+                }
             }
         }, 'image/png');
     };
@@ -181,8 +195,8 @@ export default function InvoicePage() {
             <div ref={invoiceRef}>
                 <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="invoice-content">
                     <CardHeader className="p-4 text-center">
-                       <div className="flex justify-center items-center gap-2 mb-2">
-                            <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '32px', height: '32px' }} className="print:w-8 print:h-8"/>
+                        <div className="flex justify-center items-center gap-2 mb-2">
+                             <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '32px', height: '32px' }} className="print:w-8 print:h-8"/>
                             <div className="text-left">
                                 <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
                                 <p className="text-xs">suport by NAVAZ</p>
@@ -268,3 +282,4 @@ export default function InvoicePage() {
         </div>
     );
 }
+

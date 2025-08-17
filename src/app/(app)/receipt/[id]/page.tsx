@@ -20,6 +20,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
+const downloadImage = (blob: Blob, fileName: string) => {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 export default function ReceiptPage() {
     const params = useParams();
     const paymentId = params.id as string;
@@ -109,11 +118,6 @@ export default function ReceiptPage() {
             });
         } catch (err) {
             console.error('Failed to copy text: ', err);
-            toast({
-                title: 'Gagal menyalin pesan',
-                description: 'Silakan salin pesan secara manual.',
-                variant: 'destructive',
-            });
         }
 
         const canvas = await html2canvas(receiptRef.current, { scale: 2, useCORS: true });
@@ -132,21 +136,28 @@ export default function ReceiptPage() {
                     await navigator.share({
                         files: [file],
                         title: `Struk Pembayaran ${customer.name}`,
-                        // text is often ignored by WhatsApp when a file is present, so we rely on clipboard
                     });
                 } catch (error) {
-                     // Avoid showing an error toast if user simply closes the share dialog
                      if ((error as any).name !== 'AbortError') {
                         toast({ title: 'Gagal membagikan struk', variant: 'destructive' });
                     }
                 }
             } else {
-                 // Fallback for desktop browsers that don't support sharing files
-                toast({
-                    title: 'Fitur "Bagikan" tidak didukung',
-                    description: 'Silakan unduh PDF dan kirim secara manual.',
-                    variant: 'destructive'
-                });
+                try {
+                    downloadImage(blob, fileName);
+                    toast({
+                        title: "Gambar Struk Diunduh",
+                        description: "Buka WhatsApp Web untuk melampirkan gambar.",
+                    });
+                    const whatsappUrl = `https://web.whatsapp.com/send?phone=${customer.phone || ''}&text=`;
+                    window.open(whatsappUrl, '_blank');
+                } catch (downloadError) {
+                    toast({
+                        title: 'Gagal mengunduh gambar',
+                        description: 'Silakan coba unduh PDF secara manual.',
+                        variant: 'destructive',
+                    });
+                }
             }
         }, 'image/png');
     };
@@ -293,3 +304,4 @@ export default function ReceiptPage() {
         </div>
     );
 }
+
