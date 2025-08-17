@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, ArrowLeft, Loader2 } from 'lucide-react';
+import { Download, ArrowLeft, Loader2, Send } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
@@ -111,6 +111,38 @@ export default function InvoicePage() {
           pdf.save(fileName);
         });
       };
+
+    const handleSendWhatsApp = () => {
+        if (!customer?.phone) {
+            toast({
+                title: "Nomor Tidak Ditemukan",
+                description: "Nomor WhatsApp pelanggan tidak terdaftar.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const invoiceDetails = customerInvoices.map(inv => 
+            `- Tagihan ${format(parseISO(inv.date), "MMMM yyyy", { locale: id })}: Rp${inv.amount.toLocaleString('id-ID')}`
+        ).join('\n');
+
+        const message = `
+Yth. Bapak/Ibu ${customer.name},
+
+Ini adalah pengingat pembayaran untuk tagihan internet Anda dengan rincian sebagai berikut:
+${invoiceDetails}
+
+Total Tagihan: *Rp${totalAmount.toLocaleString('id-ID')}*
+
+Mohon untuk segera melakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari gangguan layanan.
+
+Terima kasih.
+- PT CYBERNETWORK CORP -
+        `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
+
+        const whatsappUrl = `https://wa.me/${customer.phone}?text=${message}`;
+        window.open(whatsappUrl, '_blank');
+    };
     
     if (loading) {
         return (
@@ -131,10 +163,16 @@ export default function InvoicePage() {
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Kembali
                 </Button>
-                <Button onClick={handleDownloadPdf}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Unduh PDF
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button onClick={handleSendWhatsApp}>
+                        <Send className="mr-2 h-4 w-4" />
+                        Kirim ke WA
+                    </Button>
+                    <Button onClick={handleDownloadPdf}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Unduh PDF
+                    </Button>
+                </div>
             </div>
             <div ref={invoiceRef}>
                 <Card className="border shadow-lg print:border-none print:shadow-none" id="invoice-content">

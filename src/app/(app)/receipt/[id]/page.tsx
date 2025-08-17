@@ -125,8 +125,11 @@ export default function ReceiptPage() {
         const paidMonths = paidInvoices.map(inv => format(parseISO(inv.date), "MMMM yyyy", { locale: id })).join(', ');
 
         const message = `
-Terima kasih Anda telah melakukan Pembayaran internet untuk: ${paidMonths}
-Total Bayar: Rp${payment?.totalPayment.toLocaleString('id-ID')}
+Terima kasih Anda telah melakukan Pembayaran internet untuk bulan:
+*${paidMonths}*
+
+Total Bayar: *Rp${payment?.totalPayment.toLocaleString('id-ID')}*
+Status: *LUNAS*
 
 Terima kasih telah menggunakan layanan kami.
 - PT CYBERNETWORK CORP -
