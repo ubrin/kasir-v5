@@ -115,22 +115,9 @@ export default function InvoicePage() {
     const handleSendWhatsApp = () => {
         if (!customer) return;
 
-        const invoiceDetails = customerInvoices.map(inv => 
-            `- Tagihan ${format(parseISO(inv.date), "MMMM yyyy", { locale: id })}: Rp${inv.amount.toLocaleString('id-ID')}`
-        ).join('\n');
-
         const message = `
-Yth. Bapak/Ibu ${customer.name},
-
-Ini adalah pengingat pembayaran untuk tagihan internet Anda dengan rincian sebagai berikut:
-${invoiceDetails}
-
-Total Tagihan: *Rp${totalAmount.toLocaleString('id-ID')}*
-
-Mohon untuk segera melakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari gangguan layanan.
-
-Terima kasih.
-- PT CYBERNETWORK CORP -
+Yth. Bapak/Ibu pelanggan CYBERNETWORK, Ini adalah rincian untuk pembayaran internet bulan ini. 
+Terima kasih, selamat beraktivitas kembali - PT CYBERNETWORK CORP -
         `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
 
         const phoneNumber = customer.phone;
