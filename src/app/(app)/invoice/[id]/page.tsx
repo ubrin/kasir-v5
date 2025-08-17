@@ -87,7 +87,7 @@ export default function InvoicePage() {
           logging: false
         }).then((canvas) => {
           const imgData = canvas.toDataURL('image/png');
-          const pdf = new jsPDF('p', 'a4', true);
+          const pdf = new jsPDF('p', 'mm', 'a4');
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = pdf.internal.pageSize.getHeight();
           const canvasWidth = canvas.width;
@@ -145,7 +145,26 @@ export default function InvoicePage() {
                     });
                 } catch (error) {
                     if ((error as any).name !== 'AbortError') {
-                        toast({ title: 'Gagal membagikan invoice', variant: 'destructive' });
+                        // On desktop, if sharing fails, fallback to download
+                        if (typeof window !== 'undefined' && !/Mobi|Android/i.test(window.navigator.userAgent)) {
+                             try {
+                                downloadImage(blob, fileName);
+                                toast({
+                                    title: "Gambar Invoice Diunduh",
+                                    description: "Buka WhatsApp Web untuk melampirkan gambar.",
+                                });
+                                const whatsappUrl = `https://web.whatsapp.com/send?phone=${customer.phone || ''}&text=`;
+                                window.open(whatsappUrl, '_blank');
+                            } catch (downloadError) {
+                                toast({
+                                    title: 'Gagal mengunduh gambar',
+                                    description: 'Silakan coba unduh PDF secara manual.',
+                                    variant: 'destructive',
+                                });
+                            }
+                        } else {
+                           toast({ title: 'Gagal membagikan invoice', variant: 'destructive' });
+                        }
                     }
                 }
             } else {
