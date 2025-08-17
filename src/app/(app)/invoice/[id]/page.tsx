@@ -179,6 +179,10 @@ export default function InvoicePage() {
     if (!customer) {
         return notFound();
     }
+    
+    const invoiceNumber = customerInvoices.length > 0 
+        ? `#${customer.id.substring(0, 5).toUpperCase()}-${customerInvoices[0].id.substring(0, 5).toUpperCase()}` 
+        : `#${customer.id.substring(0, 5).toUpperCase()}`;
 
     return (
         <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 bg-background">
@@ -202,16 +206,16 @@ export default function InvoicePage() {
                 <Card className="border shadow-lg print:border-none print:shadow-none" id="invoice-content">
                     <CardHeader className="p-6">
                         <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-4">
+                             <div className="flex items-center gap-4">
                                 <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '48px', height: '48px' }} />
                                 <div>
                                     <h2 className="font-bold text-lg">PT CYBERNETWORK CORP</h2>
-                                    <p className="text-muted-foreground text-xs">support by NAVAZ</p>
+                                    <p className="text-muted-foreground text-xs">suport by NAVAZ</p>
                                 </div>
                             </div>
                             <div className="text-right">
                                 <h1 className="text-2xl font-bold uppercase text-primary">Invoice</h1>
-                                <p className="text-muted-foreground">#INV-{customer.id.substring(0, 5)}-{format(new Date(), 'yyyyMMdd')}</p>
+                                <p className="text-muted-foreground">{invoiceNumber}</p>
                             </div>
                         </div>
                     </CardHeader>
