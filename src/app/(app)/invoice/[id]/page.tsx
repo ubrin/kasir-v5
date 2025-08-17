@@ -113,14 +113,7 @@ export default function InvoicePage() {
       };
 
     const handleSendWhatsApp = () => {
-        if (!customer?.phone) {
-            toast({
-                title: "Nomor Tidak Ditemukan",
-                description: "Nomor WhatsApp pelanggan tidak terdaftar.",
-                variant: "destructive",
-            });
-            return;
-        }
+        if (!customer) return;
 
         const invoiceDetails = customerInvoices.map(inv => 
             `- Tagihan ${format(parseISO(inv.date), "MMMM yyyy", { locale: id })}: Rp${inv.amount.toLocaleString('id-ID')}`
@@ -140,7 +133,8 @@ Terima kasih.
 - PT CYBERNETWORK CORP -
         `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
 
-        const whatsappUrl = `https://wa.me/${customer.phone}?text=${message}`;
+        const phoneNumber = customer.phone;
+        const whatsappUrl = `https://${phoneNumber ? 'wa.me/' + phoneNumber : 'api.whatsapp.com'}/send?text=${message}`;
         window.open(whatsappUrl, '_blank');
     };
     

@@ -113,14 +113,7 @@ export default function ReceiptPage() {
     };
 
     const handleSendWhatsApp = () => {
-        if (!customer?.phone) {
-            toast({
-                title: "Nomor Tidak Ditemukan",
-                description: "Nomor WhatsApp pelanggan tidak terdaftar.",
-                variant: "destructive",
-            });
-            return;
-        }
+        if (!customer) return;
 
         const paidMonths = paidInvoices.map(inv => format(parseISO(inv.date), "MMMM yyyy", { locale: id })).join(', ');
 
@@ -134,8 +127,9 @@ Status: *LUNAS*
 Terima kasih telah menggunakan layanan kami.
 - PT CYBERNETWORK CORP -
         `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
-
-        const whatsappUrl = `https://wa.me/${customer.phone}?text=${message}`;
+        
+        const phoneNumber = customer.phone;
+        const whatsappUrl = `https://${phoneNumber ? 'wa.me/' + phoneNumber : 'api.whatsapp.com'}/send?text=${message}`;
         window.open(whatsappUrl, '_blank');
     };
 
