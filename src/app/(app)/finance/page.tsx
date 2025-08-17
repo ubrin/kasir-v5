@@ -260,16 +260,16 @@ export default function FinancePage() {
                         </CardContent>
                     </Card>
                 </DialogTrigger>
-                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
+                 <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+                    <DialogHeader className="p-6 pb-4 border-b shrink-0">
                     <DialogTitle>Pelanggan Baru Bulan Ini</DialogTitle>
                     <DialogDescription>
                         Berikut adalah daftar pelanggan yang bergabung pada bulan {format(new Date(), 'MMMM yyyy', {locale: id})}.
                     </DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="max-h-60 rounded-md border p-1">
+                    <div className="flex-1 overflow-y-auto p-6">
                         {newCustomers.length > 0 ? (
-                            <div className="space-y-4 p-3">
+                            <div className="space-y-4">
                                 {newCustomers.map(customer => (
                                     <div key={customer.id} className="p-3 rounded-md bg-muted/50 text-sm">
                                         <p className="font-semibold">{customer.name}</p>
@@ -283,7 +283,7 @@ export default function FinancePage() {
                         ): (
                             <p className="text-sm text-muted-foreground text-center py-4">Tidak ada pelanggan baru bulan ini.</p>
                         )}
-                    </ScrollArea>
+                    </div>
                 </DialogContent>
             </Dialog>
 
