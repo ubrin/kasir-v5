@@ -2,9 +2,8 @@
 'use client';
 
 import * as React from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Payment, Expense, OtherIncome } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -14,63 +13,63 @@ import { Loader2, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 export default function ReportsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
-  const [stats, setStats] = React.useState({
-      totalIncome: 0,
-      totalExpense: 0,
-      balance: 0,
-  });
+  const [stats, setStats] = React.useState<{
+      totalIncome: number;
+      totalExpense: number;
+      balance: number;
+  } | null>(null);
 
-  const fetchData = React.useCallback(async () => {
-    setLoading(true);
-    try {
-        const [
-            paymentsSnapshot, 
-            expensesSnapshot, 
-            otherIncomesSnapshot,
-        ] = await Promise.all([
-            getDocs(collection(db, "payments")),
-            getDocs(query(collection(db, "expenses"), where("date", "!=", null))),
-            getDocs(collection(db, "otherIncomes")),
-        ]);
-        
-        const payments = paymentsSnapshot.docs.map(doc => doc.data() as Payment);
-        const expenses = expensesSnapshot.docs.map(doc => doc.data() as Expense);
-        const otherIncomes = otherIncomesSnapshot.docs.map(doc => doc.data() as OtherIncome);
-
-        const totalPaymentIncome = payments.reduce((sum, p) => sum + (p.totalPayment || p.paidAmount), 0);
-        const totalOtherIncome = otherIncomes.reduce((sum, e) => sum + e.amount, 0);
-        const totalIncome = totalPaymentIncome + totalOtherIncome;
-
-        const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
-        
-        const balance = totalIncome - totalExpense;
-
+  React.useEffect(() => {
+    const statsDocRef = doc(db, "app-stats", "summary");
+    
+    const unsubscribe = onSnapshot(statsDocRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
         setStats({
-            totalIncome,
-            totalExpense,
-            balance,
+          totalIncome: data.totalIncome || 0,
+          totalExpense: data.totalExpense || 0,
+          balance: data.balance || 0,
         });
-
-    } catch (error) {
-        console.error("Failed to fetch finance data:", error);
-        toast({
-            title: "Gagal memuat data",
-            description: "Tidak dapat mengambil data keuangan.",
+      } else {
+         toast({
+            title: "Data Statistik Tidak Ditemukan",
+            description: "Data ringkasan sedang dibuat. Silakan tunggu beberapa saat.",
             variant: "destructive"
         });
-    } finally {
-        setLoading(false);
-    }
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Failed to fetch finance data:", error);
+      toast({
+          title: "Gagal memuat data",
+          description: "Tidak dapat mengambil data keuangan.",
+          variant: "destructive"
+      });
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [toast]);
-  
-  React.useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   if (loading) {
     return (
         <div className="flex justify-center items-center h-64">
             <Loader2 className="h-16 w-16 animate-spin" />
+        </div>
+    );
+  }
+
+  if (!stats) {
+     return (
+        <div className="flex justify-center items-center h-64">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Data Belum Tersedia</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">Data statistik belum tersedia. Silakan cek kembali nanti.</p>
+                </CardContent>
+            </Card>
         </div>
     );
   }

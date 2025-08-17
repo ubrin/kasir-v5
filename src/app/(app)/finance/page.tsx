@@ -1,217 +1,94 @@
 
 'use client'
 import * as React from "react";
-import { collection, getDocs, query, where, writeBatch, doc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Customer, Invoice, Payment, Expense, OtherIncome } from "@/lib/types";
+import type { Customer, Invoice } from "@/lib/types";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
-import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart, DollarSign, Archive, FileText, FileClock, Users, Coins, BookText } from "lucide-react"
+import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { parseISO, startOfMonth, subMonths, getMonth, getYear, isSameMonth, isSameYear, format, differenceInMonths } from "date-fns";
+import { format } from "date-fns";
 import { id } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
 
-type ArrearsDetail = {
-    name: string;
-    amount: number;
-    id: string;
-}
-
-type OmsetDetail = {
-    subscriptionMbps: number;
-    packagePrice: number;
-    count: number;
-    total: number;
+type StatsSummary = {
+  totalIncome: number;
+  totalExpense: number;
+  totalOtherIncome: number;
+  balance: number;
+  monthlyIncome: number;
+  monthlyExpense: number;
+  netProfit: number;
+  totalOmset: number;
+  totalArrears: number;
+  newCustomersCount: number;
+  monthlyRevenueData: { month: string; revenue: number }[];
+  pieData: { name: string; value: number; count: number }[];
+  arrearsDetails: { id: string; name: string; amount: number }[];
+  omsetDetails: { subscriptionMbps: number; packagePrice: number; count: number; total: number }[];
+  newCustomers: { id: string; name: string; subscriptionMbps: number; packagePrice: number }[];
 };
-
 
 export default function FinancePage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
-  const [stats, setStats] = React.useState({
-      totalIncome: 0,
-      totalExpense: 0,
-      totalOtherIncome: 0,
-      balance: 0,
-      monthlyIncome: 0,
-      monthlyExpense: 0,
-      netProfit: 0,
-      totalOmset: 0,
-      totalArrears: 0,
-      newCustomersCount: 0,
-  });
-  const [monthlyRevenueData, setMonthlyRevenueData] = React.useState<any[]>([]);
-  const [pieData, setPieData] = React.useState<any[]>([]);
-  const [newCustomers, setNewCustomers] = React.useState<Customer[]>([]);
-  const [arrearsDetails, setArrearsDetails] = React.useState<ArrearsDetail[]>([]);
-  const [omsetDetails, setOmsetDetails] = React.useState<OmsetDetail[]>([]);
+  const [stats, setStats] = React.useState<StatsSummary | null>(null);
 
-
-  const fetchData = React.useCallback(async () => {
-    setLoading(true);
-    try {
-        const [
-            paymentsSnapshot, 
-            expensesSnapshot, 
-            otherIncomesSnapshot,
-            customersSnapshot,
-            invoicesSnapshot,
-        ] = await Promise.all([
-            getDocs(collection(db, "payments")),
-            getDocs(query(collection(db, "expenses"), where("date", "!=", null))),
-            getDocs(collection(db, "otherIncomes")),
-            getDocs(collection(db, "customers")),
-            getDocs(collection(db, "invoices")),
-        ]);
-        
-        const payments = paymentsSnapshot.docs.map(doc => doc.data() as Payment);
-        const expenses = expensesSnapshot.docs.map(doc => doc.data() as Expense);
-        const otherIncomes = otherIncomesSnapshot.docs.map(doc => doc.data() as OtherIncome);
-        const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-        const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
-
-        const today = new Date();
-        const startOfCurrentMonth = startOfMonth(today);
-
-        // Pelanggan Baru
-        const newCustomersList = customers.filter(c => c.installationDate && isSameMonth(parseISO(c.installationDate), today) && isSameYear(parseISO(c.installationDate), today));
-        setNewCustomers(newCustomersList);
-
-        // Tunggakan
-        const oldUnpaidInvoices = invoices.filter(invoice => {
-            const invoiceDate = parseISO(invoice.date);
-            return invoice.status === 'belum lunas' && invoiceDate < startOfCurrentMonth;
-        });
-
-        const arrearsByCustomer: { [id: string]: ArrearsDetail } = {};
-        oldUnpaidInvoices.forEach(invoice => {
-            if (!arrearsByCustomer[invoice.customerId]) {
-                arrearsByCustomer[invoice.customerId] = {
-                    id: invoice.customerId,
-                    name: invoice.customerName,
-                    amount: 0,
-                };
-            }
-            arrearsByCustomer[invoice.customerId].amount += invoice.amount;
-        });
-        const arrearsList = Object.values(arrearsByCustomer).sort((a,b) => b.amount - a.amount);
-        setArrearsDetails(arrearsList);
-        const totalArrears = arrearsList.reduce((acc, detail) => acc + detail.amount, 0);
-
-        // Total Accumulation Calculations
-        const totalIncome = payments.reduce((sum, p) => sum + (p.totalPayment || p.paidAmount), 0);
-        const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
-        const totalOtherIncome = otherIncomes.reduce((sum, e) => sum + e.amount, 0);
-        const balance = (totalIncome + totalOtherIncome) - totalExpense;
-
-        // Monthly Specific Calculations
-        const thisMonthPayments = payments.filter(p => {
-            const paymentDate = parseISO(p.paymentDate);
-            return isSameMonth(paymentDate, today) && isSameYear(paymentDate, today);
-        });
-        const monthlyIncome = thisMonthPayments.reduce((sum, p) => sum + (p.totalPayment || p.paidAmount), 0);
-
-        const thisMonthExpenses = expenses.filter(e => {
-            const expenseDate = parseISO(e.date!);
-            return isSameMonth(expenseDate, today) && isSameYear(expenseDate, today);
-        });
-        const monthlyExpense = thisMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
-        const netProfit = monthlyIncome - monthlyExpense;
-
-        // General stats for cards
-        const totalOmset = customers.reduce((acc, c) => acc + c.packagePrice, 0);
-        
-        // Omset Details
-        const omsetBreakdown: { [key: string]: OmsetDetail } = {};
-        customers.forEach(c => {
-            const key = `${c.subscriptionMbps}-${c.packagePrice}`;
-            if (!omsetBreakdown[key]) {
-                omsetBreakdown[key] = {
-                    subscriptionMbps: c.subscriptionMbps,
-                    packagePrice: c.packagePrice,
-                    count: 0,
-                    total: 0
-                };
-            }
-            omsetBreakdown[key].count++;
-            omsetBreakdown[key].total += c.packagePrice;
-        });
-        const omsetDetailsList = Object.values(omsetBreakdown).sort((a,b) => b.total - a.total);
-        setOmsetDetails(omsetDetailsList);
-
-        // Chart Data
-        const thisMonthInvoices = invoices.filter(invoice => {
-            const invoiceDate = parseISO(invoice.date);
-            return isSameMonth(invoiceDate, today) && isSameYear(invoiceDate, today);
-        });
-        const paidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + inv.amount }), { count: 0, amount: 0 });
-        const unpaidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'belum lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + inv.amount }), { count: 0, amount: 0 });
-        setPieData([
-            { name: 'Lunas', value: paidInvoicesStats.amount, count: paidInvoicesStats.count },
-            { name: 'Belum Lunas', value: unpaidInvoicesStats.amount, count: unpaidInvoicesStats.count },
-        ]);
-
-        const revenueDataByMonth: { [key: string]: number } = {};
-        for (let i = 5; i >= 0; i--) {
-            const date = subMonths(new Date(), i);
-            const monthName = date.toLocaleString('id-ID', { month: 'short' });
-            revenueDataByMonth[monthName] = 0;
-        }
-        payments.forEach(p => {
-            const paymentDate = parseISO(p.paymentDate);
-            if (differenceInMonths(new Date(), paymentDate) < 6) {
-                const monthName = paymentDate.toLocaleString('id-ID', { month: 'short' });
-                if (revenueDataByMonth.hasOwnProperty(monthName)) {
-                    revenueDataByMonth[monthName] += (p.totalPayment || p.paidAmount);
-                }
-            }
-        });
-        setMonthlyRevenueData(Object.keys(revenueDataByMonth).map(month => ({ month, revenue: revenueDataByMonth[month] })));
-
-
-        setStats({
-            totalIncome,
-            totalExpense,
-            totalOtherIncome,
-            balance,
-            monthlyIncome,
-            monthlyExpense,
-            netProfit,
-            totalOmset,
-            totalArrears,
-            newCustomersCount: newCustomersList.length,
-        });
-
-    } catch (error) {
-        console.error("Failed to fetch finance data:", error);
+  React.useEffect(() => {
+    const statsDocRef = doc(db, "app-stats", "summary");
+    
+    const unsubscribe = onSnapshot(statsDocRef, (doc) => {
+      if (doc.exists()) {
+        setStats(doc.data() as StatsSummary);
+      } else {
         toast({
-            title: "Gagal memuat data",
-            description: "Tidak dapat mengambil data keuangan.",
+            title: "Data Statistik Tidak Ditemukan",
+            description: "Data ringkasan sedang dibuat. Silakan tunggu beberapa saat.",
             variant: "destructive"
         });
-    } finally {
-        setLoading(false);
-    }
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Failed to fetch finance data:", error);
+      toast({
+          title: "Gagal memuat data",
+          description: "Tidak dapat mengambil data keuangan.",
+          variant: "destructive"
+      });
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [toast]);
-  
-  React.useEffect(() => {
-    fetchData();
-  }, [fetchData]);
   
 
   if (loading) {
     return (
         <div className="flex justify-center items-center h-64">
             <Loader2 className="h-16 w-16 animate-spin" />
+        </div>
+    );
+  }
+
+  if (!stats) {
+     return (
+        <div className="flex justify-center items-center h-64">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Data Belum Tersedia</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">Data statistik belum tersedia. Silakan cek kembali nanti.</p>
+                </CardContent>
+            </Card>
         </div>
     );
   }
@@ -294,7 +171,7 @@ export default function FinancePage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {omsetDetails.length > 0 ? omsetDetails.map((detail, index) => (
+                                {stats.omsetDetails.length > 0 ? stats.omsetDetails.map((detail, index) => (
                                 <TableRow key={index}>
                                     <TableCell className="font-medium">
                                         {detail.subscriptionMbps}Mbps @Rp{detail.packagePrice.toLocaleString('id-ID')}
@@ -334,9 +211,9 @@ export default function FinancePage() {
                     </DialogDescription>
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto p-6">
-                        {newCustomers.length > 0 ? (
+                        {stats.newCustomers.length > 0 ? (
                             <div className="space-y-4">
-                                {newCustomers.map(customer => (
+                                {stats.newCustomers.map(customer => (
                                     <div key={customer.id} className="p-3 rounded-md bg-muted/50 text-sm">
                                         <p className="font-semibold">{customer.name}</p>
                                         <div className="flex justify-between text-muted-foreground mt-1">
@@ -382,7 +259,7 @@ export default function FinancePage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {arrearsDetails.length > 0 ? arrearsDetails.map(detail => (
+                                {stats.arrearsDetails.length > 0 ? stats.arrearsDetails.map(detail => (
                                 <TableRow key={detail.id}>
                                     <TableCell className="font-medium">{detail.name}</TableCell>
                                     <TableCell className="text-right">Rp{detail.amount.toLocaleString('id-ID')}</TableCell>
@@ -407,7 +284,7 @@ export default function FinancePage() {
           </CardHeader>
           <CardContent className="pl-2">
             <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={monthlyRevenueData}>
+                <BarChart data={stats.monthlyRevenueData}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
                     <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `Rp${new Intl.NumberFormat('id-ID', { notation: "compact", compactDisplay: "short" }).format(value as number)}`}/>
@@ -426,14 +303,14 @@ export default function FinancePage() {
             <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                     <Tooltip contentStyle={{ background: "hsl(var(--card))", borderColor: "hsl(var(--border))" }} formatter={(value: number, name: string, props: any) => [`Rp${value.toLocaleString('id-ID')}`, `${name} (${props.payload.count} Faktur)`]}/>
-                    <Pie data={pieData} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#8884d8" dataKey="value" label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                    <Pie data={stats.pieData} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#8884d8" dataKey="value" label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
                         if (!percent || percent < 0.01) return null;
                         const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
                         const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
                         const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
                         return (<text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12}>{`${(percent * 100).toFixed(0)}%`}</text>);
                     }}>
-                    {pieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />))}
+                    {stats.pieData.map((entry, index) => (<Cell key={`cell-${index}`} fill={pieChartColors[index % pieChartColors.length]} />))}
                     </Pie>
                     <Legend iconType="circle" wrapperStyle={{fontSize: "12px"}}/>
                 </PieChart>
@@ -464,5 +341,3 @@ export default function FinancePage() {
     </div>
   )
 }
-
-    

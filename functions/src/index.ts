@@ -16,7 +16,9 @@ admin.initializeApp();
 
 // Import and export the new scheduled function
 import { generateMonthlyInvoices } from "./invoice-generator";
-export { generateMonthlyInvoices };
+import { aggregateStats } from "./data-aggregator";
+
+export { generateMonthlyInvoices, aggregateStats };
 
 
 // For cost control, you can set the maximum number of containers that can be
