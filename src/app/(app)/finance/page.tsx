@@ -360,54 +360,7 @@ export default function FinancePage() {
         </Card>
       </div>
 
-       <Card>
-            <CardHeader>
-                <CardTitle>Ringkasan Keuangan Total</CardTitle>
-                <CardDescription>Total akumulasi dari seluruh riwayat transaksi.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex items-center gap-4">
-                         <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-lg">
-                            <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Pemasukan Tagihan</p>
-                            <p className="text-2xl font-bold">Rp{stats.totalIncome.toLocaleString('id-ID')}</p>
-                        </div>
-                    </div>
-                     <div className="flex items-center gap-4">
-                         <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-lg">
-                            <Coins className="h-6 w-6 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Pemasukan Lainnya</p>
-                            <p className="text-2xl font-bold">Rp{stats.totalOtherIncome.toLocaleString('id-ID')}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="bg-red-100 dark:bg-red-900/50 p-3 rounded-lg">
-                            <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total Pengeluaran</p>
-                            <p className="text-2xl font-bold">Rp{stats.totalExpense.toLocaleString('id-ID')}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-lg">
-                            <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Saldo Bersih</p>
-                            <p className="text-2xl font-bold">Rp{stats.balance.toLocaleString('id-ID')}</p>
-                        </div>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-
-        <div className="flex items-center gap-2">
+       <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline">
                 <Link href="/other-incomes">
                     <DollarSign className="mr-2 h-4 w-4" />
