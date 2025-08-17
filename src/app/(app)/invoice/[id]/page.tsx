@@ -72,20 +72,12 @@ export default function InvoicePage() {
     const handleDownloadPdf = () => {
         const input = invoiceRef.current;
         if (!input || !customer) return;
-
-        // Hide buttons before capture
-        const buttons = input.querySelectorAll('button');
-        buttons.forEach(btn => btn.style.display = 'none');
     
         html2canvas(input, {
-          scale: 2, // Increase scale for better quality
+          scale: 2,
           useCORS: true, 
         }).then((canvas) => {
-          // Show buttons after capture
-          buttons.forEach(btn => btn.style.display = '');
-
           const imgData = canvas.toDataURL('image/png');
-          // Standard 58mm thermal paper width
           const pdf = new jsPDF('p', 'mm', [58, 200]); 
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const canvasWidth = canvas.width;
@@ -127,9 +119,10 @@ export default function InvoicePage() {
                     toast({ title: 'Gagal membagikan invoice', description: 'Mungkin Anda membatalkan aksi.', variant: 'destructive' });
                 }
             } else {
-                 // Fallback for desktop or unsupported browsers
-                const phoneNumber = customer.phone;
-                const whatsappUrl = `https://wa.me/${phoneNumber ? phoneNumber : ''}?text=${encodeURIComponent(message)}`;
+                const phoneNumber = customer.phone?.trim();
+                const whatsappUrl = phoneNumber 
+                    ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+                    : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
                 window.open(whatsappUrl, '_blank');
             }
         }, 'image/png');
@@ -169,7 +162,7 @@ export default function InvoicePage() {
                 <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="invoice-content">
                     <CardHeader className="p-4 text-center">
                        <div className="flex flex-col items-center gap-2 mb-2">
-                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={32} height={32} className="print:w-8 print:h-8"/>
+                            <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '32px', height: '32px' }} className="print:w-8 print:h-8"/>
                             <div>
                                 <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
                                 <p className="text-xs">suport by NAVAZ</p>
@@ -241,10 +234,10 @@ export default function InvoicePage() {
                         background-color: white;
                     }
                      .print\\:w-8 {
-                        width: 2rem; /* 32px */
+                        width: 32px !important;
                     }
                     .print\\:h-8 {
-                        height: 2rem; /* 32px */
+                        height: 32px !important;
                     }
                     @page {
                         size: 58mm auto;

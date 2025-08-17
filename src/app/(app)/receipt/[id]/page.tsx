@@ -77,15 +77,9 @@ export default function ReceiptPage() {
     const handleDownloadPdf = () => {
         const input = receiptRef.current;
         if (!input) return;
-
-        const buttons = input.querySelectorAll('button');
-        buttons.forEach(btn => btn.style.display = 'none');
     
         html2canvas(input, { scale: 2, useCORS: true }).then((canvas) => {
-          buttons.forEach(btn => btn.style.display = '');
-
           const imgData = canvas.toDataURL('image/png');
-          // Standard 58mm thermal paper width
           const pdf = new jsPDF('p', 'mm', [58, 200]); 
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const canvasWidth = canvas.width;
@@ -130,7 +124,6 @@ export default function ReceiptPage() {
                     toast({ title: 'Gagal membagikan struk', description: 'Mungkin Anda membatalkan aksi.', variant: 'destructive' });
                 }
             } else {
-                // Fallback for desktop or unsupported browsers
                 const phoneNumber = customer.phone?.trim();
                 const whatsappUrl = phoneNumber 
                     ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
@@ -192,7 +185,7 @@ export default function ReceiptPage() {
                 <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="receipt-content">
                     <CardHeader className="p-4 text-center">
                         <div className="flex flex-col items-center gap-2 mb-2">
-                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={32} height={32} className="print:w-8 print:h-8"/>
+                             <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '32px', height: '32px' }} className="print:w-8 print:h-8"/>
                             <div>
                                 <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
                                 <p className="text-xs">suport by NAVAZ</p>
@@ -270,10 +263,10 @@ export default function ReceiptPage() {
                         background-color: white;
                     }
                     .print\\:w-8 {
-                        width: 2rem; /* 32px */
+                        width: 32px !important;
                     }
                     .print\\:h-8 {
-                        height: 2rem; /* 32px */
+                        height: 32px !important;
                     }
                     @page {
                         size: 58mm auto;
