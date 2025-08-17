@@ -13,6 +13,7 @@ import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart, DollarSign, Archi
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { parseISO, startOfMonth, subMonths, getMonth, getYear, isSameMonth, isSameYear, format, differenceInMonths } from "date-fns";
+import { id } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -381,9 +382,13 @@ export default function FinancePage() {
                     Lihat Pengeluaran
                 </Link>
             </Button>
+             <Button asChild variant="outline">
+                <Link href="/reports">
+                    <BookText className="mr-2 h-4 w-4" />
+                    Total Keuangan
+                </Link>
+            </Button>
         </div>
     </div>
   )
 }
-
-    
