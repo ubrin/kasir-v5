@@ -63,7 +63,7 @@ export default function PaymentReportPage() {
              const unsubscribePayments = onSnapshot(query(collection(db, "payments")), (paymentsSnapshot) => {
                 const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
                 setPayments(paymentsList);
-                if (loading) setLoading(false);
+                setLoading(false);
             }, (error) => {
                  console.error("Error fetching payments:", error);
                  toast({ title: "Gagal Memuat Laporan", variant: "destructive" });
@@ -94,7 +94,7 @@ export default function PaymentReportPage() {
         }
     };
     fetchInitialData();
-  }, [toast, loading]);
+  }, [toast]);
 
   const filteredPayments = payments.filter(payment => {
     if (!date?.from) return true;
