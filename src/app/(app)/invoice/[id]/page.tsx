@@ -96,6 +96,22 @@ export default function InvoicePage() {
         if (!customer || !invoiceRef.current) return;
     
         const message = `Yth. Bapak/Ibu pelanggan CYBERNETWORK, Ini adalah rincian untuk pembayaran internet bulan ini. \nTerima kasih, selamat beraktivitas kembali - PT CYBERNETWORK CORP -`;
+        
+        try {
+            await navigator.clipboard.writeText(message);
+            toast({
+                title: "Pesan Disalin!",
+                description: "Tempel (paste) pesan ini di WhatsApp setelah gambar terlampir.",
+            });
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            toast({
+                title: 'Gagal menyalin pesan',
+                description: 'Silakan salin pesan secara manual.',
+                variant: 'destructive',
+            });
+        }
+
         const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true });
         
         canvas.toBlob(async (blob) => {
@@ -112,18 +128,22 @@ export default function InvoicePage() {
                     await navigator.share({
                         files: [file],
                         title: `Invoice ${customer.name}`,
-                        text: message,
+                        // text is often ignored by WhatsApp when a file is present, so we rely on clipboard
                     });
                 } catch (error) {
                     console.error('Error sharing:', error);
-                    toast({ title: 'Gagal membagikan invoice', description: 'Mungkin Anda membatalkan aksi.', variant: 'destructive' });
+                    // Avoid showing an error toast if user simply closes the share dialog
+                    if ((error as any).name !== 'AbortError') {
+                        toast({ title: 'Gagal membagikan invoice', variant: 'destructive' });
+                    }
                 }
             } else {
-                const phoneNumber = customer.phone?.trim();
-                const whatsappUrl = phoneNumber 
-                    ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
-                    : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-                window.open(whatsappUrl, '_blank');
+                // Fallback for desktop browsers that don't support sharing files
+                toast({
+                    title: 'Fitur "Bagikan" tidak didukung',
+                    description: 'Silakan unduh PDF dan kirim secara manual.',
+                    variant: 'destructive'
+                });
             }
         }, 'image/png');
     };
