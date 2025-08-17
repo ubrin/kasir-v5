@@ -121,7 +121,7 @@ Terima kasih, selamat beraktivitas kembali - PT CYBERNETWORK CORP -
         `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
 
         const phoneNumber = customer.phone;
-        const whatsappUrl = `https://${phoneNumber ? 'wa.me/' + phoneNumber : 'api.whatsapp.com'}/send?text=${message}`;
+        const whatsappUrl = `https://wa.me/${phoneNumber ? phoneNumber : ''}?text=${message}`;
         window.open(whatsappUrl, '_blank');
     };
     
@@ -157,30 +157,30 @@ Terima kasih, selamat beraktivitas kembali - PT CYBERNETWORK CORP -
             </div>
             <div ref={invoiceRef}>
                 <Card className="border shadow-lg print:border-none print:shadow-none" id="invoice-content">
-                    <CardHeader className="bg-muted/30 p-6">
-                        <div className="flex justify-between items-start">
+                    <CardHeader className="bg-muted/30 p-4 sm:p-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start">
                             <div>
                                 <div className="flex items-center gap-3 mb-4">
                                      <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={50} height={50} />
                                     <div>
-                                        <h1 className="text-2xl font-bold text-primary">PT CYBERNETWORK CORP</h1>
-                                        <p className="text-muted-foreground">suport by NAVAZ</p>
+                                        <h1 className="text-xl sm:text-2xl font-bold text-primary">PT CYBERNETWORK CORP</h1>
+                                        <p className="text-sm text-muted-foreground">suport by NAVAZ</p>
                                     </div>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <CardTitle className="text-4xl font-bold tracking-tight text-gray-800 mb-1">INVOICE</CardTitle>
+                            <div className="text-left sm:text-right w-full sm:w-auto mt-4 sm:mt-0">
+                                <CardTitle className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-800 mb-1">INVOICE</CardTitle>
                                 <CardDescription>#INV-{customer.id.substring(4)}-{format(new Date(), 'yyyyMMdd')}</CardDescription>
                             </div>
                         </div>
                         <Separator className="my-4"/>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p className="font-semibold text-muted-foreground">Ditagihkan kepada:</p>
-                                <p className="font-bold text-lg">{customer.name}</p>
+                                <p className="font-bold text-base">{customer.name}</p>
                                 <p>{customer.address}</p>
                             </div>
-                            <div className="text-right">
+                            <div className="text-left sm:text-right mt-4 sm:mt-0">
                                 <p className="font-semibold text-muted-foreground">Tanggal Invoice:</p>
                                 <p>{format(new Date(), "d MMMM yyyy", { locale: id })}</p>
                                 <p className="font-semibold text-muted-foreground mt-2">Jatuh Tempo:</p>
@@ -189,47 +189,49 @@ Terima kasih, selamat beraktivitas kembali - PT CYBERNETWORK CORP -
                         </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-muted/50">
-                                    <TableHead>Deskripsi</TableHead>
-                                    <TableHead className="text-right">Jumlah</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {customerInvoices.length > 0 ? (
-                                    customerInvoices.map(invoice => (
-                                        <TableRow key={invoice.id}>
-                                            <TableCell>Tagihan Internet - {format(parseISO(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
-                                            <TableCell className="text-right">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={2} className="text-center h-24">Tidak ada tagihan tertunggak.</TableCell>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/50">
+                                        <TableHead className="px-4 sm:px-6">Deskripsi</TableHead>
+                                        <TableHead className="text-right px-4 sm:px-6">Jumlah</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {customerInvoices.length > 0 ? (
+                                        customerInvoices.map(invoice => (
+                                            <TableRow key={invoice.id}>
+                                                <TableCell className="px-4 sm:px-6">Tagihan Internet - {format(parseISO(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
+                                                <TableCell className="text-right px-4 sm:px-6">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="text-center h-24 px-4 sm:px-6">Tidak ada tagihan tertunggak.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
-                    <CardFooter className="bg-muted/30 p-6">
+                    <CardFooter className="bg-muted/30 p-4 sm:p-6">
                         <div className="w-full">
-                            <div className="space-y-2 text-right">
-                                <div className="flex justify-end items-center">
-                                    <p className="text-muted-foreground mr-4">Subtotal:</p>
-                                    <p className="font-medium w-32">Rp{subTotal.toLocaleString('id-ID')}</p>
+                            <div className="flex flex-col items-end space-y-2 text-sm">
+                                <div className="flex justify-between items-center w-full max-w-xs">
+                                    <p className="text-muted-foreground">Subtotal:</p>
+                                    <p className="font-medium w-32 text-right">Rp{subTotal.toLocaleString('id-ID')}</p>
                                 </div>
                                 {creditUsed > 0 && (
-                                     <div className="flex justify-end items-center">
-                                        <p className="text-muted-foreground mr-4">Penggunaan Saldo:</p>
-                                        <p className="font-medium text-blue-600 w-32">- Rp{creditUsed.toLocaleString('id-ID')}</p>
+                                     <div className="flex justify-between items-center w-full max-w-xs">
+                                        <p className="text-muted-foreground">Penggunaan Saldo:</p>
+                                        <p className="font-medium text-blue-600 w-32 text-right">- Rp{creditUsed.toLocaleString('id-ID')}</p>
                                     </div>
                                 )}
                             </div>
                             <Separator className="my-4"/>
                             <div className="flex justify-end items-center">
-                                <p className="text-lg font-medium mr-4">Total Tagihan:</p>
-                                <p className="text-2xl font-bold text-primary w-32">Rp{totalAmount.toLocaleString('id-ID')}</p>
+                                <p className="text-base sm:text-lg font-medium mr-4">Total Tagihan:</p>
+                                <p className="text-xl sm:text-2xl font-bold text-primary w-36 sm:w-40 text-right">Rp{totalAmount.toLocaleString('id-ID')}</p>
                             </div>
                             <Separator className="my-4"/>
                             <div className="text-xs text-muted-foreground">
