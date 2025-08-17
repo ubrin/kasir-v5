@@ -57,20 +57,7 @@ export default function ReceiptPage() {
                     const invoicesQuery = query(collection(db, "invoices"), where("__name__", "in", paymentData.invoiceIds));
                     const invoicesSnapshot = await getDocs(invoicesQuery);
                     const invoicesList = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Invoice);
-
-                    // We need to re-calculate invoice amounts if they were partially paid,
-                    // but for a receipt, we usually show the full original amount.
-                    // Let's find the original invoice amounts from the customer's total invoices.
-                     const allInvoicesQuery = query(collection(db, "invoices"), where("customerId", "==", paymentData.customerId));
-                     const allInvoicesSnapshot = await getDocs(allInvoicesQuery);
-                     const allInvoices = allInvoicesSnapshot.docs.map(doc => ({id: doc.id, ...doc.data() as Invoice}));
-                    
-                     const finalPaidInvoices = paymentData.invoiceIds.map(id => {
-                        const foundInvoice = allInvoices.find(inv => inv.id === id);
-                        return foundInvoice ? { ...foundInvoice, amount: foundInvoice.amount } : null;
-                     }).filter(inv => inv !== null) as Invoice[];
-
-                    setPaidInvoices(finalPaidInvoices);
+                    setPaidInvoices(invoicesList);
                 }
 
             } catch (error) {
@@ -98,7 +85,8 @@ export default function ReceiptPage() {
           buttons.forEach(btn => btn.style.display = '');
 
           const imgData = canvas.toDataURL('image/png');
-          const pdf = new jsPDF('p', 'mm', [80, 200]); // Thermal-like size
+          // Standard 58mm thermal paper width
+          const pdf = new jsPDF('p', 'mm', [58, 200]); 
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const canvasWidth = canvas.width;
           const canvasHeight = canvas.height;
@@ -113,7 +101,7 @@ export default function ReceiptPage() {
     };
 
     const handleSendWhatsApp = () => {
-        if (!customer) return;
+        if (!customer || !payment) return;
 
         const paidMonths = paidInvoices.map(inv => format(parseISO(inv.date), "MMMM yyyy", { locale: id })).join(', ');
 
@@ -121,15 +109,18 @@ export default function ReceiptPage() {
 Terima kasih Anda telah melakukan Pembayaran internet untuk bulan:
 *${paidMonths}*
 
-Total Bayar: *Rp${payment?.totalPayment.toLocaleString('id-ID')}*
+Total Bayar: *Rp${payment.totalPayment.toLocaleString('id-ID')}*
 Status: *LUNAS*
 
 Terima kasih telah menggunakan layanan kami.
 - PT CYBERNETWORK CORP -
         `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
         
-        const phoneNumber = customer.phone;
-        const whatsappUrl = `https://${phoneNumber ? 'wa.me/' + phoneNumber : 'api.whatsapp.com'}/send?text=${message}`;
+        const phoneNumber = customer.phone?.trim();
+        const whatsappUrl = phoneNumber 
+            ? `https://wa.me/${phoneNumber}?text=${message}`
+            : `https://api.whatsapp.com/send?text=${message}`;
+
         window.open(whatsappUrl, '_blank');
     };
 
@@ -185,8 +176,8 @@ Terima kasih telah menggunakan layanan kami.
                 <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="receipt-content">
                     <CardHeader className="p-4 text-center">
                         <div className="flex justify-center items-center gap-2 mb-2">
-                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={24} height={24} />
-                            <h1 className="text-lg font-bold">PT CYBERNETWORK CORP</h1>
+                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={24} height={24} className="print:w-6 print:h-6"/>
+                            <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
                         </div>
                         <p className="text-xs">suport by NAVAZ</p>
                         <p className="text-xs">--------------------------------</p>
@@ -233,6 +224,9 @@ Terima kasih telah menggunakan layanan kami.
             </div>
             <style jsx global>{`
                 @media print {
+                    body, html {
+                        background-color: white !important;
+                    }
                     body * {
                         visibility: hidden;
                     }
@@ -257,12 +251,19 @@ Terima kasih telah menggunakan layanan kami.
                     .print\\:bg-white {
                         background-color: white;
                     }
+                    .print\\:w-6 {
+                        width: 1.5rem; /* 24px */
+                    }
+                    .print\\:h-6 {
+                        height: 1.5rem; /* 24px */
+                    }
                     @page {
-                        size: 80mm auto;
-                        margin: 5mm;
+                        size: 58mm auto;
+                        margin: 2mm;
                     }
                 }
             `}</style>
         </div>
     );
 }
+
