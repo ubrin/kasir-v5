@@ -8,7 +8,7 @@ import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
-import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart, DollarSign, Archive, FileText, FileClock, Users, Coins } from "lucide-react"
+import { Loader2, TrendingUp, TrendingDown, Wallet, AreaChart, DollarSign, Archive, FileText, FileClock, Users, Coins, BookText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { parseISO, startOfMonth, subMonths, getMonth, getYear, isSameMonth, isSameYear, format, differenceInMonths } from "date-fns";
@@ -161,73 +161,6 @@ export default function FinancePage() {
     fetchData();
   }, [fetchData]);
   
-  const handleArchivePaidInvoices = async () => {
-    try {
-        const q = query(collection(db, "invoices"), where("status", "==", "lunas"));
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) {
-            toast({ title: "Tidak Ada Data untuk Diarsipkan" });
-            return;
-        }
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-        toast({ title: "Pengarsipan Berhasil", description: `${snapshot.size} faktur lunas telah diarsipkan.` });
-        fetchData();
-    } catch (error) {
-        console.error("Archiving error:", error);
-        toast({ title: "Gagal Mengarsipkan", variant: "destructive" });
-    }
-  };
-
-  const handleGenerateMonthlyInvoices = async () => {
-    setGeneratingInvoices(true);
-    try {
-        const customersSnapshot = await getDocs(collection(db, "customers"));
-        if (customersSnapshot.empty) {
-            toast({ title: "Tidak ada pelanggan" });
-            return;
-        }
-        const today = new Date();
-        const currentInvoiceMonth = format(startOfMonth(today), 'yyyy-MM-dd');
-        const batch = writeBatch(db);
-        let invoicesCreatedCount = 0;
-        const invoiceQuery = query(collection(db, "invoices"), where("date", ">=", currentInvoiceMonth));
-        const existingInvoicesSnapshot = await getDocs(invoiceQuery);
-        const existingInvoices = existingInvoicesSnapshot.docs.map(doc => ({ ...doc.data() as Invoice, id: doc.id }));
-        
-        for (const docSnap of customersSnapshot.docs) {
-            const customer = { id: docSnap.id, ...docSnap.data() } as Customer;
-            const alreadyExists = existingInvoices.some(inv => inv.customerId === customer.id && inv.date === currentInvoiceMonth);
-            if (!alreadyExists && customer.packagePrice > 0) {
-                const dueDate = new Date(today.getFullYear(), today.getMonth(), customer.dueDateCode);
-                const newInvoice: Omit<Invoice, 'id'> = {
-                    customerId: customer.id,
-                    customerName: customer.name,
-                    date: currentInvoiceMonth,
-                    dueDate: format(dueDate, 'yyyy-MM-dd'),
-                    amount: customer.packagePrice,
-                    status: 'belum lunas',
-                };
-                const newInvoiceRef = doc(collection(db, "invoices"));
-                batch.set(newInvoiceRef, newInvoice);
-                invoicesCreatedCount++;
-            }
-        }
-        if (invoicesCreatedCount > 0) {
-            await batch.commit();
-            toast({ title: "Penerbitan Berhasil", description: `Berhasil membuat ${invoicesCreatedCount} faktur baru.` });
-            fetchData();
-        } else {
-            toast({ title: "Tidak Ada Faktur Baru", description: "Semua faktur bulan ini sudah terbit." });
-        }
-    } catch (error) {
-        console.error("Manual invoice generation error:", error);
-        toast({ title: "Gagal Menerbitkan Faktur", variant: "destructive" });
-    } finally {
-        setGeneratingInvoices(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -361,6 +294,12 @@ export default function FinancePage() {
       </div>
 
        <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline">
+                <Link href="/reports">
+                    <BookText className="mr-2 h-4 w-4" />
+                    Laporan Lengkap
+                </Link>
+            </Button>
             <Button asChild variant="outline">
                 <Link href="/other-incomes">
                     <DollarSign className="mr-2 h-4 w-4" />

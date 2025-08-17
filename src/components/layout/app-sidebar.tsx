@@ -32,7 +32,8 @@ const menuItems = [
     roles: ['admin', 'user'],
     subItems: [
       { href: '/delinquency', label: 'Tagihan', icon: CreditCard, roles: ['admin', 'user'] },
-      { href: '/payment-report', label: 'Laporan', icon: BarChart3, roles: ['admin'] },
+      { href: '/payment-report', label: 'Laporan Bayar', icon: BarChart3, roles: ['admin'] },
+      { href: '/reports', label: 'Laporan Lengkap', icon: BookText, roles: ['admin'] },
     ]
   },
   { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
@@ -168,5 +169,3 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
-
-    
