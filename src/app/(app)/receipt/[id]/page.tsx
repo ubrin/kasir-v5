@@ -195,8 +195,6 @@ export default function ReceiptPage() {
                     </CardHeader>
                     <CardContent className="p-4 text-xs">
                         <div className="grid grid-cols-3 gap-1 mb-2">
-                           <div className="col-span-1">No Struk</div>
-                           <div className="col-span-2">: {payment.id}</div>
                            <div className="col-span-1">Tanggal</div>
                            <div className="col-span-2">: {format(parseISO(payment.paymentDate), "dd/MM/yyyy HH:mm", { locale: id })}</div>
                            <div className="col-span-1">Pelanggan</div>
@@ -206,7 +204,7 @@ export default function ReceiptPage() {
                         <p className="text-center font-semibold my-1">RINCIAN PEMBAYARAN</p>
                         {paidInvoices.map(invoice => (
                              <div className="grid grid-cols-3 gap-1" key={invoice.id}>
-                                <div className="col-span-2">Tagihan {format(parseISO(invoice.date), "MMMM yyyy", {locale: id})}</div>
+                                <div className="col-span-2">wifi bulan {format(parseISO(invoice.date), "MMMM", {locale: id}).toLowerCase()}</div>
                                 <div className="col-span-1 text-right">Rp{invoice.amount.toLocaleString('id-ID')}</div>
                             </div>
                         ))}
