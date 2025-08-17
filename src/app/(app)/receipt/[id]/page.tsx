@@ -100,28 +100,44 @@ export default function ReceiptPage() {
         });
     };
 
-    const handleSendWhatsApp = () => {
-        if (!customer || !payment) return;
+    const handleSendWhatsApp = async () => {
+        if (!customer || !payment || !receiptRef.current) return;
 
         const paidMonths = paidInvoices.map(inv => format(parseISO(inv.date), "MMMM yyyy", { locale: id })).join(', ');
 
-        const message = `
-Terima kasih Anda telah melakukan Pembayaran internet untuk bulan:
-*${paidMonths}*
+        const message = `Terima kasih Anda telah melakukan Pembayaran internet untuk bulan:\n*${paidMonths}*\n\nTotal Bayar: *Rp${payment.totalPayment.toLocaleString('id-ID')}*\nStatus: *LUNAS*\n\nTerima kasih telah menggunakan layanan kami.\n- PT CYBERNETWORK CORP -`;
 
-Total Bayar: *Rp${payment.totalPayment.toLocaleString('id-ID')}*
-Status: *LUNAS*
-
-Terima kasih telah menggunakan layanan kami.
-- PT CYBERNETWORK CORP -
-        `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
+        const canvas = await html2canvas(receiptRef.current, { scale: 2, useCORS: true });
         
-        const phoneNumber = customer.phone?.trim();
-        const whatsappUrl = phoneNumber 
-            ? `https://wa.me/${phoneNumber}?text=${message}`
-            : `https://api.whatsapp.com/send?text=${message}`;
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                toast({ title: 'Gagal membuat gambar struk', variant: 'destructive' });
+                return;
+            }
+            
+            const fileName = `struk-${customer.id}.png`;
+            const file = new File([blob], fileName, { type: 'image/png' });
 
-        window.open(whatsappUrl, '_blank');
+            if (navigator.share && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: `Struk Pembayaran ${customer.name}`,
+                        text: message,
+                    });
+                } catch (error) {
+                    console.error('Error sharing:', error);
+                    toast({ title: 'Gagal membagikan struk', description: 'Mungkin Anda membatalkan aksi.', variant: 'destructive' });
+                }
+            } else {
+                // Fallback for desktop or unsupported browsers
+                const phoneNumber = customer.phone?.trim();
+                const whatsappUrl = phoneNumber 
+                    ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+                    : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+            }
+        }, 'image/png');
     };
 
     const handlePrint = () => {
@@ -195,7 +211,7 @@ Terima kasih telah menggunakan layanan kami.
                         <p className="text-center font-semibold my-1">RINCIAN PEMBAYARAN</p>
                         {paidInvoices.map(invoice => (
                              <div className="grid grid-cols-3 gap-1" key={invoice.id}>
-                                <div className="col-span-2">Tagihan {format(parseISO(invoice.date), "MMMM yyyy")}</div>
+                                <div className="col-span-2">Tagihan {format(parseISO(invoice.date), "MMMM yyyy", {locale: id})}</div>
                                 <div className="col-span-1 text-right">Rp{invoice.amount.toLocaleString('id-ID')}</div>
                             </div>
                         ))}
@@ -266,4 +282,3 @@ Terima kasih telah menggunakan layanan kami.
         </div>
     );
 }
-

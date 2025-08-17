@@ -112,17 +112,39 @@ export default function InvoicePage() {
         });
       };
 
-    const handleSendWhatsApp = () => {
-        if (!customer) return;
-
-        const message = `
-Yth. Bapak/Ibu pelanggan CYBERNETWORK, Ini adalah rincian untuk pembayaran internet bulan ini. 
-Terima kasih, selamat beraktivitas kembali - PT CYBERNETWORK CORP -
-        `.trim().replace(/\n/g, '%0A').replace(/ /g, '%20');
-
-        const phoneNumber = customer.phone;
-        const whatsappUrl = `https://wa.me/${phoneNumber ? phoneNumber : ''}?text=${message}`;
-        window.open(whatsappUrl, '_blank');
+    const handleSendWhatsApp = async () => {
+        if (!customer || !invoiceRef.current) return;
+    
+        const message = `Yth. Bapak/Ibu pelanggan CYBERNETWORK, Ini adalah rincian untuk pembayaran internet bulan ini. \nTerima kasih, selamat beraktivitas kembali - PT CYBERNETWORK CORP -`;
+        const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true });
+        
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                toast({ title: 'Gagal membuat gambar invoice', variant: 'destructive' });
+                return;
+            }
+            
+            const fileName = `invoice-${customer.id}.png`;
+            const file = new File([blob], fileName, { type: 'image/png' });
+    
+            if (navigator.share && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: `Invoice ${customer.name}`,
+                        text: message,
+                    });
+                } catch (error) {
+                    console.error('Error sharing:', error);
+                    toast({ title: 'Gagal membagikan invoice', description: 'Mungkin Anda membatalkan aksi.', variant: 'destructive' });
+                }
+            } else {
+                 // Fallback for desktop or unsupported browsers
+                const phoneNumber = customer.phone;
+                const whatsappUrl = `https://wa.me/${phoneNumber ? phoneNumber : ''}?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+            }
+        }, 'image/png');
     };
     
     if (loading) {
