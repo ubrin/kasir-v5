@@ -2,9 +2,8 @@
 'use client';
 
 import * as React from 'react';
-import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO, getMonth, getYear } from 'date-fns';
 import { id } from 'date-fns/locale';
-import type { DateRange } from 'react-day-picker';
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Collector } from '@/lib/types';
@@ -12,10 +11,7 @@ import type { Payment, Collector } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon, Receipt, Loader2 } from 'lucide-react';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+import { Receipt, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
     Accordion,
@@ -44,10 +40,14 @@ export default function PaymentReportPage() {
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [collectors, setCollectors] = React.useState<Collector[]>([]);
   const [selectedCollectorId, setSelectedCollectorId] = React.useState<string>('all');
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
-  });
+  const [selectedMonth, setSelectedMonth] = React.useState<string>(String(getMonth(new Date())));
+  const [selectedYear, setSelectedYear] = React.useState<string>(String(getYear(new Date())));
+
+  const availableYears = React.useMemo(() => {
+    if (payments.length === 0) return [String(getYear(new Date()))];
+    const years = new Set(payments.map(p => getYear(parseISO(p.paymentDate)).toString()));
+    return Array.from(years).sort((a,b) => parseInt(b) - parseInt(a));
+  }, [payments]);
 
   React.useEffect(() => {
     const unsubscribePayments = onSnapshot(query(collection(db, "payments")), (paymentsSnapshot) => {
@@ -75,15 +75,12 @@ export default function PaymentReportPage() {
   }, [toast]);
 
   const filteredPayments = payments.filter(payment => {
-    if (!date?.from) return true;
-    const paymentDate = new Date(payment.paymentDate);
-    const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
-    const toDate = date.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date(date.from.setHours(23, 59, 59, 999));
-    
-    const isDateInRange = paymentDate >= fromDate && paymentDate <= toDate;
+    const paymentDate = parseISO(payment.paymentDate);
+    const isMonthMatch = getMonth(paymentDate).toString() === selectedMonth;
+    const isYearMatch = getYear(paymentDate).toString() === selectedYear;
     const isCollectorMatch = selectedCollectorId === 'all' || (payment.collectorId || 'unassigned') === selectedCollectorId;
 
-    return isDateInRange && isCollectorMatch;
+    return isMonthMatch && isYearMatch && isCollectorMatch;
   });
 
   const groupedByDate: { [date: string]: DailyCollection } = {};
@@ -122,6 +119,10 @@ export default function PaymentReportPage() {
     );
   }
 
+  const monthNames = Array.from({length: 12}, (e, i) => {
+    return new Date(0, i).toLocaleString('id-ID', { month: 'long' })
+  });
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -142,39 +143,28 @@ export default function PaymentReportPage() {
                     <SelectItem value="unassigned">Tidak Ditentukan</SelectItem>
                 </SelectContent>
             </Select>
-            <Popover>
-            <PopoverTrigger asChild>
-                <Button
-                id="date"
-                variant={'outline'}
-                className={cn('w-full sm:w-[300px] justify-start text-left font-normal', !date && 'text-muted-foreground')}
-                >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date?.from ? (
-                    date.to ? (
-                    <>
-                        {format(date.from, 'LLL dd, y', {locale: id})} - {format(date.to, 'LLL dd, y', {locale: id})}
-                    </>
-                    ) : (
-                    format(date.from, 'LLL dd, y', {locale: id})
-                    )
-                ) : (
-                    <span>Pilih tanggal</span>
-                )}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={date?.from}
-                selected={date}
-                onSelect={setDate}
-                numberOfMonths={2}
-                locale={id}
-                />
-            </PopoverContent>
-            </Popover>
+            <div className="flex gap-2">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Pilih Bulan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {monthNames.map((month, index) => (
+                             <SelectItem key={index} value={String(index)}>{month}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Pilih Tahun" />
+                    </SelectTrigger>
+                    <SelectContent>
+                         {availableYears.map(year => (
+                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
       </div>
 
@@ -262,7 +252,7 @@ export default function PaymentReportPage() {
         <Card>
             <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
                 <p className="text-lg font-medium">Tidak Ada Data</p>
-                <p className="text-muted-foreground">Tidak ada pembayaran yang tercatat pada periode tanggal yang dipilih.</p>
+                <p className="text-muted-foreground">Tidak ada pembayaran yang tercatat pada periode yang dipilih.</p>
             </CardContent>
         </Card>
       )}
