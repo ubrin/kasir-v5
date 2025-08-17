@@ -5,7 +5,7 @@ import * as React from 'react';
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-import { collection, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Collector } from '@/lib/types';
 
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/accordion"
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 type DailyCollection = {
@@ -49,6 +50,7 @@ export default function PaymentReportPage() {
   const [loading, setLoading] = React.useState(true);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [collectors, setCollectors] = React.useState<Collector[]>([]);
+  const [selectedCollectorId, setSelectedCollectorId] = React.useState<string>('all');
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -58,10 +60,10 @@ export default function PaymentReportPage() {
     const fetchInitialData = async () => {
         setLoading(true);
         try {
-             const unsubscribePayments = onSnapshot(collection(db, "payments"), (paymentsSnapshot) => {
+             const unsubscribePayments = onSnapshot(query(collection(db, "payments")), (paymentsSnapshot) => {
                 const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
                 setPayments(paymentsList);
-                setLoading(false);
+                if (loading) setLoading(false);
             }, (error) => {
                  console.error("Error fetching payments:", error);
                  toast({ title: "Gagal Memuat Laporan", variant: "destructive" });
@@ -92,14 +94,18 @@ export default function PaymentReportPage() {
         }
     };
     fetchInitialData();
-  }, [toast]);
+  }, [toast, loading]);
 
   const filteredPayments = payments.filter(payment => {
     if (!date?.from) return true;
     const paymentDate = new Date(payment.paymentDate);
     const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
     const toDate = date.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date(date.from.setHours(23, 59, 59, 999));
-    return paymentDate >= fromDate && paymentDate <= toDate;
+    
+    const isDateInRange = paymentDate >= fromDate && paymentDate <= toDate;
+    const isCollectorMatch = selectedCollectorId === 'all' || (payment.collectorId || 'unassigned') === selectedCollectorId;
+
+    return isDateInRange && isCollectorMatch;
   });
 
   const collectorsMap = new Map(collectors.map(c => [c.id, c.name]));
@@ -160,39 +166,53 @@ export default function PaymentReportPage() {
             <h1 className="text-3xl font-bold tracking-tight">Laporan Pembayaran</h1>
             <p className="text-muted-foreground">Laporan penerimaan pembayaran dari pelanggan.</p>
         </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              id="date"
-              variant={'outline'}
-              className={cn('w-full sm:w-[300px] justify-start text-left font-normal', !date && 'text-muted-foreground')}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {date?.from ? (
-                date.to ? (
-                  <>
-                    {format(date.from, 'LLL dd, y', {locale: id})} - {format(date.to, 'LLL dd, y', {locale: id})}
-                  </>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Select value={selectedCollectorId} onValueChange={setSelectedCollectorId}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Pilih Penagih" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Semua Penagih</SelectItem>
+                    {collectors.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                    <SelectItem value="unassigned">Tidak Ditentukan</SelectItem>
+                </SelectContent>
+            </Select>
+            <Popover>
+            <PopoverTrigger asChild>
+                <Button
+                id="date"
+                variant={'outline'}
+                className={cn('w-full sm:w-[300px] justify-start text-left font-normal', !date && 'text-muted-foreground')}
+                >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date?.from ? (
+                    date.to ? (
+                    <>
+                        {format(date.from, 'LLL dd, y', {locale: id})} - {format(date.to, 'LLL dd, y', {locale: id})}
+                    </>
+                    ) : (
+                    format(date.from, 'LLL dd, y', {locale: id})
+                    )
                 ) : (
-                  format(date.from, 'LLL dd, y', {locale: id})
-                )
-              ) : (
-                <span>Pilih tanggal</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={date?.from}
-              selected={date}
-              onSelect={setDate}
-              numberOfMonths={2}
-              locale={id}
-            />
-          </PopoverContent>
-        </Popover>
+                    <span>Pilih tanggal</span>
+                )}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={date?.from}
+                selected={date}
+                onSelect={setDate}
+                numberOfMonths={2}
+                locale={id}
+                />
+            </PopoverContent>
+            </Popover>
+        </div>
       </div>
 
       {sortedCollections.length > 0 ? (
