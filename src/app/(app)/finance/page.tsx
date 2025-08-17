@@ -268,15 +268,23 @@ export default function FinancePage() {
                     </DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="max-h-60">
-                        {newCustomers.length > 0 ? (
-                            <ul className="space-y-2 p-1">
-                                {newCustomers.map(customer => (
-                                    <li key={customer.id} className="text-sm p-2 rounded-md bg-muted/50">{customer.name}</li>
-                                ))}
-                            </ul>
-                        ): (
-                            <p className="text-sm text-muted-foreground text-center py-4">Tidak ada pelanggan baru bulan ini.</p>
-                        )}
+                       <div className="p-1">
+                            {newCustomers.length > 0 ? (
+                                <div className="space-y-4">
+                                    {newCustomers.map(customer => (
+                                        <div key={customer.id} className="p-3 rounded-md bg-muted/50 text-sm">
+                                            <p className="font-semibold">{customer.name}</p>
+                                            <div className="flex justify-between text-muted-foreground mt-1">
+                                                <span>Paket: {customer.subscriptionMbps} Mbps</span>
+                                                <span>Harga: Rp{customer.packagePrice.toLocaleString('id-ID')}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ): (
+                                <p className="text-sm text-muted-foreground text-center py-4">Tidak ada pelanggan baru bulan ini.</p>
+                            )}
+                       </div>
                     </ScrollArea>
                 </DialogContent>
             </Dialog>
