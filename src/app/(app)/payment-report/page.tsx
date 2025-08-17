@@ -5,7 +5,7 @@ import * as React from 'react';
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
-import { collection, getDocs, onSnapshot, query } from "firebase/firestore";
+import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Collector } from '@/lib/types';
 
@@ -28,14 +28,21 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
+type CollectorCollection = {
+    name: string;
+    payments: Payment[];
+    total: number;
+    paymentMethodTotals: {
+        cash: number;
+        bri: number;
+        dana: number;
+    }
+}
+
 type DailyCollection = {
     date: string;
     collectors: {
-        [collectorId: string]: {
-            name: string;
-            payments: Payment[];
-            total: number;
-        }
+        [collectorId: string]: CollectorCollection
     }
     total: number;
     paymentMethodTotals: {
@@ -58,40 +65,27 @@ export default function PaymentReportPage() {
 
   React.useEffect(() => {
     setLoading(true);
-    try {
-          const unsubscribePayments = onSnapshot(query(collection(db, "payments")), (paymentsSnapshot) => {
-            const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
-            setPayments(paymentsList);
-            // We set loading to false here, but collector data might still be loading.
-            // This is okay as the UI will update once collectors arrive.
-            setLoading(false); 
-        }, (error) => {
-              console.error("Error fetching payments:", error);
-              toast({ title: "Gagal Memuat Laporan", variant: "destructive" });
-              setLoading(false);
-        });
-        
-        const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), (collectorsSnapshot) => {
-            const collectorsList = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a,b) => a.name.localeCompare(b.name));
-            setCollectors(collectorsList);
-        }, (error) => {
-              console.error("Error fetching collectors:", error);
-              toast({ title: "Gagal Memuat Data Penagih", variant: "destructive" });
-        });
-
-        return () => {
-            unsubscribePayments();
-            unsubscribeCollectors();
-        }
-
-    } catch (error) {
-        console.error("Error fetching initial data:", error);
-        toast({
-            title: "Gagal Memuat Laporan",
-            description: "Tidak dapat mengambil data pembayaran dari database.",
-            variant: "destructive"
-        });
+    const unsubscribePayments = onSnapshot(query(collection(db, "payments")), (paymentsSnapshot) => {
+        const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+        setPayments(paymentsList);
+        setLoading(false); 
+    }, (error) => {
+        console.error("Error fetching payments:", error);
+        toast({ title: "Gagal Memuat Laporan", variant: "destructive" });
         setLoading(false);
+    });
+    
+    const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), (collectorsSnapshot) => {
+        const collectorsList = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a,b) => a.name.localeCompare(b.name));
+        setCollectors(collectorsList);
+    }, (error) => {
+        console.error("Error fetching collectors:", error);
+        toast({ title: "Gagal Memuat Data Penagih", variant: "destructive" });
+    });
+
+    return () => {
+        unsubscribePayments();
+        unsubscribeCollectors();
     }
   }, [toast]);
 
@@ -130,12 +124,15 @@ export default function PaymentReportPage() {
             groupedByDate[dateStr].collectors[collectorId] = {
                 name: collectorName,
                 payments: [],
-                total: 0
+                total: 0,
+                paymentMethodTotals: { cash: 0, bri: 0, dana: 0 }
             };
         }
         
         groupedByDate[dateStr].collectors[collectorId].payments.push(payment);
         groupedByDate[dateStr].collectors[collectorId].total += payment.totalPayment;
+        groupedByDate[dateStr].collectors[collectorId].paymentMethodTotals[payment.paymentMethod] += payment.totalPayment;
+
         groupedByDate[dateStr].total += payment.totalPayment;
         groupedByDate[dateStr].paymentMethodTotals[payment.paymentMethod] += payment.totalPayment;
     }
@@ -243,9 +240,16 @@ export default function PaymentReportPage() {
                                     .sort((a,b) => a.name.localeCompare(b.name))
                                     .map(collectorData => (
                                     <div key={collectorData.name} className="border-t">
-                                        <div className="bg-muted/30 px-4 sm:px-6 py-2 flex justify-between items-center">
-                                            <h3 className="font-semibold">{collectorData.name}</h3>
-                                            <p className="text-sm font-medium">Subtotal: Rp{collectorData.total.toLocaleString('id-ID')}</p>
+                                        <div className="bg-muted/30 px-4 sm:px-6 py-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                            <div>
+                                                <h3 className="font-semibold">{collectorData.name}</h3>
+                                                <p className="text-sm font-medium">Subtotal: Rp{collectorData.total.toLocaleString('id-ID')}</p>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <Badge variant="secondary">C: Rp{collectorData.paymentMethodTotals.cash.toLocaleString('id-ID')}</Badge>
+                                                <Badge className="bg-blue-600 text-white hover:bg-blue-700">B: Rp{collectorData.paymentMethodTotals.bri.toLocaleString('id-ID')}</Badge>
+                                                <Badge className="bg-sky-500 text-white hover:bg-sky-600">D: Rp{collectorData.paymentMethodTotals.dana.toLocaleString('id-ID')}</Badge>
+                                            </div>
                                         </div>
                                         <div className='md:hidden divide-y'>
                                             {collectorData.payments.map(payment => (
@@ -313,5 +317,3 @@ export default function PaymentReportPage() {
     </div>
   );
 }
-
-    
