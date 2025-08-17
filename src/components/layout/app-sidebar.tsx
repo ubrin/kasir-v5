@@ -36,15 +36,7 @@ const menuItems = [
     ]
   },
   { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
-  {
-    label: 'Keuangan & Laporan',
-    icon: Wallet,
-    roles: ['admin'],
-    subItems: [
-        { href: '/finance', label: 'Keuangan', icon: Wallet, roles: ['admin'] },
-        { href: '/monthly-statistics', label: 'Statistik Bulanan', icon: AreaChart, roles: ['admin'] },
-    ]
-  },
+  { href: '/finance', label: 'Keuangan', icon: Wallet, roles: ['admin'] },
   {
     label: 'Data Master',
     icon: Settings,
@@ -176,3 +168,5 @@ export default function AppSidebar() {
     </Sidebar>
   );
 }
+
+    
