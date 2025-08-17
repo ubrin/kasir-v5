@@ -161,9 +161,9 @@ export default function InvoicePage() {
             <div ref={invoiceRef}>
                 <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="invoice-content">
                     <CardHeader className="p-4 text-center">
-                       <div className="flex flex-col items-center gap-2 mb-2">
+                       <div className="flex justify-center items-center gap-2 mb-2">
                             <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '32px', height: '32px' }} className="print:w-8 print:h-8"/>
-                            <div>
+                            <div className="text-left">
                                 <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
                                 <p className="text-xs">suport by NAVAZ</p>
                             </div>
