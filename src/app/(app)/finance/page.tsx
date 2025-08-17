@@ -26,6 +26,14 @@ type ArrearsDetail = {
     id: string;
 }
 
+type OmsetDetail = {
+    subscriptionMbps: number;
+    packagePrice: number;
+    count: number;
+    total: number;
+};
+
+
 export default function FinancePage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
@@ -45,6 +53,8 @@ export default function FinancePage() {
   const [pieData, setPieData] = React.useState<any[]>([]);
   const [newCustomers, setNewCustomers] = React.useState<Customer[]>([]);
   const [arrearsDetails, setArrearsDetails] = React.useState<ArrearsDetail[]>([]);
+  const [omsetDetails, setOmsetDetails] = React.useState<OmsetDetail[]>([]);
+
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
@@ -120,6 +130,24 @@ export default function FinancePage() {
         // General stats for cards
         const totalOmset = customers.reduce((acc, c) => acc + c.packagePrice, 0);
         
+        // Omset Details
+        const omsetBreakdown: { [key: string]: OmsetDetail } = {};
+        customers.forEach(c => {
+            const key = `${c.subscriptionMbps}-${c.packagePrice}`;
+            if (!omsetBreakdown[key]) {
+                omsetBreakdown[key] = {
+                    subscriptionMbps: c.subscriptionMbps,
+                    packagePrice: c.packagePrice,
+                    count: 0,
+                    total: 0
+                };
+            }
+            omsetBreakdown[key].count++;
+            omsetBreakdown[key].total += c.packagePrice;
+        });
+        const omsetDetailsList = Object.values(omsetBreakdown).sort((a,b) => b.total - a.total);
+        setOmsetDetails(omsetDetailsList);
+
         // Chart Data
         const thisMonthInvoices = invoices.filter(invoice => {
             const invoiceDate = parseISO(invoice.date);
@@ -236,16 +264,54 @@ export default function FinancePage() {
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Omset Potensial</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
-                <p className="text-xs text-muted-foreground">Potensi pendapatan bulanan</p>
-                </CardContent>
-            </Card>
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Card className="cursor-pointer hover:bg-muted/50">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Omset Potensial</CardTitle>
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                        <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
+                        <p className="text-xs text-muted-foreground">Potensi pendapatan bulanan</p>
+                        </CardContent>
+                    </Card>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
+                    <DialogHeader className="p-6 pb-4 border-b shrink-0">
+                        <DialogTitle>Rincian Omset Potensial</DialogTitle>
+                        <DialogDescription>
+                            Rincian pendapatan bulanan potensial berdasarkan paket langganan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto p-6">
+                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Deskripsi Paket</TableHead>
+                                    <TableHead className="text-center">Pelanggan</TableHead>
+                                    <TableHead className="text-right">Total</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {omsetDetails.length > 0 ? omsetDetails.map((detail, index) => (
+                                <TableRow key={index}>
+                                    <TableCell className="font-medium">
+                                        {detail.subscriptionMbps}Mbps @Rp{detail.packagePrice.toLocaleString('id-ID')}
+                                    </TableCell>
+                                    <TableCell className="text-center">x{detail.count}</TableCell>
+                                    <TableCell className="text-right">Rp{detail.total.toLocaleString('id-ID')}</TableCell>
+                                </TableRow>
+                                )) : (
+                                <TableRow>
+                                    <TableCell colSpan={3} className="h-24 text-center">Tidak ada data pelanggan.</TableCell>
+                                </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <Dialog>
                 <DialogTrigger asChild>
@@ -398,3 +464,5 @@ export default function FinancePage() {
     </div>
   )
 }
+
+    
