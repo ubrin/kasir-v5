@@ -191,11 +191,13 @@ export default function ReceiptPage() {
             <div ref={receiptRef}>
                 <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="receipt-content">
                     <CardHeader className="p-4 text-center">
-                        <div className="flex justify-center items-center gap-2 mb-2">
+                        <div className="flex flex-col items-center gap-2 mb-2">
                             <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={32} height={32} className="print:w-8 print:h-8"/>
-                            <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
+                            <div>
+                                <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
+                                <p className="text-xs">suport by NAVAZ</p>
+                            </div>
                         </div>
-                        <p className="text-xs">suport by NAVAZ</p>
                         <p className="text-xs">--------------------------------</p>
                     </CardHeader>
                     <CardContent className="p-4 text-xs">
