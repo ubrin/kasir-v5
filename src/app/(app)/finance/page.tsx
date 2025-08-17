@@ -267,24 +267,22 @@ export default function FinancePage() {
                         Berikut adalah daftar pelanggan yang bergabung pada bulan {format(new Date(), 'MMMM yyyy', {locale: id})}.
                     </DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="max-h-60">
-                       <div className="p-1">
-                            {newCustomers.length > 0 ? (
-                                <div className="space-y-4">
-                                    {newCustomers.map(customer => (
-                                        <div key={customer.id} className="p-3 rounded-md bg-muted/50 text-sm">
-                                            <p className="font-semibold">{customer.name}</p>
-                                            <div className="flex justify-between text-muted-foreground mt-1">
-                                                <span>Paket: {customer.subscriptionMbps} Mbps</span>
-                                                <span>Harga: Rp{customer.packagePrice.toLocaleString('id-ID')}</span>
-                                            </div>
+                    <ScrollArea className="max-h-60 rounded-md border p-1">
+                        {newCustomers.length > 0 ? (
+                            <div className="space-y-4 p-3">
+                                {newCustomers.map(customer => (
+                                    <div key={customer.id} className="p-3 rounded-md bg-muted/50 text-sm">
+                                        <p className="font-semibold">{customer.name}</p>
+                                        <div className="flex justify-between text-muted-foreground mt-1">
+                                            <span>Paket: {customer.subscriptionMbps} Mbps</span>
+                                            <span>Harga: Rp{customer.packagePrice.toLocaleString('id-ID')}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            ): (
-                                <p className="text-sm text-muted-foreground text-center py-4">Tidak ada pelanggan baru bulan ini.</p>
-                            )}
-                       </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ): (
+                            <p className="text-sm text-muted-foreground text-center py-4">Tidak ada pelanggan baru bulan ini.</p>
+                        )}
                     </ScrollArea>
                 </DialogContent>
             </Dialog>
