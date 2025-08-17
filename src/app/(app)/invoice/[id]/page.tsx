@@ -85,27 +85,15 @@ export default function InvoicePage() {
           buttons.forEach(btn => btn.style.display = '');
 
           const imgData = canvas.toDataURL('image/png');
-          const pdf = new jsPDF('p', 'mm', 'a4');
+          // Standard 58mm thermal paper width
+          const pdf = new jsPDF('p', 'mm', [58, 200]); 
           const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
           const canvasWidth = canvas.width;
           const canvasHeight = canvas.height;
           const ratio = canvasWidth / canvasHeight;
-          const imgWidth = pdfWidth;
-          const imgHeight = imgWidth / ratio;
+          const imgHeight = pdfWidth / ratio;
           
-          let heightLeft = imgHeight;
-          let position = 0;
-          
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pdfHeight;
-          
-          while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pdfHeight;
-          }
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
           
           const fileName = `Invoice-${customer.name.replace(/ /g, '_')}-${format(new Date(), 'yyyyMMdd')}.pdf`;
           pdf.save(fileName);
@@ -160,7 +148,7 @@ export default function InvoicePage() {
     }
 
     return (
-        <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 bg-background print:bg-white">
+        <div className="max-w-md mx-auto p-4 sm:p-6 lg:p-8 bg-background print:bg-white">
              <div className="flex justify-between items-center mb-6 print:hidden">
                 <Button variant="outline" onClick={() => router.back()}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -178,89 +166,57 @@ export default function InvoicePage() {
                 </div>
             </div>
             <div ref={invoiceRef}>
-                <Card className="border shadow-lg print:border-none print:shadow-none" id="invoice-content">
-                    <CardHeader className="bg-muted/30 p-4 sm:p-6">
-                        <div className="flex flex-col sm:flex-row justify-between items-start">
-                            <div>
-                                <div className="flex items-center gap-3 mb-4">
-                                     <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={50} height={50} />
-                                    <div>
-                                        <h1 className="text-xl sm:text-2xl font-bold text-primary">PT CYBERNETWORK CORP</h1>
-                                        <p className="text-sm text-muted-foreground">suport by NAVAZ</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="text-left sm:text-right w-full sm:w-auto mt-4 sm:mt-0">
-                                <CardTitle className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-800 mb-1">INVOICE</CardTitle>
-                                <CardDescription>#INV-{customer.id.substring(4)}-{format(new Date(), 'yyyyMMdd')}</CardDescription>
-                            </div>
+                <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="invoice-content">
+                    <CardHeader className="p-4 text-center">
+                       <div className="flex justify-center items-center gap-2 mb-2">
+                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={32} height={32} className="print:w-8 print:h-8"/>
+                            <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
                         </div>
-                        <Separator className="my-4"/>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <p className="font-semibold text-muted-foreground">Ditagihkan kepada:</p>
-                                <p className="font-bold text-base">{customer.name}</p>
-                                <p>{customer.address}</p>
-                            </div>
-                            <div className="text-left sm:text-right mt-4 sm:mt-0">
-                                <p className="font-semibold text-muted-foreground">Tanggal Invoice:</p>
-                                <p>{format(new Date(), "d MMMM yyyy", { locale: id })}</p>
-                                <p className="font-semibold text-muted-foreground mt-2">Jatuh Tempo:</p>
-                                <p>Tanggal {customer.dueDateCode} setiap bulan</p>
-                            </div>
-                        </div>
+                        <p className="text-xs">suport by NAVAZ</p>
+                        <p className="text-xs">--------------------------------</p>
                     </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-muted/50">
-                                        <TableHead className="px-4 sm:px-6">Deskripsi</TableHead>
-                                        <TableHead className="text-right px-4 sm:px-6">Jumlah</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {customerInvoices.length > 0 ? (
-                                        customerInvoices.map(invoice => (
-                                            <TableRow key={invoice.id}>
-                                                <TableCell className="px-4 sm:px-6">Tagihan Internet - {format(parseISO(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
-                                                <TableCell className="text-right px-4 sm:px-6">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={2} className="text-center h-24 px-4 sm:px-6">Tidak ada tagihan tertunggak.</TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                    <CardContent className="p-4 text-xs">
+                         <div className="grid grid-cols-3 gap-1 mb-2">
+                           <div className="col-span-1">Invoice</div>
+                           <div className="col-span-2">: INV-{customer.id.substring(4)}-{format(new Date(), 'yyyyMMdd')}</div>
+                           <div className="col-span-1">Tanggal</div>
+                           <div className="col-span-2">: {format(new Date(), "dd/MM/yyyy HH:mm", { locale: id })}</div>
+                           <div className="col-span-1">Pelanggan</div>
+                           <div className="col-span-2">: {customer.name}</div>
+                           <div className="col-span-1">Jt. Tempo</div>
+                           <div className="col-span-2">: Tgl {customer.dueDateCode} setiap bulan</div>
+                        </div>
+                        <p className="text-xs">--------------------------------</p>
+                         <p className="text-center font-semibold my-1">RINCIAN TAGIHAN</p>
+                        {customerInvoices.length > 0 ? (
+                            customerInvoices.map(invoice => (
+                                <div className="grid grid-cols-3 gap-1" key={invoice.id}>
+                                    <div className="col-span-2">Tagihan {format(parseISO(invoice.date), "MMMM yyyy", {locale: id})}</div>
+                                    <div className="col-span-1 text-right">Rp{invoice.amount.toLocaleString('id-ID')}</div>
+                                </div>
+                            ))
+                        ) : (
+                             <p className="text-center my-2">(Tidak ada tagihan)</p>
+                        )}
+                        <p className="text-xs">--------------------------------</p>
+                        <div className="grid grid-cols-3 gap-1 mt-2">
+                            <div className="col-span-2 font-semibold">Subtotal</div>
+                            <div className="col-span-1 text-right">Rp{subTotal.toLocaleString('id-ID')}</div>
+                            {creditUsed > 0 && (
+                                <>
+                                <div className="col-span-2 font-semibold">Saldo</div>
+                                <div className="col-span-1 text-right">- Rp{creditUsed.toLocaleString('id-ID')}</div>
+                                </>
+                            )}
                         </div>
                     </CardContent>
-                    <CardFooter className="bg-muted/30 p-4 sm:p-6">
-                        <div className="w-full">
-                            <div className="flex flex-col items-end space-y-2 text-sm">
-                                <div className="flex justify-between items-center w-full max-w-xs">
-                                    <p className="text-muted-foreground">Subtotal:</p>
-                                    <p className="font-medium w-32 text-right">Rp{subTotal.toLocaleString('id-ID')}</p>
-                                </div>
-                                {creditUsed > 0 && (
-                                     <div className="flex justify-between items-center w-full max-w-xs">
-                                        <p className="text-muted-foreground">Penggunaan Saldo:</p>
-                                        <p className="font-medium text-blue-600 w-32 text-right">- Rp{creditUsed.toLocaleString('id-ID')}</p>
-                                    </div>
-                                )}
-                            </div>
-                            <Separator className="my-4"/>
-                            <div className="flex justify-end items-center">
-                                <p className="text-base sm:text-lg font-medium mr-4">Total Tagihan:</p>
-                                <p className="text-xl sm:text-2xl font-bold text-primary w-36 sm:w-40 text-right">Rp{totalAmount.toLocaleString('id-ID')}</p>
-                            </div>
-                            <Separator className="my-4"/>
-                            <div className="text-xs text-muted-foreground">
-                                <p className="font-bold">Catatan:</p>
-                                <p>Mohon lakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari gangguan layanan. Terima kasih.</p>
-                            </div>
+                    <CardFooter className="p-4 text-xs flex-col">
+                        <p className="text-xs">--------------------------------</p>
+                         <div className="grid grid-cols-3 gap-1 w-full font-bold">
+                            <div className="col-span-2">TOTAL</div>
+                            <div className="col-span-1 text-right">Rp{totalAmount.toLocaleString('id-ID')}</div>
                         </div>
+                        <p className="text-xs mt-4">Mohon lakukan pembayaran sebelum jatuh tempo untuk menghindari gangguan layanan. Terima kasih.</p>
                     </CardFooter>
                 </Card>
             </div>
@@ -281,6 +237,16 @@ export default function InvoicePage() {
                     }
                     .print\\:bg-white {
                         background-color: white;
+                    }
+                     .print\\:w-8 {
+                        width: 2rem; /* 32px */
+                    }
+                    .print\\:h-8 {
+                        height: 2rem; /* 32px */
+                    }
+                    @page {
+                        size: 58mm auto;
+                        margin: 2mm;
                     }
                 }
             `}</style>

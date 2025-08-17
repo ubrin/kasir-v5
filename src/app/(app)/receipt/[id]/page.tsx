@@ -192,7 +192,7 @@ export default function ReceiptPage() {
                 <Card className="border shadow-lg print:border-none print:shadow-none font-mono" id="receipt-content">
                     <CardHeader className="p-4 text-center">
                         <div className="flex justify-center items-center gap-2 mb-2">
-                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={24} height={24} className="print:w-6 print:h-6"/>
+                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={32} height={32} className="print:w-8 print:h-8"/>
                             <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
                         </div>
                         <p className="text-xs">suport by NAVAZ</p>
@@ -267,11 +267,11 @@ export default function ReceiptPage() {
                     .print\\:bg-white {
                         background-color: white;
                     }
-                    .print\\:w-6 {
-                        width: 1.5rem; /* 24px */
+                    .print\\:w-8 {
+                        width: 2rem; /* 32px */
                     }
-                    .print\\:h-6 {
-                        height: 1.5rem; /* 24px */
+                    .print\\:h-8 {
+                        height: 2rem; /* 32px */
                     }
                     @page {
                         size: 58mm auto;
