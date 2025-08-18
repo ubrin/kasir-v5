@@ -114,7 +114,7 @@ export default function InvoicePage() {
     const handleSendWhatsApp = async () => {
         if (!customer || !invoiceRef.current) return;
     
-        const message = `Yth. Bapak/Ibu pelanggan CYBERNETWORK, Ini adalah rincian untuk pembayaran internet bulan ini. \n\nTotal Tagihan: *Rp${totalAmount.toLocaleString('id-ID')}*\n\nMohon lakukan pembayaran sebelum jatuh tempo untuk menghindari gangguan layanan. Terima kasih.\n- PT CYBERNETWORK CORP -`;
+        const message = `Yth. Bapak/Ibu pelanggan CYBERNETWORK, Ini adalah rincian untuk pembayaran internet bulan ini. \nTerima kasih.\n-PT CYBERNETWORK CORP -`;
         
         try {
             await navigator.clipboard.writeText(message);
