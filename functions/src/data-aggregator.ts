@@ -30,14 +30,15 @@ async function runDataAggregation() {
             invoicesSnapshot,
         ] = await Promise.all([
             db.collection("payments").get(),
-            db.collection("expenses").where("date", "!=", null).get(),
+            db.collection("expenses").get(), // Get all expenses first
             db.collection("otherIncomes").get(),
             db.collection("customers").get(),
             db.collection("invoices").get(),
         ]);
 
         const payments = paymentsSnapshot.docs.map(doc => doc.data());
-        const expenses = expensesSnapshot.docs.map(doc => doc.data());
+        // Filter expenses in code to ensure 'date' field exists and is not null
+        const expenses = expensesSnapshot.docs.map(doc => doc.data()).filter(e => e.date); 
         const otherIncomes = otherIncomesSnapshot.docs.map(doc => doc.data());
         const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -177,7 +178,10 @@ async function runDataAggregation() {
 
     } catch (error) {
         logger.error("Error during data aggregation:", error);
-        throw new HttpsError("internal", `Error during data aggregation: ${error}`);
+        if (error instanceof HttpsError) {
+          throw error;
+        }
+        throw new HttpsError("internal", "An unexpected error occurred during data aggregation.");
     }
 }
 
