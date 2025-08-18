@@ -30,15 +30,14 @@ async function runDataAggregation() {
             invoicesSnapshot,
         ] = await Promise.all([
             db.collection("payments").get(),
-            db.collection("expenses").get(), // Get all expenses first
+            db.collection("expenses").get(),
             db.collection("otherIncomes").get(),
             db.collection("customers").get(),
             db.collection("invoices").get(),
         ]);
 
         const payments = paymentsSnapshot.docs.map(doc => doc.data());
-        // Filter expenses in code to ensure 'date' field exists and is not null
-        const expenses = expensesSnapshot.docs.map(doc => doc.data()).filter(e => e.date); 
+        const expenses = expensesSnapshot.docs.map(doc => doc.data());
         const otherIncomes = otherIncomesSnapshot.docs.map(doc => doc.data());
         const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -47,10 +46,10 @@ async function runDataAggregation() {
         const startOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
         // --- GLOBAL STATS ---
-        const totalPaymentIncome = payments.reduce((sum, p) => sum + (p.totalPayment || p.paidAmount || 0), 0);
-        const totalOtherIncome = otherIncomes.reduce((sum, e) => sum + (e.amount || 0), 0);
+        const totalPaymentIncome = payments.reduce((sum, p) => sum + (Number(p.totalPayment) || Number(p.paidAmount) || 0), 0);
+        const totalOtherIncome = otherIncomes.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
         const totalIncome = totalPaymentIncome + totalOtherIncome;
-        const totalExpense = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+        const totalExpense = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
         const balance = totalIncome - totalExpense;
 
         // --- MONTHLY STATS ---
@@ -58,13 +57,13 @@ async function runDataAggregation() {
             const paymentDate = parseDate(p.paymentDate);
             return paymentDate && isThisMonth(paymentDate, today);
         });
-        const monthlyIncome = thisMonthPayments.reduce((sum, p) => sum + (p.totalPayment || p.paidAmount || 0), 0);
+        const monthlyIncome = thisMonthPayments.reduce((sum, p) => sum + (Number(p.totalPayment) || Number(p.paidAmount) || 0), 0);
         
         const thisMonthExpenses = expenses.filter(e => {
             const expenseDate = parseDate(e.date);
             return expenseDate && isThisMonth(expenseDate, today);
         });
-        const monthlyExpense = thisMonthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+        const monthlyExpense = thisMonthExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
         const netProfit = monthlyIncome - monthlyExpense;
 
         // --- CUSTOMER & INVOICE STATS ---
@@ -85,33 +84,39 @@ async function runDataAggregation() {
 
         const arrearsByCustomer: { [id: string]: { id: string, name: string, amount: number } } = {};
         oldUnpaidInvoices.forEach(invoice => {
-            if (!arrearsByCustomer[invoice.customerId]) {
-                arrearsByCustomer[invoice.customerId] = {
-                    id: invoice.customerId,
-                    name: invoice.customerName,
-                    amount: 0,
-                };
+            if (invoice.customerId) {
+                if (!arrearsByCustomer[invoice.customerId]) {
+                    arrearsByCustomer[invoice.customerId] = {
+                        id: invoice.customerId,
+                        name: invoice.customerName || 'N/A',
+                        amount: 0,
+                    };
+                }
+                arrearsByCustomer[invoice.customerId].amount += (Number(invoice.amount) || 0);
             }
-            arrearsByCustomer[invoice.customerId].amount += invoice.amount || 0;
         });
         const arrearsDetails = Object.values(arrearsByCustomer).sort((a,b) => b.amount - a.amount);
         const totalArrears = arrearsDetails.reduce((acc, detail) => acc + detail.amount, 0);
 
-        const totalOmset = customers.reduce((acc, c) => acc + (c.packagePrice || 0), 0);
+        const totalOmset = customers.reduce((acc, c) => acc + (Number(c.packagePrice) || 0), 0);
         
         const omsetBreakdown: { [key: string]: { subscriptionMbps: number; packagePrice: number; count: number; total: number } } = {};
         customers.forEach(c => {
-            const key = `${c.subscriptionMbps}-${c.packagePrice}`;
-            if (!omsetBreakdown[key]) {
-                omsetBreakdown[key] = {
-                    subscriptionMbps: c.subscriptionMbps,
-                    packagePrice: c.packagePrice,
-                    count: 0,
-                    total: 0
-                };
+            const packagePrice = Number(c.packagePrice) || 0;
+            const subscriptionMbps = Number(c.subscriptionMbps) || 0;
+            if (packagePrice > 0) {
+              const key = `${subscriptionMbps}-${packagePrice}`;
+              if (!omsetBreakdown[key]) {
+                  omsetBreakdown[key] = {
+                      subscriptionMbps: subscriptionMbps,
+                      packagePrice: packagePrice,
+                      count: 0,
+                      total: 0
+                  };
+              }
+              omsetBreakdown[key].count++;
+              omsetBreakdown[key].total += packagePrice;
             }
-            omsetBreakdown[key].count++;
-            omsetBreakdown[key].total += c.packagePrice || 0;
         });
         const omsetDetails = Object.values(omsetBreakdown).sort((a,b) => b.total - a.total);
 
@@ -120,8 +125,8 @@ async function runDataAggregation() {
             const invoiceDate = parseDate(invoice.date);
             return invoiceDate && isThisMonth(invoiceDate, today);
         });
-        const paidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + (inv.amount || 0) }), { count: 0, amount: 0 });
-        const unpaidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'belum lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + (inv.amount || 0) }), { count: 0, amount: 0 });
+        const paidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + (Number(inv.amount) || 0) }), { count: 0, amount: 0 });
+        const unpaidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'belum lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + (Number(inv.amount) || 0) }), { count: 0, amount: 0 });
         const pieData = [
             { name: 'Lunas', value: paidInvoicesStats.amount, count: paidInvoicesStats.count },
             { name: 'Belum Lunas', value: unpaidInvoicesStats.amount, count: unpaidInvoicesStats.count },
@@ -141,11 +146,11 @@ async function runDataAggregation() {
             if (paymentDate && (today.getTime() - paymentDate.getTime()) < (6 * 30 * 24 * 60 * 60 * 1000)) {
                 const monthName = paymentDate.toLocaleString('id-ID', { month: 'short' });
                  if (revenueDataByMonth.hasOwnProperty(monthName)) {
-                    revenueDataByMonth[monthName] += (p.totalPayment || p.paidAmount || 0);
+                    revenueDataByMonth[monthName] += (Number(p.totalPayment) || Number(p.paidAmount) || 0);
                 }
             }
         });
-        const monthlyRevenueData = monthNames.map(month => ({ month, revenue: revenueDataByMonth[month] }));
+        const monthlyRevenueData = monthNames.map(month => ({ month, revenue: revenueDataByMonth[month] || 0 }));
 
         const summaryData = {
             totalIncome,
