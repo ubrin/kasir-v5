@@ -5,11 +5,12 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, Invoice } from "@/lib/types";
 import Link from "next/link";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
-import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText } from "lucide-react"
+import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -40,6 +41,7 @@ type StatsSummary = {
 export default function FinancePage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [stats, setStats] = React.useState<StatsSummary | null>(null);
 
   React.useEffect(() => {
@@ -49,11 +51,8 @@ export default function FinancePage() {
       if (doc.exists()) {
         setStats(doc.data() as StatsSummary);
       } else {
-        toast({
-            title: "Data Statistik Tidak Ditemukan",
-            description: "Data ringkasan sedang dibuat. Silakan tunggu beberapa saat.",
-            variant: "destructive"
-        });
+        // Data doesn't exist, we don't show an error anymore, just the "Data Belum Tersedia" state
+        setStats(null);
       }
       setLoading(false);
     }, (error) => {
@@ -69,6 +68,30 @@ export default function FinancePage() {
     return () => unsubscribe();
   }, [toast]);
   
+  const handleRefreshStats = async () => {
+    setIsRefreshing(true);
+    try {
+        const functions = getFunctions();
+        const runDataAggregation = httpsCallable(functions, 'manuallyAggregateStats');
+        const result = await runDataAggregation();
+        
+        toast({
+            title: "Data Sedang Diperbarui",
+            description: "Statistik sedang dihitung ulang di server. Data akan diperbarui secara otomatis dalam beberapa saat.",
+        });
+
+    } catch (error) {
+        console.error("Error refreshing stats:", error);
+        toast({
+            title: "Gagal Memperbarui Statistik",
+            description: "Terjadi kesalahan saat mencoba memperbarui data.",
+            variant: "destructive"
+        });
+    } finally {
+        setIsRefreshing(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -80,13 +103,19 @@ export default function FinancePage() {
 
   if (!stats) {
      return (
-        <div className="flex justify-center items-center h-64">
-            <Card>
+        <div className="flex flex-col gap-8 items-center justify-center h-96">
+            <Card className="max-w-lg text-center">
                 <CardHeader>
-                    <CardTitle>Data Belum Tersedia</CardTitle>
+                    <CardTitle>Data Statistik Belum Tersedia</CardTitle>
+                    <CardDescription>
+                       Data ringkasan keuangan dan statistik belum dibuat. Klik tombol di bawah untuk membuat data sekarang. Proses ini mungkin memakan waktu beberapa menit.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">Data statistik belum tersedia. Silakan cek kembali nanti.</p>
+                    <Button onClick={handleRefreshStats} disabled={isRefreshing}>
+                        {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Buat Data Statistik Sekarang
+                    </Button>
                 </CardContent>
             </Card>
         </div>
@@ -100,6 +129,10 @@ export default function FinancePage() {
             <h1 className="text-3xl font-bold tracking-tight">Keuangan & Statistik</h1>
             <p className="text-muted-foreground">Analisis keuangan bulanan dan total.</p>
         </div>
+        <Button onClick={handleRefreshStats} disabled={isRefreshing} variant="outline">
+            {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Segarkan Data
+        </Button>
       </div>
 
         <Card>
@@ -341,3 +374,5 @@ export default function FinancePage() {
     </div>
   )
 }
+
+    

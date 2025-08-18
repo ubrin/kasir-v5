@@ -1,6 +1,7 @@
 
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 
 const db = admin.firestore();
@@ -17,8 +18,8 @@ const isThisMonth = (date: Date, today: Date): boolean => {
     return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
 };
 
-export const aggregateStats = onSchedule("every 60 minutes", async (event) => {
-    logger.info("Starting hourly data aggregation job.");
+async function runDataAggregation() {
+    logger.info("Starting data aggregation job.");
 
     try {
         const [
@@ -172,10 +173,25 @@ export const aggregateStats = onSchedule("every 60 minutes", async (event) => {
             monthlyIncome,
             newCustomers: newCustomers.length,
         });
-        return null;
+        return { success: true, message: "Data aggregation successful." };
 
     } catch (error) {
         logger.error("Error during data aggregation:", error);
-        return null;
+        return { success: false, message: `Error during data aggregation: ${error}` };
     }
+}
+
+
+export const aggregateStats = onSchedule("every 60 minutes", async (event) => {
+    await runDataAggregation();
+    return null;
 });
+
+export const manuallyAggregateStats = onCall(async (request) => {
+    // Here you could add authentication checks if needed
+    // e.g., if (!request.auth) { throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.'); }
+    const result = await runDataAggregation();
+    return result;
+});
+
+    

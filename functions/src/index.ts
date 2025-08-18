@@ -16,9 +16,9 @@ admin.initializeApp();
 
 // Import and export the new scheduled function
 import { generateMonthlyInvoices } from "./invoice-generator";
-import { aggregateStats } from "./data-aggregator";
+import { aggregateStats, manuallyAggregateStats } from "./data-aggregator";
 
-export { generateMonthlyInvoices, aggregateStats };
+export { generateMonthlyInvoices, aggregateStats, manuallyAggregateStats };
 
 
 // For cost control, you can set the maximum number of containers that can be
@@ -32,3 +32,5 @@ export { generateMonthlyInvoices, aggregateStats };
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
 setGlobalOptions({ maxInstances: 10 });
+
+    
