@@ -221,10 +221,10 @@ export default function InvoicePage() {
                     </Button>
                 </div>
             </div>
-            <div ref={invoiceRef} className="bg-white p-8">
+            <div ref={invoiceRef} className="bg-white p-4 sm:p-8">
                 <Card className="border shadow-lg print:border-none print:shadow-none" id="invoice-content">
-                    <CardHeader className="p-6">
-                        <div className="flex justify-between items-start">
+                    <CardHeader className="p-4 sm:p-6">
+                        <div className="flex justify-between items-start flex-col sm:flex-row gap-4">
                              <div className="flex items-center gap-4">
                                 <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '48px', height: '48px' }} />
                                 <div>
@@ -232,21 +232,21 @@ export default function InvoicePage() {
                                     <p className="text-muted-foreground text-xs">suport by NAVAZ</p>
                                 </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-left sm:text-right w-full sm:w-auto">
                                 <h1 className="text-2xl font-bold uppercase text-primary">Invoice</h1>
                                 <p className="text-muted-foreground">{invoiceNumber}</p>
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="p-6">
-                        <div className="grid grid-cols-2 gap-8 mb-8">
+                    <CardContent className="p-4 sm:p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                             <div>
                                 <h3 className="font-semibold mb-2">Ditagihkan Kepada:</h3>
                                 <p className="font-bold">{customer.name}</p>
                                 <p>{customer.address}</p>
                                 <p>{customer.phone}</p>
                             </div>
-                            <div className="text-right">
+                            <div className="text-left md:text-right">
                                 <h3 className="font-semibold mb-2">Detail Invoice:</h3>
                                 <p><span className="font-medium">Tanggal Terbit:</span> {format(new Date(), "d MMMM yyyy", { locale: id })}</p>
                                 <p><span className="font-medium">Jatuh Tempo:</span> Tgl {customer.dueDateCode} setiap bulan</p>
@@ -256,7 +256,7 @@ export default function InvoicePage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-3/5">Deskripsi</TableHead>
+                                    <TableHead>Deskripsi</TableHead>
                                     <TableHead className="text-right">Jumlah</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -296,7 +296,7 @@ export default function InvoicePage() {
                             </div>
                         </div>
                     </CardContent>
-                    <CardFooter className="p-6 text-xs text-muted-foreground text-center">
+                    <CardFooter className="p-4 sm:p-6 text-xs text-muted-foreground text-center">
                         <p>Terima kasih telah menggunakan layanan kami. Mohon lakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari gangguan layanan.</p>
                     </CardFooter>
                 </Card>
