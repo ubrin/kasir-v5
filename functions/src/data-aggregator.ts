@@ -1,7 +1,7 @@
 
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { onCall } from "firebase-functions/v2/https";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 
 const db = admin.firestore();
@@ -177,7 +177,7 @@ async function runDataAggregation() {
 
     } catch (error) {
         logger.error("Error during data aggregation:", error);
-        return { success: false, message: `Error during data aggregation: ${error}` };
+        throw new HttpsError("internal", `Error during data aggregation: ${error}`);
     }
 }
 
@@ -188,10 +188,7 @@ export const aggregateStats = onSchedule("every 60 minutes", async (event) => {
 });
 
 export const manuallyAggregateStats = onCall(async (request) => {
-    // Here you could add authentication checks if needed
-    // e.g., if (!request.auth) { throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.'); }
-    const result = await runDataAggregation();
-    return result;
+    // Optional: Add authentication checks if needed
+    // e.g., if (!request.auth) { throw new HttpsError('unauthenticated', 'The function must be called while authenticated.'); }
+    return await runDataAggregation();
 });
-
-    

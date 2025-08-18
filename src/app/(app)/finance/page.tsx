@@ -51,7 +51,6 @@ export default function FinancePage() {
       if (doc.exists()) {
         setStats(doc.data() as StatsSummary);
       } else {
-        // Data doesn't exist, we don't show an error anymore, just the "Data Belum Tersedia" state
         setStats(null);
       }
       setLoading(false);
@@ -80,11 +79,11 @@ export default function FinancePage() {
             description: "Statistik sedang dihitung ulang di server. Data akan diperbarui secara otomatis dalam beberapa saat.",
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error refreshing stats:", error);
         toast({
             title: "Gagal Memperbarui Statistik",
-            description: "Terjadi kesalahan saat mencoba memperbarui data.",
+            description: error.message || "Terjadi kesalahan saat mencoba memperbarui data.",
             variant: "destructive"
         });
     } finally {
@@ -374,5 +373,3 @@ export default function FinancePage() {
     </div>
   )
 }
-
-    

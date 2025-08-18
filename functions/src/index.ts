@@ -14,7 +14,7 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 
 
-// Import and export the new scheduled function
+// Import and export functions
 import { generateMonthlyInvoices } from "./invoice-generator";
 import { aggregateStats, manuallyAggregateStats } from "./data-aggregator";
 
@@ -32,5 +32,3 @@ export { generateMonthlyInvoices, aggregateStats, manuallyAggregateStats };
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
 setGlobalOptions({ maxInstances: 10 });
-
-    
