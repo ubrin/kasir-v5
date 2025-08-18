@@ -188,7 +188,8 @@ export const aggregateStats = onSchedule("every 60 minutes", async (event) => {
 });
 
 export const manuallyAggregateStats = onCall(async (request) => {
-    // Optional: Add authentication checks if needed
-    // e.g., if (!request.auth) { throw new HttpsError('unauthenticated', 'The function must be called while authenticated.'); }
+    if (!request.auth) {
+       throw new HttpsError('unauthenticated', 'The function must be called while authenticated.');
+    }
     return await runDataAggregation();
 });
