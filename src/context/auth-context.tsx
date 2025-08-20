@@ -32,18 +32,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
+    let unsubscribeProfile: () => void = () => {};
     if (firebaseUser) {
       const userDocRef = doc(db, 'users', firebaseUser.uid);
-      const unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
+      unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
         if (doc.exists()) {
           setAppUser(doc.data() as AppUser);
         } else {
+          // This case might happen if user record is deleted from firestore
+          // but auth record still exists.
           setAppUser(null);
         }
         setLoading(false);
+      }, (error) => {
+        console.error("Error fetching user profile:", error);
+        setAppUser(null);
+        setLoading(false);
       });
-      return () => unsubscribeProfile();
     }
+    // Cleanup subscription on unmount or if firebaseUser changes
+    return () => unsubscribeProfile();
   }, [firebaseUser]);
 
   const value = { firebaseUser, appUser, loading };

@@ -32,10 +32,12 @@ export default function AppLayout({
     );
   }
 
-  if (!appUser) {
+  // After loading, if there's still no user, redirect.
+  // Also handle case where firebaseUser exists but appUser profile is missing.
+  if (!firebaseUser || !appUser) {
      return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <p>Gagal memuat profil pengguna. Silakan coba login kembali.</p>
+      <div className="flex h-screen w-full items-center justify-center p-4 text-center">
+        <p>Gagal memuat profil pengguna atau sesi tidak valid. Silakan coba login kembali.</p>
       </div>
     );
   }
