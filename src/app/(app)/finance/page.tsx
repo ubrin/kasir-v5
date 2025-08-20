@@ -178,26 +178,30 @@ export default function FinancePage() {
             <p className="text-xs text-muted-foreground">Potensi pendapatan bulanan</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pelanggan Baru Bulan Ini</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{stats.newCustomersCount}</div>
-            <p className="text-xs text-muted-foreground">Pelanggan baru bulan ini</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tunggakan</CardTitle>
-            <FileClock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Rp{stats.totalArrears.toLocaleString('id-ID')}</div>
-            <p className="text-xs text-muted-foreground">Tagihan belum lunas dari bulan lalu</p>
-          </CardContent>
-        </Card>
+        <Link href="/customers?filter=new_this_month" className="block hover:bg-muted/50 transition-colors rounded-lg">
+            <Card className="h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pelanggan Baru Bulan Ini</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">+{stats.newCustomersCount}</div>
+                <p className="text-xs text-muted-foreground">Pelanggan baru bulan ini</p>
+            </CardContent>
+            </Card>
+        </Link>
+        <Link href="/customers?filter=has_arrears" className="block hover:bg-muted/50 transition-colors rounded-lg">
+            <Card className="h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pelanggan Menunggak</CardTitle>
+                <FileClock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">Rp{stats.totalArrears.toLocaleString('id-ID')}</div>
+                <p className="text-xs text-muted-foreground">Total tagihan belum lunas dari bulan lalu</p>
+            </CardContent>
+            </Card>
+        </Link>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

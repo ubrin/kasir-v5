@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, startOfToday, differenceInDays } from 'date-fns';
+import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, startOfToday, differenceInDays, isThisMonth } from 'date-fns';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -68,6 +68,7 @@ export default function CustomersPage() {
   const { toast } = useToast();
   
   const searchQuery = searchParams.get('q') || '';
+  const filterQuery = searchParams.get('filter');
   const [localSearchQuery, setLocalSearchQuery] = React.useState(searchQuery);
 
   React.useEffect(() => {
@@ -89,7 +90,7 @@ export default function CustomersPage() {
       const query = search ? `?${search}` : '';
 
       // Only push if the query is different to avoid redundant re-renders
-      if (`/customers${query}` !== `/customers?${searchParams.toString()}`) {
+      if (`/customers${query}` !== window.location.pathname + window.location.search) {
          router.push(`/customers${query}`);
       }
     }, 300); // 300ms debounce
@@ -292,10 +293,20 @@ export default function CustomersPage() {
 
   const filteredCustomers = customers.filter(customer => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const searchMatch =
         customer.name.toLowerCase().includes(searchLower) ||
-        customer.address.toLowerCase().includes(searchLower)
-    );
+        customer.address.toLowerCase().includes(searchLower);
+
+    if (!filterQuery) return searchMatch;
+
+    if (filterQuery === 'new_this_month') {
+        return searchMatch && customer.installationDate && isThisMonth(parseISO(customer.installationDate));
+    }
+    if (filterQuery === 'has_arrears') {
+        return searchMatch && customer.hasArrears === true;
+    }
+
+    return searchMatch;
   });
 
   const groupedCustomers = filteredCustomers.reduce((acc, customer) => {
@@ -366,6 +377,17 @@ export default function CustomersPage() {
       return isChecked ? [...otherIds, ...groupCustomerIds] : otherIds;
     });
   };
+  
+  const getFilterTitle = () => {
+    if (filterQuery === 'new_this_month') {
+      return 'Menampilkan Pelanggan Baru Bulan Ini';
+    }
+    if (filterQuery === 'has_arrears') {
+      return 'Menampilkan Pelanggan Menunggak';
+    }
+    return 'Pelanggan';
+  }
+
 
   if (loading) {
     return (
@@ -404,7 +426,7 @@ export default function CustomersPage() {
   return (
     <div className="flex flex-col gap-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h1 className="text-3xl font-bold tracking-tight">Pelanggan</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{getFilterTitle()}</h1>
             <div className="flex items-center gap-2">
                 <Select value={selectedGroup} onValueChange={setSelectedGroup}>
                     <SelectTrigger className="w-full sm:w-[180px]">
@@ -454,9 +476,17 @@ export default function CustomersPage() {
             </div>
         )}
 
-        {searchQuery && (
+        {(searchQuery || filterQuery) && (
             <div className="text-sm text-muted-foreground">
-                Menampilkan {filteredCustomers.length} hasil untuk pencarian <span className="font-semibold text-foreground">"{searchQuery}"</span>.
+                Menampilkan {filteredCustomers.length} hasil.
+                {(searchQuery || filterQuery) && (
+                    <Button variant="link" className="p-1 h-auto" onClick={() => {
+                        router.push('/customers');
+                        setLocalSearchQuery('');
+                    }}>
+                        Hapus filter
+                    </Button>
+                )}
             </div>
         )}
 
@@ -569,8 +599,8 @@ export default function CustomersPage() {
         ) : (
              <Card>
                 <CardContent className="flex flex-col items-center justify-center h-48 gap-2 text-center">
-                    <p className="text-lg font-medium">{searchQuery ? "Tidak Ada Hasil" : "Tidak Ada Pelanggan"}</p>
-                    <p className="text-muted-foreground">{searchQuery ? `Tidak ada pelanggan yang cocok dengan pencarian "${searchQuery}".` : "Mulai dengan menambahkan pelanggan baru atau impor dari file."}</p>
+                    <p className="text-lg font-medium">{searchQuery || filterQuery ? "Tidak Ada Hasil" : "Tidak Ada Pelanggan"}</p>
+                    <p className="text-muted-foreground">{searchQuery || filterQuery ? `Tidak ada pelanggan yang cocok dengan filter yang diterapkan.` : "Mulai dengan menambahkan pelanggan baru atau impor dari file."}</p>
                 </CardContent>
             </Card>
         )}
@@ -607,5 +637,3 @@ export default function CustomersPage() {
     </div>
   )
 }
-
-    
