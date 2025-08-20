@@ -24,44 +24,48 @@ import { useAuth } from '@/context/auth-context';
 import { useSidebar } from '@/components/ui/sidebar';
 
 
-const menuItems = [
-  { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
-  {
-    label: 'Transaksi',
-    icon: Coins,
-    roles: ['admin', 'user'],
-    subItems: [
-      { href: '/delinquency', label: 'Tagihan', icon: CreditCard, roles: ['admin', 'user'] },
-      { href: '/payment-report', label: 'Laporan Bayar', icon: BarChart3, roles: ['admin'] },
-    ]
-  },
-  { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
-  { href: '/finance', label: 'Keuangan', icon: Wallet, roles: ['admin'] },
-  {
-    label: 'Data Master',
-    icon: Settings,
-    roles: ['admin'],
-    subItems: [
-        { href: '/expenses', label: 'Pengeluaran', icon: TrendingDown, roles: ['admin'] },
-        { href: '/other-incomes', label: 'Pemasukan Lainnya', icon: DollarSign, roles: ['admin'] },
-        { href: '/collectors', label: 'Daftar Penagih', icon: UsersRound, roles: ['admin'] },
-        { href: '/reports', label: 'Total Keuangan', icon: BookText, roles: ['admin'] },
-    ]
-  }
-];
-
 export default function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { appUser: user } = useAuth(); // Change to appUser
   const { isMobile, setOpen, setOpenMobile } = useSidebar();
+
+  // Move menuItems inside the component to make it reactive to user role changes
+  const menuItems = [
+    { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
+    {
+      label: 'Transaksi',
+      icon: Coins,
+      roles: ['admin', 'user'],
+      subItems: [
+        { href: '/delinquency', label: 'Tagihan', icon: CreditCard, roles: ['admin', 'user'] },
+        { href: '/payment-report', label: 'Laporan Bayar', icon: BarChart3, roles: ['admin', 'user'] },
+      ]
+    },
+    { href: '/customers', label: 'Data Pelanggan', icon: Users, roles: ['admin', 'user'] },
+    { href: '/finance', label: 'Keuangan', icon: Wallet, roles: ['admin'] },
+    {
+      label: 'Data Master',
+      icon: Settings,
+      roles: ['admin'],
+      subItems: [
+          { href: '/expenses', label: 'Pengeluaran', icon: TrendingDown, roles: ['admin'] },
+          { href: '/other-incomes', label: 'Pemasukan Lainnya', icon: DollarSign, roles: ['admin'] },
+          { href: '/collectors', label: 'Daftar Penagih', icon: UsersRound, roles: ['admin'] },
+          { href: '/reports', label: 'Total Keuangan', icon: BookText, roles: ['admin'] },
+      ]
+    }
+  ];
+
+  const hasAccess = (roles: string[]) => {
+    if (!user?.role) return false;
+    return roles.includes(user.role);
+  }
 
   const handleItemClick = () => {
     if (isMobile) {
       setOpenMobile(false);
-    } else {
-      setOpen(false);
     }
   };
 
@@ -82,10 +86,6 @@ export default function AppSidebar() {
     }
   };
 
-  const hasAccess = (roles: string[]) => {
-    if (!user?.role) return false;
-    return roles.includes(user.role);
-  }
 
   const isSubItemActive = (subItems?: any[]) => {
     if (!subItems) return false;
@@ -113,23 +113,23 @@ export default function AppSidebar() {
                          <Link href={item.href} onClick={handleItemClick}>
                              <div className="flex items-center gap-2">
                                 <item.icon className="h-5 w-5" />
-                                <span>{item.label}</span>
+                                <span className="hidden group-data-[state=expanded]:inline">{item.label}</span>
                              </div>
-                             <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
+                             <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180 hidden group-data-[state=expanded]:inline" />
                           </Link>
                        ) : (
                          <>
                             <div className="flex items-center gap-2">
                                 <item.icon className="h-5 w-5" />
-                                <span>{item.label}</span>
+                                <span className="hidden group-data-[state=expanded]:inline">{item.label}</span>
                             </div>
-                            <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180" />
+                            <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180 hidden group-data-[state=expanded]:inline" />
                          </>
                        )}
                     </SidebarMenuButton>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <SidebarMenu className="pl-7 pt-1">
+                  <SidebarMenu className="pl-7 pt-1 hidden group-data-[state=expanded]:block">
                     {item.subItems.filter(subItem => hasAccess(subItem.roles)).map((subItem) => (
                        <SidebarMenuItem key={subItem.href}>
                          <SidebarMenuButton asChild isActive={pathname.startsWith(subItem.href!)} size="sm">
@@ -148,7 +148,7 @@ export default function AppSidebar() {
                 <SidebarMenuButton asChild isActive={pathname === item.href!} tooltip={{children: item.label}}>
                   <Link href={item.href!} onClick={handleItemClick}>
                     <item.icon className="h-5 w-5" />
-                    <span>{item.label}</span>
+                    <span className="hidden group-data-[state=expanded]:inline">{item.label}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -161,7 +161,7 @@ export default function AppSidebar() {
             <SidebarMenuItem>
                 <SidebarMenuButton onClick={handleLogout} tooltip={{children: 'Keluar'}}>
                     <LogOut className="h-5 w-5" />
-                    <span>Keluar</span>
+                    <span className="hidden group-data-[state=expanded]:inline">Keluar</span>
                 </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

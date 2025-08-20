@@ -7,7 +7,7 @@ import { FileClock, FilePieChart, Users, Wallet } from "lucide-react";
 import { useAuth } from '@/context/auth-context';
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { appUser } = useAuth();
 
   return (
     <div className="flex flex-col gap-8">
@@ -60,7 +60,7 @@ export default function HomePage() {
             </CardHeader>
           </Card>
         </Link>
-        {user?.role === 'admin' && (
+        {appUser?.role === 'admin' && (
           <Link href="/finance">
             <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
               <CardHeader className="flex flex-row items-center gap-4">

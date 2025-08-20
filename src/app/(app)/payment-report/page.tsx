@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { format, startOfMonth, endOfMonth, parseISO, getMonth, getYear } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, onSnapshot, query, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Collector } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
@@ -37,7 +37,7 @@ type DailyCollection = {
 
 export default function PaymentReportPage() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { appUser } = useAuth();
   const [loading, setLoading] = React.useState(true);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [collectors, setCollectors] = React.useState<Collector[]>([]);
@@ -53,41 +53,43 @@ export default function PaymentReportPage() {
   }, [payments]);
 
   React.useEffect(() => {
-    const unsubscribePayments = onSnapshot(query(collection(db, "payments")), (paymentsSnapshot) => {
-        const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
-        setPayments(paymentsList);
-        setLoading(false); 
-    }, (error) => {
-        console.error("Error fetching payments:", error);
-        toast({ title: "Gagal Memuat Laporan", variant: "destructive" });
-        setLoading(false);
-    });
-    
-    const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), (collectorsSnapshot) => {
-        const collectorsList = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a,b) => a.name.localeCompare(b.name));
-        setCollectors(collectorsList);
-        
-        const aditCollector = collectorsList.find(c => c.name.toLowerCase() === 'adit');
-        if (aditCollector) {
-            setAditCollectorId(aditCollector.id);
-        }
+      const fetchData = async () => {
+          setLoading(true);
+          try {
+              const paymentsQuery = query(collection(db, "payments"));
+              const collectorsQuery = query(collection(db, "collectors"));
 
-    }, (error) => {
-        console.error("Error fetching collectors:", error);
-        toast({ title: "Gagal Memuat Data Penagih", variant: "destructive" });
-    });
+              const [paymentsSnapshot, collectorsSnapshot] = await Promise.all([
+                  getDocs(paymentsQuery),
+                  getDocs(collectorsQuery)
+              ]);
 
-    return () => {
-        unsubscribePayments();
-        unsubscribeCollectors();
-    }
-  }, [toast]);
+              const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+              setPayments(paymentsList);
+
+              const collectorsList = collectorsSnapshot.docs
+                  .map(doc => ({ id: doc.id, ...doc.data() } as Collector))
+                  .sort((a, b) => a.name.localeCompare(b.name));
+              setCollectors(collectorsList);
+
+              const aditCollector = collectorsList.find(c => c.name.toLowerCase() === 'adit');
+              if (aditCollector) {
+                  setAditCollectorId(aditCollector.id);
+                  if (appUser?.role === 'user') {
+                      setSelectedCollectorId(aditCollector.id);
+                  }
+              }
+
+          } catch (error) {
+              console.error("Error fetching data:", error);
+              toast({ title: "Gagal Memuat Data", variant: "destructive" });
+          } finally {
+              setLoading(false);
+          }
+      };
+      fetchData();
+  }, [toast, appUser?.role]);
   
-  React.useEffect(() => {
-    if (user?.role === 'user' && aditCollectorId) {
-      setSelectedCollectorId(aditCollectorId);
-    }
-  }, [user, aditCollectorId]);
 
   const filteredPayments = payments.filter(payment => {
     const paymentDate = parseISO(payment.paymentDate);
@@ -95,7 +97,9 @@ export default function PaymentReportPage() {
     const isYearMatch = getYear(paymentDate).toString() === selectedYear;
 
     let isCollectorMatch = selectedCollectorId === 'all' || (payment.collectorId || 'unassigned') === selectedCollectorId;
-    if (user?.role === 'user' && aditCollectorId) {
+    
+    // Force filter for user role, regardless of selection
+    if (appUser?.role === 'user' && aditCollectorId) {
         isCollectorMatch = (payment.collectorId || 'unassigned') === aditCollectorId;
     }
 
@@ -150,7 +154,7 @@ export default function PaymentReportPage() {
             <p className="text-muted-foreground">Laporan penerimaan pembayaran dari pelanggan.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            {user?.role === 'admin' && (
+            {appUser?.role === 'admin' && (
               <Select value={selectedCollectorId} onValueChange={setSelectedCollectorId}>
                   <SelectTrigger className="w-full sm:w-[200px]">
                       <SelectValue placeholder="Pilih Penagih" />
