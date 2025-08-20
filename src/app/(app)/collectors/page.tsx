@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, UserPlus, UsersRound, Trash2 } from "lucide-react";
-import { collection, addDoc, onSnapshot, query, where, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, where, orderBy, deleteDoc, doc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import type { Collector, Payment } from "@/lib/types";
