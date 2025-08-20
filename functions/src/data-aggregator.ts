@@ -41,7 +41,7 @@ export async function runDataAggregation() {
     invoicesSnapshot,
   ] = await Promise.all([
     db.collection("payments").get(),
-    db.collection("expenses").get(),
+    db.collection("expenses").where("date", "!=", null).get(), // CRITICAL FIX: Only fetch expenses that are records (have a date)
     db.collection("otherIncomes").get(),
     db.collection("customers").get(),
     db.collection("invoices").get(),
@@ -60,12 +60,10 @@ export async function runDataAggregation() {
   const monthlyIncome = thisMonthPayments.reduce((sum, doc) => sum + getNumber(doc.data().totalPayment), 0);
 
   // --- Expenses Calculation ---
-  // We only consider expenses that have a date, which are historical records
-  const historicalExpenses = expensesSnapshot.docs.filter(doc => doc.data().date);
-
-  const totalExpense = historicalExpenses.reduce((sum, doc) => sum + getNumber(doc.data().amount), 0);
+  // The query now only gets historical expenses, so no extra filtering is needed here.
+  const totalExpense = expensesSnapshot.docs.reduce((sum, doc) => sum + getNumber(doc.data().amount), 0);
   
-  const thisMonthExpenses = historicalExpenses.filter(doc => {
+  const thisMonthExpenses = expensesSnapshot.docs.filter(doc => {
       const expenseDate = parseDate(doc.data().date);
       return expenseDate && isThisMonth(expenseDate);
   });
