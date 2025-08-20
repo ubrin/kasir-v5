@@ -2,13 +2,14 @@
 'use client';
 
 import * as React from "react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { Payment, Expense, OtherIncome } from "@/lib/types";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Wallet } from "lucide-react";
-
+import { Loader2, TrendingUp, TrendingDown, Wallet, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function ReportsPage() {
   const { toast } = useToast();
@@ -19,37 +20,54 @@ export default function ReportsPage() {
       balance: number;
   } | null>(null);
 
-  React.useEffect(() => {
-    const statsDocRef = doc(db, "app-stats", "summary");
-    
-    const unsubscribe = onSnapshot(statsDocRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
+  const calculateTotalStats = React.useCallback(async () => {
+    setLoading(true);
+    try {
+        const [
+            paymentsSnapshot,
+            expensesSnapshot,
+            otherIncomesSnapshot,
+        ] = await Promise.all([
+            getDocs(collection(db, "payments")),
+            getDocs(collection(db, "expenses")),
+            getDocs(collection(db, "otherIncomes")),
+        ]);
+
+        const payments = paymentsSnapshot.docs.map(doc => doc.data() as Payment);
+        const expenses = expensesSnapshot.docs.map(doc => doc.data() as Expense);
+        const otherIncomes = otherIncomesSnapshot.docs.map(doc => doc.data() as OtherIncome);
+
+        const totalPaymentIncome = payments.reduce((sum, p) => sum + (Number(p.totalPayment) || 0), 0);
+        const totalOtherIncomeValue = otherIncomes.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+        const totalIncome = totalPaymentIncome + totalOtherIncomeValue;
+        
+        const totalExpense = expenses.filter(e => e.date && e.amount).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        
+        const balance = totalIncome - totalExpense;
+
         setStats({
-          totalIncome: data.totalIncome || 0,
-          totalExpense: data.totalExpense || 0,
-          balance: data.balance || 0,
+          totalIncome,
+          totalExpense,
+          balance,
         });
-      } else {
-         toast({
-            title: "Data Statistik Tidak Ditemukan",
-            description: "Data ringkasan sedang dibuat. Silakan tunggu beberapa saat.",
-            variant: "destructive"
-        });
-      }
-      setLoading(false);
-    }, (error) => {
-      console.error("Failed to fetch finance data:", error);
+
+    } catch (error) {
+      console.error("Failed to fetch total stats:", error);
       toast({
           title: "Gagal memuat data",
-          description: "Tidak dapat mengambil data keuangan.",
+          description: "Tidak dapat mengambil data keuangan total.",
           variant: "destructive"
       });
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+      setStats(null);
+    } finally {
+        setLoading(false);
+    }
   }, [toast]);
+
+  React.useEffect(() => {
+    calculateTotalStats();
+  }, [calculateTotalStats]);
+
 
   if (loading) {
     return (
@@ -61,13 +79,19 @@ export default function ReportsPage() {
 
   if (!stats) {
      return (
-        <div className="flex justify-center items-center h-64">
-            <Card>
+        <div className="flex flex-col gap-8 items-center justify-center h-96">
+             <Card className="max-w-lg text-center">
                 <CardHeader>
-                    <CardTitle>Data Belum Tersedia</CardTitle>
+                    <CardTitle>Gagal Memuat Data</CardTitle>
+                    <CardDescription>
+                       Tidak dapat memuat data statistik total. Coba segarkan halaman.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">Data statistik belum tersedia. Silakan cek kembali nanti.</p>
+                    <Button onClick={calculateTotalStats}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Coba Lagi
+                    </Button>
                 </CardContent>
             </Card>
         </div>
@@ -76,9 +100,15 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Total Keuangan</h1>
-            <p className="text-muted-foreground">Ringkasan total dari semua pemasukan dan pengeluaran yang tercatat.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Total Keuangan</h1>
+                <p className="text-muted-foreground">Ringkasan total dari semua pemasukan dan pengeluaran yang tercatat.</p>
+            </div>
+             <Button onClick={calculateTotalStats} disabled={loading} variant="outline">
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Segarkan Data
+            </Button>
         </div>
         <Card>
             <CardHeader>
