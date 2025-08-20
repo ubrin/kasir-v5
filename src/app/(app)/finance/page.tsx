@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { format, isThisMonth, parseISO, startOfMonth } from "date-fns";
 import type { Payment, Expense, OtherIncome, Customer, Invoice } from "@/lib/types";
+import { InfoDialog } from "@/components/info-dialog";
 
 type Stats = {
   monthlyIncome: number;
@@ -20,6 +21,8 @@ type Stats = {
   totalArrears: number;
   newCustomersCount: number;
   omsetBreakdown: { [key: string]: number };
+  newCustomers: Pick<Customer, 'name' | 'address'>[];
+  delinquentCustomers: { name: string; amount: number }[];
 };
 
 export default function FinancePage() {
@@ -42,7 +45,7 @@ export default function FinancePage() {
           getDocs(query(collection(db, "expenses"), where("date", "!=", null))),
           getDocs(collection(db, "otherIncomes")),
           getDocs(collection(db, "customers")),
-          getDocs(collection(db, "invoices")),
+          getDocs(query(collection(db, "invoices"), where("status", "==", "belum lunas"))),
         ]);
 
         const today = new Date();
@@ -59,7 +62,6 @@ export default function FinancePage() {
             .filter(oi => oi.date && isThisMonth(parseISO(oi.date)));
             
         const monthlyIncomeFromOther = thisMonthOtherIncomes.reduce((sum, oi) => sum + (oi.amount || 0), 0);
-
         const monthlyIncome = monthlyIncomeFromPayments + monthlyIncomeFromOther;
 
         const thisMonthExpenses = expensesSnapshot.docs
@@ -68,15 +70,25 @@ export default function FinancePage() {
             
         const monthlyExpense = thisMonthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
         
-        const customersList = customersSnapshot.docs.map(doc => doc.data() as Customer);
-
+        const customersList = customersSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Customer));
         const newCustomers = customersList.filter(c => c.installationDate && isThisMonth(parseISO(c.installationDate)));
 
-        const oldUnpaidInvoices = invoicesSnapshot.docs
-            .map(doc => doc.data() as Invoice)
-            .filter(inv => inv.status === 'belum lunas' && inv.date && parseISO(inv.date) < startOfCurrentMonth);
+        const unpaidInvoices = invoicesSnapshot.docs.map(doc => doc.data() as Invoice);
 
+        const oldUnpaidInvoices = unpaidInvoices
+            .filter(inv => inv.date && parseISO(inv.date) < startOfCurrentMonth);
+            
         const totalArrears = oldUnpaidInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+
+        const delinquentCustomersMap = new Map<string, {name: string, amount: number}>();
+        for (const invoice of oldUnpaidInvoices) {
+            const customer = customersList.find(c => c.id === invoice.customerId);
+            if(customer) {
+                const current = delinquentCustomersMap.get(customer.id) || {name: customer.name, amount: 0};
+                current.amount += invoice.amount;
+                delinquentCustomersMap.set(customer.id, current);
+            }
+        }
 
         const totalOmset = customersList.reduce((sum, c) => sum + (c.packagePrice || 0), 0);
 
@@ -95,6 +107,8 @@ export default function FinancePage() {
           totalArrears,
           newCustomersCount: newCustomers.length,
           omsetBreakdown,
+          newCustomers: newCustomers.map(c => ({name: c.name, address: c.address})),
+          delinquentCustomers: Array.from(delinquentCustomersMap.values())
         });
 
       } catch (error) {
@@ -177,65 +191,84 @@ export default function FinancePage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Omset Potensial</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
-            <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                {Object.entries(stats.omsetBreakdown).map(([key, value]) => (
-                    <p key={key}>{key} x{value}</p>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Link href="/customers?filter=new_this_month" className="block hover:bg-muted/50 transition-colors rounded-lg">
-            <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pelanggan Baru Bulan Ini</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">+{stats.newCustomersCount}</div>
-                <p className="text-xs text-muted-foreground">Pelanggan baru bulan ini</p>
-            </CardContent>
+        <InfoDialog
+          title="Rincian Omset Potensial"
+          description="Berikut adalah rincian paket aktif yang dimiliki pelanggan Anda."
+          trigger={
+            <Card className="h-full cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Omset Potensial</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
+                <p className="text-xs text-muted-foreground mt-1">Total dari semua paket pelanggan</p>
+              </CardContent>
             </Card>
-        </Link>
-        <Link href="/customers?filter=has_arrears" className="block hover:bg-muted/50 transition-colors rounded-lg">
-            <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Tunggakan</CardTitle>
-                <FileClock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">Rp{stats.totalArrears.toLocaleString('id-ID')}</div>
-                <p className="text-xs text-muted-foreground">Total tagihan belum lunas dari bulan lalu</p>
-            </CardContent>
-            </Card>
-        </Link>
-      </div>
+          }
+        >
+          <ul className="space-y-2">
+            {Object.entries(stats.omsetBreakdown).map(([key, value]) => (
+              <li key={key} className="flex justify-between items-center text-sm">
+                <span>{key}</span>
+                <span className="font-semibold">x{value}</span>
+              </li>
+            ))}
+          </ul>
+        </InfoDialog>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button asChild variant="outline">
-          <Link href="/other-incomes">
-            <DollarSign className="mr-2 h-4 w-4" />
-            Pemasukan Lainnya
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/expenses">
-            <TrendingDown className="mr-2 h-4 w-4" />
-            Lihat Pengeluaran
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/reports">
-            <BookText className="mr-2 h-4 w-4" />
-            Total Keuangan
-          </Link>
-        </Button>
+        <InfoDialog
+            title="Pelanggan Baru Bulan Ini"
+            description={`Terdapat ${stats.newCustomers.length} pelanggan baru yang terdaftar bulan ini.`}
+            trigger={
+                <Card className="h-full cursor-pointer hover:bg-muted/50 transition-colors">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pelanggan Baru Bulan Ini</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">+{stats.newCustomersCount}</div>
+                        <p className="text-xs text-muted-foreground">Pelanggan baru bulan ini</p>
+                    </CardContent>
+                </Card>
+            }
+        >
+            <ul className="space-y-3">
+                {stats.newCustomers.map((customer, index) => (
+                <li key={index} className="text-sm border-b pb-2">
+                    <p className="font-semibold">{customer.name}</p>
+                    <p className="text-muted-foreground">{customer.address}</p>
+                </li>
+                ))}
+            </ul>
+        </InfoDialog>
+        
+        <InfoDialog
+          title="Pelanggan Menunggak"
+          description="Daftar pelanggan dengan tagihan belum lunas dari bulan-bulan sebelumnya."
+          trigger={
+             <Card className="h-full cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Tunggakan</CardTitle>
+                  <FileClock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                  <div className="text-2xl font-bold">Rp{stats.totalArrears.toLocaleString('id-ID')}</div>
+                  <p className="text-xs text-muted-foreground">Total tagihan belum lunas dari bulan lalu</p>
+              </CardContent>
+            </Card>
+          }
+        >
+          <ul className="space-y-3">
+            {stats.delinquentCustomers.map((customer, index) => (
+              <li key={index} className="flex justify-between items-center text-sm border-b pb-2">
+                <span className="font-semibold">{customer.name}</span>
+                <span className="text-destructive font-medium">Rp{customer.amount.toLocaleString('id-ID')}</span>
+              </li>
+            ))}
+          </ul>
+        </InfoDialog>
+
       </div>
     </div>
   );
