@@ -1,0 +1,127 @@
+
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
+import { HttpsError } from "firebase-functions/v2/https";
+import { parseISO, startOfMonth, isThisMonth } from "date-fns";
+
+// Helper to safely parse dates
+const parseDate = (dateString: string | undefined): Date | null => {
+  if (!dateString) return null;
+  try {
+    const date = parseISO(dateString);
+    if (isNaN(date.getTime())) return null;
+    return date;
+  } catch (error) {
+    return null;
+  }
+};
+
+// Helper to safely get numeric values
+const getNumber = (value: any): number => {
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
+};
+
+// The core logic for data aggregation
+export async function runDataAggregation() {
+  const db = admin.firestore();
+
+  // Parallel fetching of all required data
+  const [
+    paymentsSnapshot,
+    expensesSnapshot,
+    otherIncomesSnapshot,
+    customersSnapshot,
+    invoicesSnapshot,
+  ] = await Promise.all([
+    db.collection("payments").get(),
+    db.collection("expenses").get(),
+    db.collection("otherIncomes").get(),
+    db.collection("customers").get(),
+    db.collection("invoices").get(),
+  ]);
+
+  // --- Calculations ---
+  const today = new Date();
+  const startOfCurrentMonth = startOfMonth(today);
+
+  // Payments
+  const totalPaymentIncome = paymentsSnapshot.docs.reduce((sum, doc) => sum + getNumber(doc.data().totalPayment), 0);
+  const thisMonthPayments = paymentsSnapshot.docs.filter(doc => {
+      const paymentDate = parseDate(doc.data().paymentDate);
+      return paymentDate && isThisMonth(paymentDate);
+  });
+  const monthlyIncome = thisMonthPayments.reduce((sum, doc) => sum + getNumber(doc.data().totalPayment), 0);
+
+  // Expenses
+  const historicalExpenses = expensesSnapshot.docs.filter(doc => doc.data().date);
+  const totalExpense = historicalExpenses.reduce((sum, doc) => sum + getNumber(doc.data().amount), 0);
+  const thisMonthExpenses = historicalExpenses.filter(doc => {
+      const expenseDate = parseDate(doc.data().date);
+      return expenseDate && isThisMonth(expenseDate);
+  });
+  const monthlyExpense = thisMonthExpenses.reduce((sum, doc) => sum + getNumber(doc.data().amount), 0);
+
+  // Other Incomes
+  const totalOtherIncome = otherIncomesSnapshot.docs.reduce((sum, doc) => sum + getNumber(doc.data().amount), 0);
+
+  // Customer & Invoice Stats
+  const newCustomers = customersSnapshot.docs.filter(doc => {
+      const installDate = parseDate(doc.data().installationDate);
+      return installDate && isThisMonth(installDate);
+  }).map(doc => ({
+    id: doc.id,
+    name: doc.data().name || "N/A",
+    subscriptionMbps: getNumber(doc.data().subscriptionMbps),
+    packagePrice: getNumber(doc.data().packagePrice),
+  }));
+
+  const oldUnpaidInvoices = invoicesSnapshot.docs.filter(doc => {
+      const invoiceDate = parseDate(doc.data().date);
+      return doc.data().status === 'belum lunas' && invoiceDate && invoiceDate < startOfCurrentMonth;
+  });
+
+  const totalArrears = oldUnpaidInvoices.reduce((sum, doc) => sum + getNumber(doc.data().amount), 0);
+  const totalOmset = customersSnapshot.docs.reduce((sum, doc) => sum + getNumber(doc.data().packagePrice), 0);
+
+  // --- Final Stats Object ---
+  const stats = {
+    totalIncome: totalPaymentIncome + totalOtherIncome,
+    totalExpense: totalExpense,
+    balance: totalPaymentIncome + totalOtherIncome - totalExpense,
+    monthlyIncome: monthlyIncome,
+    monthlyExpense: monthlyExpense,
+    netProfit: monthlyIncome - monthlyExpense,
+    totalOmset: totalOmset,
+    totalArrears: totalArrears,
+    newCustomersCount: newCustomers.length,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  // Write to Firestore
+  await db.collection("app-stats").doc("summary").set(stats, { merge: true });
+  functions.logger.info("Successfully aggregated and saved statistics.", { stats });
+}
+
+// Scheduled function to run every hour
+export const aggregateStats = functions.pubsub.schedule("every 60 minutes").onRun(async (context) => {
+  functions.logger.info("Running scheduled data aggregation...");
+  await runDataAggregation();
+});
+
+// Manually callable function
+export const manuallyAggregateStats = functions.https.onCall(async (data, context) => {
+  // Authentication check
+  if (!context.auth) {
+    throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
+  }
+  
+  functions.logger.info("Manual data aggregation triggered by user:", context.auth.uid);
+  try {
+    await runDataAggregation();
+    return { success: true, message: "Statistik berhasil diperbarui." };
+  } catch (error) {
+    functions.logger.error("Error during manual data aggregation:", error);
+    throw new HttpsError("internal", "Gagal memperbarui statistik.", error);
+  }
+});
