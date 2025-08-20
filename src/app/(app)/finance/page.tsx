@@ -4,14 +4,13 @@ import * as React from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, app } from "@/lib/firebase";
-import type { Customer } from "@/lib/types";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { format, parseISO, startOfMonth, isThisMonth, subMonths } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { id } from 'date-fns/locale';
 
 type Stats = {
@@ -61,8 +60,8 @@ export default function FinancePage() {
     setRefreshing(true);
     try {
         const functions = getFunctions(app);
-        const aggregateStats = httpsCallable(functions, 'manuallyAggregateStats');
-        const result = await aggregateStats();
+        const aggregateStatsCallable = httpsCallable(functions, 'manuallyAggregateStats');
+        await aggregateStatsCallable();
         toast({
             title: "Pembaruan Berhasil",
             description: "Data statistik telah berhasil diperbarui.",
@@ -94,7 +93,7 @@ export default function FinancePage() {
                 <CardHeader>
                     <CardTitle>Data Belum Tersedia</CardTitle>
                     <CardDescription>
-                       Data statistik belum dibuat. Klik tombol di bawah untuk membuatnya.
+                       Data statistik belum dibuat. Klik tombol di bawah untuk membuatnya. Ini mungkin memakan waktu beberapa saat.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

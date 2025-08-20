@@ -54,8 +54,8 @@ export default function ReportsPage() {
     setRefreshing(true);
     try {
         const functions = getFunctions(app);
-        const aggregateStats = httpsCallable(functions, 'manuallyAggregateStats');
-        await aggregateStats();
+        const aggregateStatsCallable = httpsCallable(functions, 'manuallyAggregateStats');
+        await aggregateStatsCallable();
         toast({
             title: "Pembaruan Berhasil",
             description: "Data statistik telah berhasil diperbarui.",
