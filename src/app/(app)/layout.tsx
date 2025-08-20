@@ -19,37 +19,17 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { firebaseUser, loading: authLoading, appUser, setAppUser } = useAuth();
-  const [profileLoading, setProfileLoading] = React.useState(true);
+  const { firebaseUser, appUser, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // Effect for redirection based on auth state
+  // Redirect if auth is loaded and there's no user
   React.useEffect(() => {
     if (!authLoading && !firebaseUser) {
       router.push('/');
     }
   }, [firebaseUser, authLoading, router]);
 
-  // Effect for fetching user profile
-  React.useEffect(() => {
-    if (firebaseUser) {
-      const unsub = onSnapshot(doc(db, 'users', firebaseUser.uid), (doc) => {
-        if (doc.exists()) {
-          setAppUser(doc.data() as AppUser);
-        } else {
-          setAppUser(null); // Explicitly set to null if profile doesn't exist
-        }
-        setProfileLoading(false);
-      });
-      return () => unsub();
-    } else if (!authLoading) {
-      // If no Firebase user and auth is not loading, we're not expecting a profile.
-      setProfileLoading(false);
-    }
-  }, [firebaseUser, authLoading, setAppUser]);
-
-
-  if (authLoading || profileLoading) {
+  if (authLoading || !appUser) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin" />
@@ -57,16 +37,16 @@ export default function AppLayout({
     );
   }
 
-  if (!firebaseUser || !appUser) {
-    // This state can be reached briefly before redirection or if the profile is missing.
-    // The redirect effect will handle routing the user away.
-    // Showing a loader here is safer than returning null.
+  // If auth is loaded, firebaseUser exists but we are waiting for appUser profile, show loader.
+  // This state is very brief.
+  if (!appUser) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin" />
       </div>
     );
   }
+
 
   return (
     <SidebarProvider>

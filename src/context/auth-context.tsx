@@ -3,14 +3,14 @@
 
 import * as React from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { doc, onSnapshot } from "firebase/firestore";
+import { auth, db } from '@/lib/firebase';
 import type { AppUser } from '@/lib/types';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
+  appUser: AppUser | null;
   loading: boolean;
-  appUser: AppUser | null; // Keep appUser here, but manage it in Layout
-  setAppUser: React.Dispatch<React.SetStateAction<AppUser | null>>;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -21,15 +21,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
-      setLoading(false);
+      if (!user) {
+        // If user logs out, clear appUser and stop loading
+        setAppUser(null);
+        setLoading(false);
+      }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
-  const value = { firebaseUser, loading, appUser, setAppUser };
+  React.useEffect(() => {
+    if (firebaseUser) {
+      // If we have a firebaseUser, fetch their profile from Firestore
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      const unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
+        if (doc.exists()) {
+          setAppUser(doc.data() as AppUser);
+        } else {
+          // Handle case where user exists in Auth but not in Firestore
+          setAppUser(null);
+        }
+        setLoading(false); // Stop loading once profile is fetched (or confirmed not to exist)
+      });
+      return () => unsubscribeProfile();
+    }
+  }, [firebaseUser]);
+
+  const value = { firebaseUser, appUser, loading };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
