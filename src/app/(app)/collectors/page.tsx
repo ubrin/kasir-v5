@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, UserPlus, UsersRound, Trash2 } from "lucide-react";
-import { collection, addDoc, onSnapshot, query, where, orderBy, deleteDoc, doc, getDocs } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import type { Collector, Payment } from "@/lib/types";
@@ -92,68 +92,66 @@ export default function CollectorsPage() {
     const [monthlyTotals, setMonthlyTotals] = React.useState<CollectorMonthlyTotal[]>([]);
     const [collectorToDelete, setCollectorToDelete] = React.useState<Collector | null>(null);
 
-    React.useEffect(() => {
+    const fetchCollectorData = React.useCallback(async () => {
         setLoading(true);
-        const today = new Date();
-        const start = format(startOfMonth(today), 'yyyy-MM-dd');
-        const end = format(endOfMonth(today), 'yyyy-MM-dd');
+        try {
+            const today = new Date();
+            const start = format(startOfMonth(today), 'yyyy-MM-dd');
+            const end = format(endOfMonth(today), 'yyyy-MM-dd');
 
-        const paymentsQuery = query(
-            collection(db, "payments"),
-            where("paymentDate", ">=", start),
-            where("paymentDate", "<=", end),
-        );
-        
-        const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), (collectorsSnapshot) => {
-            const collectorsList = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a, b) => a.name.localeCompare(b.name));
+            const collectorsQuery = query(collection(db, "collectors"));
+            const paymentsQuery = query(
+                collection(db, "payments"),
+                where("paymentDate", ">=", start),
+                where("paymentDate", "<=", end),
+            );
+
+            const [collectorsSnapshot, paymentsSnapshot] = await Promise.all([
+                getDocs(collectorsQuery),
+                getDocs(paymentsQuery)
+            ]);
+
+            const collectorsList = collectorsSnapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as Collector))
+                .sort((a, b) => a.name.localeCompare(b.name));
             setAllCollectors(collectorsList);
 
             const collectorsMap = new Map(collectorsList.map(c => [c.id, c.name]));
             collectorsMap.set('unassigned', 'Tidak Ditentukan');
 
-            const unsubscribePayments = onSnapshot(paymentsQuery, (paymentsSnapshot) => {
-                const monthlyPayments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
-                
-                const totals: { [id: string]: CollectorMonthlyTotal } = {};
+            const monthlyPayments = paymentsSnapshot.docs.map(doc => doc.data() as Payment);
+            
+            const totals: { [id: string]: CollectorMonthlyTotal } = {};
 
-                // Initialize totals for all collectors to ensure they appear even with 0 collection
-                collectorsMap.forEach((name, id) => {
-                    totals[id] = { id, name, total: 0 };
-                });
-
-                for (const payment of monthlyPayments) {
-                    const collectorId = payment.collectorId || 'unassigned';
-                    const collectorName = collectorsMap.get(collectorId) || 'Nama Tidak Ditemukan';
-
-                    if (!totals[collectorId]) {
-                         totals[collectorId] = { id: collectorId, name: collectorName, total: 0 };
-                    }
-                    totals[collectorId].total += payment.totalPayment;
-                }
-                
-                const sortedTotals = Object.values(totals).sort((a,b) => a.name.localeCompare(b.name));
-                setMonthlyTotals(sortedTotals);
-                setLoading(false);
-
-            }, (error) => {
-                 console.error("Error fetching payments data:", error);
-                 toast({ title: "Gagal memuat data pembayaran", variant: "destructive" });
-                 setLoading(false);
+            // Initialize totals for all collectors to ensure they appear even with 0 collection
+            collectorsMap.forEach((name, id) => {
+                totals[id] = { id, name, total: 0 };
             });
 
-            return () => unsubscribePayments();
+            for (const payment of monthlyPayments) {
+                const collectorId = payment.collectorId || 'unassigned';
+                const collectorName = collectorsMap.get(collectorId) || 'Nama Tidak Ditemukan';
 
-        }, (error) => {
-            console.error("Error fetching collectors data:", error);
-            toast({ title: "Gagal memuat data penagih", variant: "destructive" });
+                if (!totals[collectorId]) {
+                     totals[collectorId] = { id: collectorId, name: collectorName, total: 0 };
+                }
+                totals[collectorId].total += payment.totalPayment;
+            }
+            
+            const sortedTotals = Object.values(totals).sort((a,b) => a.name.localeCompare(b.name));
+            setMonthlyTotals(sortedTotals);
+
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            toast({ title: "Gagal memuat data", variant: "destructive" });
+        } finally {
             setLoading(false);
-        });
-
-        return () => {
-            unsubscribeCollectors();
-        };
-
+        }
     }, [toast]);
+
+    React.useEffect(() => {
+        fetchCollectorData();
+    }, [fetchCollectorData]);
 
     const handleDeleteCollector = async () => {
         if (!collectorToDelete) return;
@@ -179,6 +177,7 @@ export default function CollectorsPage() {
                 variant: "destructive"
             });
             setCollectorToDelete(null);
+            fetchCollectorData(); // Refetch data
         } catch (error) {
             console.error("Error deleting collector:", error);
             toast({
@@ -196,7 +195,7 @@ export default function CollectorsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Laporan Penagih</h1>
           <p className="text-muted-foreground">Kelola penagih dan lihat laporan setoran per bulan ini.</p>
         </div>
-        <AddCollectorDialog onCollectorAdded={() => {}} />
+        <AddCollectorDialog onCollectorAdded={fetchCollectorData} />
       </div>
 
        <Card>
@@ -301,3 +300,5 @@ export default function CollectorsPage() {
     </div>
   );
 }
+
+    
