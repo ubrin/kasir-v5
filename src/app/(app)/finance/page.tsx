@@ -195,7 +195,7 @@ export default function FinancePage() {
         <Link href="/customers?filter=has_arrears" className="block hover:bg-muted/50 transition-colors rounded-lg">
             <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pelanggan Menunggak</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Tunggakan</CardTitle>
                 <FileClock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
