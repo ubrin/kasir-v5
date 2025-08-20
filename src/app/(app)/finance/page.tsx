@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from "react";
-import { collection, getDocs, query } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,7 +38,7 @@ export default function FinancePage() {
           invoicesSnapshot,
         ] = await Promise.all([
           getDocs(collection(db, "payments")),
-          getDocs(collection(db, "expenses")),
+          getDocs(query(collection(db, "expenses"), where("date", "!=", null))),
           getDocs(collection(db, "otherIncomes")),
           getDocs(collection(db, "customers")),
           getDocs(collection(db, "invoices")),
