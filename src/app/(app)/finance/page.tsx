@@ -23,6 +23,9 @@ type Stats = {
   omsetBreakdown: { [key: string]: number };
   newCustomers: Pick<Customer, 'name' | 'address'>[];
   delinquentCustomers: { name: string; amount: number }[];
+  monthlyIncomeFromPayments: number;
+  monthlyIncomeFromOther: number;
+  monthlyExpenseByCategory: Record<string, number>;
 };
 
 export default function FinancePage() {
@@ -69,6 +72,12 @@ export default function FinancePage() {
             .filter(e => e.date && isThisMonth(parseISO(e.date)));
             
         const monthlyExpense = thisMonthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+        const monthlyExpenseByCategory = thisMonthExpenses.reduce((acc, expense) => {
+            const categoryName = expense.category === 'utama' ? 'Wajib' : expense.category.charAt(0).toUpperCase() + expense.category.slice(1);
+            acc[categoryName] = (acc[categoryName] || 0) + (expense.amount || 0);
+            return acc;
+        }, {} as Record<string, number>);
         
         const customersList = customersSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Customer));
         const newCustomers = customersList.filter(c => c.installationDate && isThisMonth(parseISO(c.installationDate)));
@@ -108,7 +117,10 @@ export default function FinancePage() {
           newCustomersCount: newCustomers.length,
           omsetBreakdown,
           newCustomers: newCustomers.map(c => ({name: c.name, address: c.address})),
-          delinquentCustomers: Array.from(delinquentCustomersMap.values())
+          delinquentCustomers: Array.from(delinquentCustomersMap.values()),
+          monthlyIncomeFromPayments,
+          monthlyIncomeFromOther,
+          monthlyExpenseByCategory
         });
 
       } catch (error) {
@@ -159,24 +171,58 @@ export default function FinancePage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-8 sm:grid-cols-3">
-            <div className="flex items-center gap-4">
-              <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pemasukan</p>
-                <p className="text-2xl font-bold">Rp{stats.monthlyIncome.toLocaleString('id-ID')}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="bg-red-100 dark:bg-red-900/50 p-3 rounded-lg">
-                <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Pengeluaran</p>
-                <p className="text-2xl font-bold">Rp{stats.monthlyExpense.toLocaleString('id-ID')}</p>
-              </div>
-            </div>
+            <InfoDialog
+              title="Rincian Pemasukan Bulan Ini"
+              description="Berikut adalah rincian sumber pemasukan yang tercatat bulan ini."
+              trigger={
+                <div className="flex items-center gap-4 cursor-pointer">
+                  <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pemasukan</p>
+                    <p className="text-2xl font-bold">Rp{stats.monthlyIncome.toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+              }
+            >
+              <ul className="space-y-2">
+                <li className="flex justify-between items-center text-sm border-b pb-2">
+                  <span>Pembayaran Pelanggan</span>
+                  <span className="font-semibold">Rp{stats.monthlyIncomeFromPayments.toLocaleString('id-ID')}</span>
+                </li>
+                <li className="flex justify-between items-center text-sm">
+                  <span>Pemasukan Lainnya</span>
+                  <span className="font-semibold">Rp{stats.monthlyIncomeFromOther.toLocaleString('id-ID')}</span>
+                </li>
+              </ul>
+            </InfoDialog>
+
+            <InfoDialog
+              title="Rincian Pengeluaran Bulan Ini"
+              description="Berikut adalah rincian pengeluaran berdasarkan kategori yang tercatat bulan ini."
+              trigger={
+                <div className="flex items-center gap-4 cursor-pointer">
+                  <div className="bg-red-100 dark:bg-red-900/50 p-3 rounded-lg">
+                    <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pengeluaran</p>
+                    <p className="text-2xl font-bold">Rp{stats.monthlyExpense.toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+              }
+            >
+              <ul className="space-y-2">
+                {Object.entries(stats.monthlyExpenseByCategory).map(([category, amount]) => (
+                  <li key={category} className="flex justify-between items-center text-sm border-b pb-2">
+                    <span>{category}</span>
+                    <span className="font-semibold">Rp{amount.toLocaleString('id-ID')}</span>
+                  </li>
+                ))}
+              </ul>
+            </InfoDialog>
+
             <div className="flex items-center gap-4">
               <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-lg">
                 <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -234,12 +280,16 @@ export default function FinancePage() {
             }
         >
             <ul className="space-y-3">
-                {stats.newCustomers.map((customer, index) => (
-                <li key={index} className="text-sm border-b pb-2">
-                    <p className="font-semibold">{customer.name}</p>
-                    <p className="text-muted-foreground">{customer.address}</p>
-                </li>
-                ))}
+                {stats.newCustomers.length > 0 ? (
+                    stats.newCustomers.map((customer, index) => (
+                    <li key={index} className="text-sm border-b pb-2">
+                        <p className="font-semibold">{customer.name}</p>
+                        <p className="text-muted-foreground">{customer.address}</p>
+                    </li>
+                    ))
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center">Belum ada pelanggan baru bulan ini.</p>
+                )}
             </ul>
         </InfoDialog>
         
@@ -260,12 +310,16 @@ export default function FinancePage() {
           }
         >
           <ul className="space-y-3">
-            {stats.delinquentCustomers.map((customer, index) => (
-              <li key={index} className="flex justify-between items-center text-sm border-b pb-2">
-                <span className="font-semibold">{customer.name}</span>
-                <span className="text-destructive font-medium">Rp{customer.amount.toLocaleString('id-ID')}</span>
-              </li>
-            ))}
+            {stats.delinquentCustomers.length > 0 ? (
+                stats.delinquentCustomers.map((customer, index) => (
+                <li key={index} className="flex justify-between items-center text-sm border-b pb-2">
+                    <span className="font-semibold">{customer.name}</span>
+                    <span className="text-destructive font-medium">Rp{customer.amount.toLocaleString('id-ID')}</span>
+                </li>
+                ))
+            ) : (
+                <p className="text-sm text-muted-foreground text-center">Tidak ada tunggakan dari bulan sebelumnya.</p>
+            )}
           </ul>
         </InfoDialog>
 
