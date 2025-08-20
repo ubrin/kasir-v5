@@ -22,7 +22,7 @@ type DelinquentCustomer = Customer & {
   totalUnpaid: number;
   invoices: Invoice[];
   nearestDueDate?: string;
-  hasArrears?: boolean;
+  hasArrears: boolean;
 };
 
 export default function DelinquencyPage() {
@@ -66,20 +66,27 @@ export default function DelinquencyPage() {
             ...customer,
             totalUnpaid: 0,
             invoices: [],
+            hasArrears: false,
           });
         }
 
         const delinquentCustomer = delinquentCustomersMap.get(customer.id)!;
         delinquentCustomer.invoices.push(invoice);
         delinquentCustomer.totalUnpaid += invoice.amount;
-        delinquentCustomer.hasArrears = delinquentCustomer.hasArrears || (parseISO(invoice.date) < startOfCurrent);
+        
+        // Check for arrears
+        if (parseISO(invoice.date) < startOfCurrent) {
+            delinquentCustomer.hasArrears = true;
+        }
       }
 
       const delinquentCustomersList = Array.from(delinquentCustomersMap.values()).map(customer => {
+        // Sort invoices by date to find the nearest due date accurately
+        customer.invoices.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+        
         const nearestDueDate = customer.invoices
-            .filter(inv => isAfter(parseISO(inv.dueDate), startOfToday()) || differenceInDays(parseISO(inv.dueDate), startOfToday()) === 0)
-            .map(inv => inv.dueDate)
-            .sort((a,b) => new Date(a).getTime() - new Date(b).getTime())[0];
+            .map(inv => inv.dueDate)[0]; // The first one is the oldest/nearest
+            
         return {...customer, nearestDueDate};
       });
 
@@ -128,8 +135,12 @@ export default function DelinquencyPage() {
 
   const formatDueDateStatus = (dueDate?: string, hasArrears?: boolean) => {
     if (!isClient) return null;
-    if (hasArrears) return <Badge variant="destructive">Lewat</Badge>;
-    if (!dueDate) return <Badge variant="secondary" className="bg-green-100 text-green-800">Lunas</Badge>;
+    
+    if (hasArrears) {
+      return <Badge variant="destructive">Menunggak</Badge>;
+    }
+    
+    if (!dueDate) return null; // Should not happen in this page
     
     const daysDiff = differenceInDays(parseISO(dueDate), startOfToday());
   
