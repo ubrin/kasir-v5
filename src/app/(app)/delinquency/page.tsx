@@ -46,7 +46,7 @@ export default function DelinquencyPage() {
 
       const [customersSnapshot, unpaidInvoicesSnapshot] = await Promise.all([
         getDocs(customersCollection),
-        getDocs(invoicesUnpaidQuery),
+        getDocs(unpaidInvoicesQuery),
       ]);
 
       const allCustomers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
@@ -88,6 +88,9 @@ export default function DelinquencyPage() {
             
         return {...customer, nearestDueDate};
       });
+
+      // Sort customers by address
+      delinquentCustomersList.sort((a, b) => a.address.localeCompare(b.address));
 
       setCustomers(delinquentCustomersList);
 
@@ -241,10 +244,9 @@ export default function DelinquencyPage() {
                                                     </td>
                                                     <td className="md:p-4 md:text-center pt-4 md:pt-4">
                                                         <div className="flex justify-end md:justify-center gap-2">
-                                                            <Button asChild variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                                                            <Button asChild variant="outline" size="icon" onClick={(e) => e.stopPropagation()}>
                                                                 <Link href={`/invoice/${customer.id}`}>
-                                                                    <FileText className="h-4 w-4 mr-0 md:mr-2" />
-                                                                    <span className="hidden md:inline">Faktur</span>
+                                                                    <FileText className="h-4 w-4" />
                                                                 </Link>
                                                             </Button>
                                                             <PaymentDialog customer={customer} onPaymentSuccess={handlePaymentSuccess} />
@@ -271,3 +273,5 @@ export default function DelinquencyPage() {
     </div>
   );
 }
+
+    
