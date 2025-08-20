@@ -81,15 +81,18 @@ export default function InvoicePage() {
         const input = invoiceRef.current;
         if (!input || !customer) return;
     
+        // Temporarily make it look like the web version for PDF generation
+        input.classList.add('pdf-render-web');
+    
         html2canvas(input, {
           scale: 2,
           useCORS: true,
           logging: false
         }).then((canvas) => {
+          input.classList.remove('pdf-render-web');
           const imgData = canvas.toDataURL('image/png');
           const pdf = new jsPDF('p', 'mm', 'a4');
           const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
           const canvasWidth = canvas.width;
           const canvasHeight = canvas.height;
           const ratio = canvasWidth / canvasHeight;
@@ -108,6 +111,9 @@ export default function InvoicePage() {
           
           const fileName = `Invoice-${customer.name.replace(/ /g, '_')}-${format(new Date(), 'yyyyMMdd')}.pdf`;
           pdf.save(fileName);
+        }).catch(() => {
+          // Ensure class is removed even if html2canvas fails
+          input.classList.remove('pdf-render-web');
         });
       };
 
@@ -145,36 +151,17 @@ export default function InvoicePage() {
                     });
                 } catch (error) {
                     if ((error as any).name !== 'AbortError') {
-                        // On desktop, if sharing fails, fallback to download
-                        if (typeof window !== 'undefined' && !/Mobi|Android/i.test(window.navigator.userAgent)) {
-                             try {
-                                downloadImage(blob, fileName);
-                                toast({
-                                    title: "Gambar Invoice Diunduh",
-                                    description: "Buka WhatsApp Web untuk melampirkan gambar.",
-                                });
-                                const whatsappUrl = `https://web.whatsapp.com/send?phone=${customer.phone || ''}&text=`;
-                                window.open(whatsappUrl, '_blank');
-                            } catch (downloadError) {
-                                toast({
-                                    title: 'Gagal mengunduh gambar',
-                                    description: 'Silakan coba unduh PDF secara manual.',
-                                    variant: 'destructive',
-                                });
-                            }
-                        } else {
-                           toast({ title: 'Gagal membagikan invoice', variant: 'destructive' });
-                        }
+                        toast({ title: 'Gagal membagikan invoice', variant: 'destructive' });
                     }
                 }
             } else {
-                try {
+                 try {
                     downloadImage(blob, fileName);
+                    const whatsappUrl = `https://web.whatsapp.com/${customer.phone ? `send?phone=${customer.phone}` : ''}`;
                     toast({
                         title: "Gambar Invoice Diunduh",
-                        description: "Buka WhatsApp Web untuk melampirkan gambar.",
+                        description: `Buka WhatsApp untuk melampirkan gambar.`,
                     });
-                    const whatsappUrl = `https://web.whatsapp.com/send?phone=${customer.phone || ''}&text=`;
                     window.open(whatsappUrl, '_blank');
                 } catch (downloadError) {
                     toast({
@@ -253,45 +240,47 @@ export default function InvoicePage() {
                             </div>
                         </div>
                         
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Deskripsi</TableHead>
-                                    <TableHead className="text-right">Jumlah</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {customerInvoices.length > 0 ? (
-                                    customerInvoices.map(invoice => (
-                                        <TableRow key={invoice.id}>
-                                            <TableCell>Tagihan Internet - {format(parseISO(invoice.date), "MMMM yyyy", {locale: id})}</TableCell>
-                                            <TableCell className="text-right">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={2} className="text-center h-24">Tidak ada tagihan tertunggak.</TableCell>
+                                        <TableHead>Deskripsi</TableHead>
+                                        <TableHead className="text-right">Jumlah</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {customerInvoices.length > 0 ? (
+                                        customerInvoices.map(invoice => (
+                                            <TableRow key={invoice.id}>
+                                                <TableCell>Tagihan Internet - {format(parseISO(invoice.date), "MMMM yyyy", {locale: id})}</TableCell>
+                                                <TableCell className="text-right whitespace-nowrap">Rp {invoice.amount.toLocaleString('id-ID')}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="text-center h-24">Tidak ada tagihan tertunggak.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
 
                         <div className="flex justify-end mt-6">
-                            <div className="w-full max-w-sm space-y-2 text-right">
+                            <div className="w-full max-w-sm space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span>Subtotal</span>
-                                    <span>Rp{subTotal.toLocaleString('id-ID')}</span>
+                                    <span>Rp {subTotal.toLocaleString('id-ID')}</span>
                                 </div>
                                 {creditUsed > 0 && (
                                     <div className="flex justify-between">
                                         <span>Penggunaan Saldo</span>
-                                        <span className="text-green-600">- Rp{creditUsed.toLocaleString('id-ID')}</span>
+                                        <span className="text-green-600">- Rp {creditUsed.toLocaleString('id-ID')}</span>
                                     </div>
                                 )}
                                 <Separator />
                                 <div className="flex justify-between font-bold text-lg">
                                     <span>Total</span>
-                                    <span>Rp{totalAmount.toLocaleString('id-ID')}</span>
+                                    <span>Rp {totalAmount.toLocaleString('id-ID')}</span>
                                 </div>
                             </div>
                         </div>
@@ -302,6 +291,22 @@ export default function InvoicePage() {
                 </Card>
             </div>
             <style jsx global>{`
+                @media (max-width: 640px) {
+                  #invoice-content {
+                    box-shadow: none;
+                    border: none;
+                  }
+                   div.p-4.sm\\:p-8 {
+                    padding: 0;
+                  }
+                }
+                .pdf-render-web #invoice-content {
+                  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+                  border: 1px solid hsl(var(--border));
+                }
+                 .pdf-render-web div.p-4.sm\\:p-8 {
+                  padding: 2rem;
+                }
                 @media print {
                     body, html {
                         background-color: white !important;

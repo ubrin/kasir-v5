@@ -12,7 +12,7 @@ import { Loader2, Search, FileText, X } from "lucide-react";
 import type { Customer, Invoice } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
-import { format, parseISO, startOfMonth, differenceInDays, startOfToday, isAfter } from 'date-fns';
+import { format, parseISO, startOfMonth, differenceInDays, startOfToday } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
@@ -74,7 +74,7 @@ export default function DelinquencyPage() {
         delinquentCustomer.invoices.push(invoice);
         delinquentCustomer.totalUnpaid += invoice.amount;
         
-        // Check for arrears
+        // Check for arrears (unpaid invoices from *before* the start of the current month)
         if (parseISO(invoice.date) < startOfCurrent) {
             delinquentCustomer.hasArrears = true;
         }
@@ -84,8 +84,7 @@ export default function DelinquencyPage() {
         // Sort invoices by date to find the nearest due date accurately
         customer.invoices.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
         
-        const nearestDueDate = customer.invoices
-            .map(inv => inv.dueDate)[0]; // The first one is the oldest/nearest
+        const nearestDueDate = customer.invoices.length > 0 ? customer.invoices[0].dueDate : undefined;
             
         return {...customer, nearestDueDate};
       });
@@ -136,15 +135,17 @@ export default function DelinquencyPage() {
   const formatDueDateStatus = (dueDate?: string, hasArrears?: boolean) => {
     if (!isClient) return null;
     
+    // Arrears take the highest priority. If they have old debt, always show "Menunggak".
     if (hasArrears) {
       return <Badge variant="destructive">Menunggak</Badge>;
     }
     
-    if (!dueDate) return null; // Should not happen in this page
+    if (!dueDate) return null; // Should not happen in this page as we only show unpaid
     
     const daysDiff = differenceInDays(parseISO(dueDate), startOfToday());
   
-    if (daysDiff < 0) return <Badge variant="destructive">Lewat</Badge>;
+    // For bills due this month that are past their due date
+    if (daysDiff < 0) return <Badge variant="outline" className="border-red-500 text-red-500">Lewat</Badge>;
     if (daysDiff === 0) return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
     return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>;
   };
@@ -203,6 +204,7 @@ export default function DelinquencyPage() {
             <Accordion type="multiple" className="w-full space-y-4" defaultValue={filteredGroupKeys.map(String)}>
                 {filteredGroupKeys.map((code) => {
                     const groupCustomers = groupedCustomers[code];
+                    if (!groupCustomers || groupCustomers.length === 0) return null;
                     return (
                         <AccordionItem value={String(code)} key={code} className="border rounded-lg bg-card overflow-hidden">
                             <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-3 font-semibold text-lg">
@@ -211,7 +213,7 @@ export default function DelinquencyPage() {
                             <AccordionContent className="p-0">
                                <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
-                                        <thead className="bg-muted/30">
+                                        <thead className="bg-muted/30 hidden md:table-header-group">
                                             <tr className="border-b">
                                                 <th className="p-4 text-left font-medium text-muted-foreground">Pelanggan</th>
                                                 <th className="p-4 text-left font-medium text-muted-foreground">Alamat</th>
@@ -220,18 +222,29 @@ export default function DelinquencyPage() {
                                                 <th className="p-4 text-center font-medium text-muted-foreground">Aksi</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody className="divide-y divide-border md:divide-y-0">
                                             {groupCustomers.map((customer) => (
-                                                <tr key={customer.id} className="border-b last:border-b-0">
-                                                    <td className="p-4 font-medium">{customer.name}</td>
-                                                    <td className="p-4 text-muted-foreground">{customer.address}</td>
-                                                    <td className="p-4">{formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}</td>
-                                                    <td className="p-4 text-right font-semibold text-destructive">Rp{customer.totalUnpaid.toLocaleString('id-ID')}</td>
-                                                    <td className="p-4 text-center">
-                                                        <div className="flex justify-center gap-2">
-                                                            <Button asChild variant="outline" size="icon" onClick={(e) => e.stopPropagation()}>
+                                                <tr key={customer.id} className="flex flex-col p-4 md:table-row md:p-0">
+                                                    <td className="md:p-4 font-medium flex justify-between items-center">
+                                                        <span>{customer.name}</span>
+                                                        <div className="md:hidden">
+                                                            {formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}
+                                                        </div>
+                                                    </td>
+                                                    <td className="md:p-4 text-muted-foreground text-xs md:text-sm">{customer.address}</td>
+                                                    <td className="hidden md:table-cell md:p-4">{formatDueDateStatus(customer.nearestDueDate, customer.hasArrears)}</td>
+                                                    <td className="md:p-4 md:text-right font-semibold text-destructive pt-2 md:pt-4">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="md:hidden text-muted-foreground font-normal">Total Tagihan</span>
+                                                            <span>Rp{customer.totalUnpaid.toLocaleString('id-ID')}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="md:p-4 md:text-center pt-4 md:pt-4">
+                                                        <div className="flex justify-end md:justify-center gap-2">
+                                                            <Button asChild variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
                                                                 <Link href={`/invoice/${customer.id}`}>
-                                                                    <FileText className="h-4 w-4" />
+                                                                    <FileText className="h-4 w-4 mr-0 md:mr-2" />
+                                                                    <span className="hidden md:inline">Faktur</span>
                                                                 </Link>
                                                             </Button>
                                                             <PaymentDialog customer={customer} onPaymentSuccess={handlePaymentSuccess} />

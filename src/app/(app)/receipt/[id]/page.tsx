@@ -143,13 +143,13 @@ export default function ReceiptPage() {
                     }
                 }
             } else {
-                try {
+                 try {
                     downloadImage(blob, fileName);
+                    const whatsappUrl = `https://web.whatsapp.com/${customer.phone ? `send?phone=${customer.phone}` : ''}`;
                     toast({
                         title: "Gambar Struk Diunduh",
-                        description: "Buka WhatsApp Web untuk melampirkan gambar.",
+                        description: `Buka WhatsApp untuk melampirkan gambar.`,
                     });
-                    const whatsappUrl = `https://web.whatsapp.com/send?phone=${customer.phone || ''}&text=`;
                     window.open(whatsappUrl, '_blank');
                 } catch (downloadError) {
                     toast({
@@ -304,4 +304,5 @@ export default function ReceiptPage() {
         </div>
     );
 }
+
 
