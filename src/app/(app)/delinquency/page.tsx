@@ -2,18 +2,16 @@
 'use client';
 
 import * as React from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, writeBatch, doc, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, User, Wallet } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 import type { Customer, Invoice, Payment } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { format, parseISO, startOfMonth } from 'date-fns';
-import { id } from 'date-fns/locale';
 
 type DelinquentCustomer = Customer & {
   overdueAmount: number;
@@ -106,14 +104,17 @@ export default function DelinquencyPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Tagihan Belum Lunas</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Tagihan Belum Lunas</h1>
+          <p className="text-muted-foreground">Daftar pelanggan dengan faktur yang belum dibayar.</p>
+        </div>
       </div>
       
       {delinquentCustomers.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Daftar Pelanggan Menunggak</CardTitle>
-            <CardDescription>Berikut adalah daftar pelanggan dengan tagihan yang belum dibayar.</CardDescription>
+            <CardDescription>Berikut adalah daftar pelanggan dengan tagihan yang belum dibayar, diurutkan berdasarkan alamat.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>

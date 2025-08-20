@@ -3,10 +3,10 @@
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CalendarIcon, Info } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
-import { format, parseISO, getMonth, getYear } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 import { cn } from '@/lib/utils';
@@ -29,11 +29,12 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { Customer, Invoice, Collector } from '@/lib/types';
+import type { Customer, Invoice, Collector, Payment } from '@/lib/types';
 import { Checkbox } from './ui/checkbox';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, writeBatch, doc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 const paymentSchema = z.object({
   selectedInvoices: z.array(z.string()).nonempty({
@@ -46,23 +47,23 @@ const paymentSchema = z.object({
     required_error: 'Tanggal pembayaran harus diisi.',
   }),
   discountType: z.enum(['rp', 'percentage']),
-  discount: z.preprocess(
-    (a) => (a ? parseFloat(String(a)) : 0),
+  discountValue: z.preprocess(
+    (a) => (a ? parseFloat(String(a).replace(/[^0-9.]/g, '')) : 0),
     z.number().min(0, "Diskon tidak boleh negatif").optional()
   ),
   paidAmount: z.preprocess(
     (a) => (a ? parseInt(String(a).replace(/\D/g, ''), 10) : 0),
-    z.number().min(0)
+    z.number().min(0, "Jumlah dibayar tidak boleh negatif")
   ),
   collectorId: z.string({ required_error: 'Penagih harus dipilih.' }),
 }).refine(data => {
     if (data.discountType === 'percentage') {
-        return data.discount === undefined || (data.discount >= 0 && data.discount <= 100);
+        return data.discountValue === undefined || (data.discountValue >= 0 && data.discountValue <= 100);
     }
     return true;
 }, {
     message: "Diskon persen harus antara 0 dan 100",
-    path: ["discount"],
+    path: ["discountValue"],
 });
 
 type PaymentFormValues = z.infer<typeof paymentSchema>;
@@ -74,7 +75,7 @@ type DelinquentCustomer = Customer & {
 
 interface PaymentDialogProps {
   customer: DelinquentCustomer;
-  onPaymentSuccess: (customerId: string, customerName: string, paymentDetails: any) => void;
+  onPaymentSuccess: () => void;
 }
 
 export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps) {
@@ -82,18 +83,11 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   const [collectors, setCollectors] = React.useState<Collector[]>([]);
   const { toast } = useToast();
 
-  const {
-    handleSubmit,
-    control,
-    watch,
-    reset,
-    setValue,
-    formState: { errors },
-  } = useForm<PaymentFormValues>({
+  const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       paymentDate: new Date(),
-      discount: 0,
+      discountValue: 0,
       discountType: 'rp',
       paymentMethod: 'cash',
       selectedInvoices: [],
@@ -102,19 +96,19 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     },
   });
 
+  const { handleSubmit, control, watch, reset, setValue, formState: { errors } } = form;
+
   const selectedInvoices = watch('selectedInvoices') || [];
-  const discountValue = watch('discount') || 0;
+  const discountValue = watch('discountValue') || 0;
   const discountType = watch('discountType');
   const paidAmount = watch('paidAmount') || 0;
   const creditBalance = customer.creditBalance ?? 0;
-  const collectorId = watch('collectorId');
 
   React.useEffect(() => {
     if (open) {
         const unsubscribe = onSnapshot(collection(db, "collectors"), (snapshot) => {
             const collectorsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a,b) => a.name.localeCompare(b.name));
             setCollectors(collectorsList);
-            // Set default collector to the first one in the list if it's not set yet
             if (collectorsList.length > 0 && !watch('collectorId')) {
                 setValue('collectorId', collectorsList[0].id);
             }
@@ -133,72 +127,97 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
      if (discountType === 'percentage') {
         return (billToPay * discountValue) / 100;
      }
-     return Math.min(billToPay, discountValue); // Ensure discount is not more than the bill
+     return Math.min(billToPay, discountValue);
   }, [billToPay, discountValue, discountType]);
 
   const billAfterDiscount = billToPay - discountAmount;
-
-  const creditApplied = React.useMemo(() => {
-      return Math.min(creditBalance, billAfterDiscount);
-  }, [creditBalance, billAfterDiscount]);
-
+  const creditApplied = Math.min(creditBalance, billAfterDiscount);
   const totalPayment = Math.max(0, billAfterDiscount - creditApplied);
   const paymentDifference = paidAmount - totalPayment;
 
   const handlePaidAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value;
     const numberValue = parseInt(rawValue.replace(/\D/g, ''), 10);
-    if (isNaN(numberValue)) {
-      setValue('paidAmount', 0);
-      e.target.value = '';
-    } else {
-      setValue('paidAmount', numberValue);
-      e.target.value = numberValue.toLocaleString('id-ID');
-    }
+    setValue('paidAmount', isNaN(numberValue) ? 0 : numberValue);
+    e.target.value = isNaN(numberValue) ? '' : numberValue.toLocaleString('id-ID');
   };
 
   React.useEffect(() => {
     setValue('paidAmount', Math.round(totalPayment));
   }, [totalPayment, setValue]);
 
-  const onSubmit = (data: PaymentFormValues) => {
+  const onSubmit = async (data: PaymentFormValues) => {
     const selectedCollector = collectors.find(c => c.id === data.collectorId);
     if (!selectedCollector) {
-        toast({
-            title: "Penagih tidak valid",
-            description: "Silakan pilih penagih yang valid.",
-            variant: "destructive"
-        });
-        return;
+      toast({ title: "Penagih tidak valid", variant: "destructive" });
+      return;
     }
-    const paymentDetails = {
-      ...data,
-      billToPay,
-      totalPayment: totalPayment,
-      paidAmount: data.paidAmount,
-      changeAmount: Math.max(0, paymentDifference),
-      shortageAmount: Math.max(0, -paymentDifference),
-      discount: discountAmount,
-      creditUsed: creditApplied,
-      collectorId: data.collectorId,
-      collectorName: selectedCollector.name,
-    };
-    onPaymentSuccess(customer.id, customer.name, paymentDetails);
-    setOpen(false);
-    reset();
-  };
 
+    try {
+        const batch = writeBatch(db);
+        const paymentId = uuidv4();
+        const paymentRef = doc(db, 'payments', paymentId);
+
+        const newPayment: Payment = {
+            id: paymentId,
+            customerId: customer.id,
+            customerName: customer.name,
+            paymentDate: format(data.paymentDate, 'yyyy-MM-dd HH:mm:ss'),
+            paymentMethod: data.paymentMethod,
+            invoiceIds: data.selectedInvoices,
+            totalBill: billToPay,
+            discount: discountAmount,
+            totalPayment: totalPayment,
+            paidAmount: data.paidAmount,
+            changeAmount: Math.max(0, paymentDifference),
+            collectorId: data.collectorId,
+            collectorName: selectedCollector.name,
+        };
+        batch.set(paymentRef, newPayment);
+
+        for (const invoiceId of data.selectedInvoices) {
+            const invoiceRef = doc(db, 'invoices', invoiceId);
+            batch.update(invoiceRef, { status: 'lunas' });
+        }
+
+        const customerRef = doc(db, 'customers', customer.id);
+        const newCreditBalance = creditBalance - creditApplied + Math.max(0, paymentDifference);
+        batch.update(customerRef, {
+            creditBalance: newCreditBalance,
+            outstandingBalance: increment(-billToPay)
+        });
+
+        await batch.commit();
+        onPaymentSuccess();
+        setOpen(false);
+        reset();
+    } catch (error) {
+        console.error("Error processing payment:", error);
+        toast({
+            title: "Gagal Memproses Pembayaran",
+            description: "Terjadi kesalahan saat menyimpan data.",
+            variant: "destructive",
+        });
+    }
+  };
 
   React.useEffect(() => {
     if (open) {
-        // Automatically select all unpaid invoices for this customer
-        const allUnpaidInvoiceIds = customer.invoices.map(inv => inv.id);
-        setValue('selectedInvoices', allUnpaidInvoiceIds);
-        if (collectors.length > 0) {
-            setValue('collectorId', collectors[0].id);
-        }
+      const allUnpaidInvoiceIds = customer.invoices.map(inv => inv.id);
+      setValue('selectedInvoices', allUnpaidInvoiceIds);
+      if (collectors.length > 0) {
+        setValue('collectorId', collectors[0].id);
+      }
     } else {
-        reset();
+      reset({
+        paymentDate: new Date(),
+        discountValue: 0,
+        discountType: 'rp',
+        paymentMethod: 'cash',
+        selectedInvoices: [],
+        paidAmount: 0,
+        collectorId: undefined,
+      });
     }
   }, [open, customer.invoices, setValue, reset, collectors]);
 
@@ -364,15 +383,15 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="discount">Diskon</Label>
+                    <Label htmlFor="discountValue">Diskon</Label>
                     <div className="flex items-center gap-2">
                       <Controller
-                        name="discount"
+                        name="discountValue"
                         control={control}
                         render={({ field }) => (
                           <Input
                             {...field}
-                            id="discount"
+                            id="discountValue"
                             type="number"
                             placeholder="0"
                             className="flex-1"
@@ -398,7 +417,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
                         )}
                       />
                     </div>
-                    {errors.discount && <p className="text-sm text-destructive">{errors.discount.message}</p>}
+                    {errors.discountValue && <p className="text-sm text-destructive">{errors.discountValue.message}</p>}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="paidAmount">Jumlah Dibayar</Label>
