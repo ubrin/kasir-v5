@@ -19,6 +19,7 @@ type Stats = {
   totalOmset: number;
   totalArrears: number;
   newCustomersCount: number;
+  omsetBreakdown: { [key: string]: number };
 };
 
 export default function FinancePage() {
@@ -79,6 +80,13 @@ export default function FinancePage() {
 
         const totalOmset = customersList.reduce((sum, c) => sum + (c.packagePrice || 0), 0);
 
+        const omsetBreakdown = customersList.reduce((acc, customer) => {
+            const key = `${customer.subscriptionMbps}mb @${(customer.packagePrice / 1000).toFixed(0)}rb`;
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, {} as { [key: string]: number });
+
+
         setStats({
           monthlyIncome,
           monthlyExpense,
@@ -86,6 +94,7 @@ export default function FinancePage() {
           totalOmset,
           totalArrears,
           newCustomersCount: newCustomers.length,
+          omsetBreakdown,
         });
 
       } catch (error) {
@@ -168,18 +177,20 @@ export default function FinancePage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Link href="/customers" className="block hover:bg-muted/50 transition-colors rounded-lg">
-          <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Omset Potensial</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
-              <p className="text-xs text-muted-foreground">Potensi pendapatan bulanan</p>
-            </CardContent>
-          </Card>
-        </Link>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Omset Potensial</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
+            <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                {Object.entries(stats.omsetBreakdown).map(([key, value]) => (
+                    <p key={key}>{key} x{value}</p>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
         <Link href="/customers?filter=new_this_month" className="block hover:bg-muted/50 transition-colors rounded-lg">
             <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
