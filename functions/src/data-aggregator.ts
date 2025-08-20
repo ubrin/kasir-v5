@@ -10,6 +10,7 @@ import { parseISO, startOfMonth, isThisMonth } from "date-fns";
 const parseDate = (dateString: string | undefined): Date | null => {
   if (!dateString) return null;
   try {
+    // Attempt to parse ISO string (e.g., '2023-10-27T10:00:00Z' or '2023-10-27')
     const date = parseISO(dateString);
     // Check if the parsed date is valid
     if (isNaN(date.getTime())) return null;
@@ -80,9 +81,11 @@ export async function runDataAggregation() {
   });
 
   const oldUnpaidInvoices = invoicesSnapshot.docs.filter(doc => {
-      const invoiceDate = parseDate(doc.data().date);
-      // Ensure invoiceDate is valid and before the start of the current month
-      return doc.data().status === 'belum lunas' && invoiceDate && invoiceDate < startOfCurrentMonth;
+      const invoiceData = doc.data();
+      // Ensure the invoice is unpaid and has a valid date before the current month
+      if (invoiceData.status !== 'belum lunas') return false;
+      const invoiceDate = parseDate(invoiceData.date);
+      return invoiceDate && invoiceDate < startOfCurrentMonth;
   });
 
   const totalArrears = oldUnpaidInvoices.reduce((sum, doc) => sum + getNumber(doc.data().amount), 0);
