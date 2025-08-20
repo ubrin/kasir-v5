@@ -226,60 +226,6 @@ export default function FinancePage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-         <Card>
-            <CardHeader>
-              <CardTitle>Status Faktur Bulan Ini</CardTitle>
-              <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {chartData.length > 0 ? (
-                <ChartContainer
-                  config={chartConfig}
-                  className="mx-auto aspect-square h-[250px]"
-                >
-                  <PieChart>
-                    <ChartTooltip
-                      cursor={false}
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          const label = chartConfig[data.status as keyof typeof chartConfig].label;
-                          return (
-                            <div className="min-w-[15rem] rounded-lg border bg-background p-2.5 text-sm shadow-sm">
-                              <p className="font-medium">{`${label} (${data.count} Faktur)`}</p>
-                              <p className="text-muted-foreground">Rp{data.total.toLocaleString('id-ID')}</p>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
-                    />
-                    <Pie
-                      data={chartData}
-                      dataKey="count"
-                      nameKey="status"
-                      innerRadius={60}
-                      labelLine={false}
-                      label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                    >
-                      {chartData.map((entry) => (
-                          <Cell key={entry.status} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <ChartLegend content={<ChartLegendContent />} />
-                  </PieChart>
-                </ChartContainer>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-[250px] text-center">
-                    <PieChartIcon className="w-12 h-12 text-muted-foreground" />
-                    <p className="mt-4 font-medium">Tidak ada data faktur bulan ini.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Ringkasan Keuangan Bulan Ini</CardTitle>
@@ -446,7 +392,60 @@ export default function FinancePage() {
             )}
           </ul>
         </InfoDialog>
+      </div>
 
+      <div className="grid gap-6 lg:grid-cols-2">
+         <Card>
+            <CardHeader>
+              <CardTitle>Status Faktur Bulan Ini</CardTitle>
+              <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartData.length > 0 ? (
+                <ChartContainer
+                  config={chartConfig}
+                  className="mx-auto aspect-square h-[250px]"
+                >
+                  <PieChart>
+                    <ChartTooltip
+                      cursor={false}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          const label = chartConfig[data.status as keyof typeof chartConfig].label;
+                          return (
+                            <div className="min-w-[15rem] rounded-lg border bg-background p-2.5 text-sm shadow-sm">
+                              <p className="font-medium">{`${label} (${data.count} Faktur)`}</p>
+                              <p className="text-muted-foreground">Rp{data.total.toLocaleString('id-ID')}</p>
+                            </div>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Pie
+                      data={chartData}
+                      dataKey="count"
+                      nameKey="status"
+                      innerRadius={60}
+                      labelLine={false}
+                      label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    >
+                      {chartData.map((entry) => (
+                          <Cell key={entry.status} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[250px] text-center">
+                    <PieChartIcon className="w-12 h-12 text-muted-foreground" />
+                    <p className="mt-4 font-medium">Tidak ada data faktur bulan ini.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
       </div>
     </div>
   );
