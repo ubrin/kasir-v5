@@ -27,19 +27,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!user) {
         setUser(null);
       }
-      setLoading(false);
+      // We will set loading to false in the AppLayout after profile is fetched
     });
     
     return () => unsubscribeAuth();
   }, []);
   
-  if (loading) {
-     return (
-      <div className="flex min-h-screen w-full items-center justify-center">
-          <Skeleton className="w-24 h-24 rounded-full" />
-      </div>
-    );
-  }
+  // This initial loading is just for the firebase user state, not the profile
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500); // Give auth state a moment to settle
+    return () => clearTimeout(timer);
+  }, []);
+
 
   return (
     <AuthContext.Provider value={{ user, firebaseUser, loading, setAppUser: setUser }}>
