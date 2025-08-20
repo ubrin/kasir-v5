@@ -2,74 +2,64 @@
 'use client';
 
 import * as React from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db, app } from "@/lib/firebase";
-
+import { collection, getDocs, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Wallet, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { format, parseISO } from "date-fns";
-import { id } from 'date-fns/locale';
+import { Loader2, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import type { Payment, Expense, OtherIncome } from "@/lib/types";
 
 type Stats = {
     totalIncome: number;
     totalExpense: number;
     balance: number;
-    lastUpdated?: string;
 };
 
 export default function ReportsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
-  const [refreshing, setRefreshing] = React.useState(false);
   const [stats, setStats] = React.useState<Stats | null>(null);
 
   React.useEffect(() => {
-    setLoading(true);
-    const statsDocRef = doc(db, "app-stats", "summary");
-    const unsubscribe = onSnapshot(statsDocRef, (doc) => {
-        if (doc.exists()) {
-            setStats(doc.data() as Stats);
-        } else {
-            setStats(null);
-        }
-        setLoading(false);
-    }, (error) => {
-        console.error("Failed to fetch stats:", error);
-        toast({
-            title: "Gagal memuat data",
-            description: "Tidak dapat mengambil data keuangan total.",
-            variant: "destructive"
-        });
-        setStats(null);
-        setLoading(false);
-    });
+    const fetchStats = async () => {
+        setLoading(true);
+        try {
+            const [
+              paymentsSnapshot,
+              expensesSnapshot,
+              otherIncomesSnapshot,
+            ] = await Promise.all([
+              getDocs(collection(db, "payments")),
+              getDocs(query(collection(db, "expenses"), where("date", "!=", null))), // Hanya ambil pengeluaran yang merupakan transaksi
+              getDocs(collection(db, "otherIncomes")),
+            ]);
 
-    return () => unsubscribe();
-  }, [toast]);
-  
-  const handleRefreshStats = async () => {
-    setRefreshing(true);
-    try {
-        const functions = getFunctions(app);
-        const aggregateStatsCallable = httpsCallable(functions, 'manuallyAggregateStats');
-        await aggregateStatsCallable();
-        toast({
-            title: "Pembaruan Berhasil",
-            description: "Data statistik telah berhasil diperbarui.",
-        });
-    } catch (error: any) {
-         toast({
-            title: "Gagal Memperbarui Statistik",
-            description: error.message || "Terjadi kesalahan yang tidak diketahui.",
-            variant: "destructive",
-        });
-    } finally {
-        setRefreshing(false);
+            const totalPaymentIncome = paymentsSnapshot.docs.reduce((sum, doc) => sum + (doc.data() as Payment).totalPayment || 0, 0);
+            const totalOtherIncome = otherIncomesSnapshot.docs.reduce((sum, doc) => sum + (doc.data() as OtherIncome).amount || 0, 0);
+            const totalIncome = totalPaymentIncome + totalOtherIncome;
+
+            const totalExpense = expensesSnapshot.docs.reduce((sum, doc) => sum + (doc.data() as Expense).amount || 0, 0);
+
+            setStats({
+                totalIncome: totalIncome,
+                totalExpense: totalExpense,
+                balance: totalIncome - totalExpense,
+            });
+
+        } catch (error) {
+            console.error("Failed to fetch stats:", error);
+            toast({
+                title: "Gagal memuat data",
+                description: "Tidak dapat mengambil data keuangan total.",
+                variant: "destructive"
+            });
+            setStats(null);
+        } finally {
+            setLoading(false);
+        }
     }
-  };
+    fetchStats();
+  }, [toast]);
 
   if (loading) {
     return (
@@ -81,21 +71,8 @@ export default function ReportsPage() {
 
   if (!stats) {
      return (
-        <div className="flex flex-col gap-8 items-center justify-center h-96">
-             <Card className="max-w-lg text-center">
-                <CardHeader>
-                    <CardTitle>Data Belum Tersedia</CardTitle>
-                    <CardDescription>
-                       Data statistik total belum dibuat. Klik tombol di bawah untuk membuatnya.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button onClick={handleRefreshStats} disabled={refreshing}>
-                        {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        Buat & Segarkan Data
-                    </Button>
-                </CardContent>
-            </Card>
+        <div className="flex justify-center items-center h-64">
+            <p>Gagal memuat statistik. Coba segarkan halaman.</p>
         </div>
     );
   }
@@ -107,13 +84,8 @@ export default function ReportsPage() {
                 <h1 className="text-3xl font-bold tracking-tight">Total Keuangan</h1>
                 <p className="text-muted-foreground">
                     Ringkasan total dari semua pemasukan dan pengeluaran.
-                    {stats.lastUpdated && ` Terakhir diperbarui: ${format(parseISO(stats.lastUpdated), 'd MMM yyyy, HH:mm', {locale: id})}`}
                 </p>
             </div>
-             <Button onClick={handleRefreshStats} disabled={refreshing} variant="outline">
-                {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                Segarkan Data
-            </Button>
         </div>
         <Card>
             <CardHeader>

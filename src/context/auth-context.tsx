@@ -24,27 +24,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       if (!user) {
-        // If user logs out, clear appUser and stop loading
         setAppUser(null);
         setLoading(false);
       }
     });
-
     return () => unsubscribeAuth();
   }, []);
 
   React.useEffect(() => {
     if (firebaseUser) {
-      // If we have a firebaseUser, fetch their profile from Firestore
       const userDocRef = doc(db, 'users', firebaseUser.uid);
       const unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
         if (doc.exists()) {
           setAppUser(doc.data() as AppUser);
         } else {
-          // Handle case where user exists in Auth but not in Firestore
           setAppUser(null);
         }
-        setLoading(false); // Stop loading once profile is fetched (or confirmed not to exist)
+        setLoading(false);
       });
       return () => unsubscribeProfile();
     }
