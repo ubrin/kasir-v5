@@ -46,7 +46,7 @@ export default function DelinquencyPage() {
 
       const [customersSnapshot, unpaidInvoicesSnapshot] = await Promise.all([
         getDocs(customersCollection),
-        getDocs(unpaidInvoicesQuery),
+        getDocs(invoicesUnpaidQuery),
       ]);
 
       const allCustomers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
@@ -273,5 +273,3 @@ export default function DelinquencyPage() {
     </div>
   );
 }
-
-    
