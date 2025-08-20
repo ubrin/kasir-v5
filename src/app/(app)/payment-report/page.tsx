@@ -7,6 +7,7 @@ import { id } from 'date-fns/locale';
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Collector } from '@/lib/types';
+import { useAuth } from '@/context/auth-context';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -36,9 +37,11 @@ type DailyCollection = {
 
 export default function PaymentReportPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = React.useState(true);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [collectors, setCollectors] = React.useState<Collector[]>([]);
+  const [aditCollectorId, setAditCollectorId] = React.useState<string | null>(null);
   const [selectedCollectorId, setSelectedCollectorId] = React.useState<string>('all');
   const [selectedMonth, setSelectedMonth] = React.useState<string>(String(getMonth(new Date())));
   const [selectedYear, setSelectedYear] = React.useState<string>(String(getYear(new Date())));
@@ -63,6 +66,12 @@ export default function PaymentReportPage() {
     const unsubscribeCollectors = onSnapshot(collection(db, "collectors"), (collectorsSnapshot) => {
         const collectorsList = collectorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collector)).sort((a,b) => a.name.localeCompare(b.name));
         setCollectors(collectorsList);
+        
+        const aditCollector = collectorsList.find(c => c.name.toLowerCase() === 'adit');
+        if (aditCollector) {
+            setAditCollectorId(aditCollector.id);
+        }
+
     }, (error) => {
         console.error("Error fetching collectors:", error);
         toast({ title: "Gagal Memuat Data Penagih", variant: "destructive" });
@@ -73,12 +82,22 @@ export default function PaymentReportPage() {
         unsubscribeCollectors();
     }
   }, [toast]);
+  
+  React.useEffect(() => {
+    if (user?.role === 'user' && aditCollectorId) {
+      setSelectedCollectorId(aditCollectorId);
+    }
+  }, [user, aditCollectorId]);
 
   const filteredPayments = payments.filter(payment => {
     const paymentDate = parseISO(payment.paymentDate);
     const isMonthMatch = getMonth(paymentDate).toString() === selectedMonth;
     const isYearMatch = getYear(paymentDate).toString() === selectedYear;
-    const isCollectorMatch = selectedCollectorId === 'all' || (payment.collectorId || 'unassigned') === selectedCollectorId;
+
+    let isCollectorMatch = selectedCollectorId === 'all' || (payment.collectorId || 'unassigned') === selectedCollectorId;
+    if (user?.role === 'user' && aditCollectorId) {
+        isCollectorMatch = (payment.collectorId || 'unassigned') === aditCollectorId;
+    }
 
     return isMonthMatch && isYearMatch && isCollectorMatch;
   });
@@ -131,18 +150,20 @@ export default function PaymentReportPage() {
             <p className="text-muted-foreground">Laporan penerimaan pembayaran dari pelanggan.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Select value={selectedCollectorId} onValueChange={setSelectedCollectorId}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                    <SelectValue placeholder="Pilih Penagih" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Semua Penagih</SelectItem>
-                    {collectors.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                    <SelectItem value="unassigned">Tidak Ditentukan</SelectItem>
-                </SelectContent>
-            </Select>
+            {user?.role === 'admin' && (
+              <Select value={selectedCollectorId} onValueChange={setSelectedCollectorId}>
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                      <SelectValue placeholder="Pilih Penagih" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="all">Semua Penagih</SelectItem>
+                      {collectors.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                      <SelectItem value="unassigned">Tidak Ditentukan</SelectItem>
+                  </SelectContent>
+              </Select>
+            )}
             <div className="flex gap-2">
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                     <SelectTrigger className="w-full">
