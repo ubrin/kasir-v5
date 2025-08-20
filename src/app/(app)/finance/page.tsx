@@ -1,11 +1,10 @@
 
 'use client'
 import * as React from "react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Customer, Invoice } from "@/lib/types";
+import type { Customer, Invoice, Payment, Expense, OtherIncome } from "@/lib/types";
 import Link from "next/link";
-import { getFunctions, httpsCallable } from "firebase/functions";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -13,14 +12,14 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContaine
 import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, parseISO, startOfMonth, isThisMonth, subMonths } from "date-fns";
 import { id } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 
 const pieChartColors = ["hsl(142.1 76.2% 36.3%)", "hsl(0 84.2% 60.2%)"];
 
-type StatsSummary = {
+type Stats = {
   totalIncome: number;
   totalExpense: number;
   totalOtherIncome: number;
@@ -41,57 +40,165 @@ type StatsSummary = {
 export default function FinancePage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
-  const [stats, setStats] = React.useState<StatsSummary | null>(null);
+  const [stats, setStats] = React.useState<Stats | null>(null);
 
-  React.useEffect(() => {
-    const statsDocRef = doc(db, "app-stats", "summary");
-    
-    const unsubscribe = onSnapshot(statsDocRef, (doc) => {
-      if (doc.exists()) {
-        setStats(doc.data() as StatsSummary);
-      } else {
-        setStats(null);
-      }
-      setLoading(false);
-    }, (error) => {
-      console.error("Failed to fetch finance data:", error);
-      toast({
-          title: "Gagal memuat data",
-          description: "Tidak dapat mengambil data keuangan.",
-          variant: "destructive"
-      });
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [toast]);
-  
-  const handleRefreshStats = async () => {
-    setIsRefreshing(true);
+  const calculateStats = React.useCallback(async () => {
+    setLoading(true);
     try {
-        const functions = getFunctions();
-        const runDataAggregation = httpsCallable(functions, 'manuallyAggregateStats');
-        const result = await runDataAggregation();
+        const [
+            paymentsSnapshot,
+            expensesSnapshot,
+            otherIncomesSnapshot,
+            customersSnapshot,
+            invoicesSnapshot,
+        ] = await Promise.all([
+            getDocs(collection(db, "payments")),
+            getDocs(collection(db, "expenses")),
+            getDocs(collection(db, "otherIncomes")),
+            getDocs(collection(db, "customers")),
+            getDocs(collection(db, "invoices")),
+        ]);
+
+        const payments = paymentsSnapshot.docs.map(doc => doc.data() as Payment);
+        const expenses = expensesSnapshot.docs.map(doc => doc.data() as Expense);
+        const otherIncomes = otherIncomesSnapshot.docs.map(doc => doc.data() as OtherIncome);
+        const customers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+        const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
+
+        const today = new Date();
+        const startOfCurrentMonth = startOfMonth(today);
+
+        // --- GLOBAL STATS ---
+        const totalPaymentIncome = payments.reduce((sum, p) => sum + (Number(p.totalPayment) || 0), 0);
+        const totalOtherIncome = otherIncomes.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        const totalIncome = totalPaymentIncome + totalOtherIncome;
+        const totalExpense = expenses.filter(e => e.date).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        const balance = totalIncome - totalExpense;
+
+        // --- MONTHLY STATS ---
+        const thisMonthPayments = payments.filter(p => p.paymentDate && isThisMonth(parseISO(p.paymentDate)));
+        const monthlyIncome = thisMonthPayments.reduce((sum, p) => sum + (Number(p.totalPayment) || 0), 0);
         
-        toast({
-            title: "Data Sedang Diperbarui",
-            description: "Statistik sedang dihitung ulang di server. Data akan diperbarui secara otomatis dalam beberapa saat.",
+        const thisMonthExpenses = expenses.filter(e => e.date && isThisMonth(parseISO(e.date)));
+        const monthlyExpense = thisMonthExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        const netProfit = monthlyIncome - monthlyExpense;
+
+        // --- CUSTOMER & INVOICE STATS ---
+        const newCustomers = customers.filter(c => c.installationDate && isThisMonth(parseISO(c.installationDate))).map(c => ({
+            id: c.id,
+            name: c.name,
+            subscriptionMbps: c.subscriptionMbps,
+            packagePrice: c.packagePrice,
+        }));
+
+        const oldUnpaidInvoices = invoices.filter(invoice => 
+            invoice.date && invoice.status === 'belum lunas' && parseISO(invoice.date) < startOfCurrentMonth
+        );
+
+        const arrearsByCustomer: { [id: string]: { id: string, name: string, amount: number } } = {};
+        oldUnpaidInvoices.forEach(invoice => {
+            if (invoice.customerId) {
+                if (!arrearsByCustomer[invoice.customerId]) {
+                    arrearsByCustomer[invoice.customerId] = {
+                        id: invoice.customerId,
+                        name: invoice.customerName || 'N/A',
+                        amount: 0,
+                    };
+                }
+                arrearsByCustomer[invoice.customerId].amount += (Number(invoice.amount) || 0);
+            }
+        });
+        const arrearsDetails = Object.values(arrearsByCustomer).sort((a,b) => b.amount - a.amount);
+        const totalArrears = arrearsDetails.reduce((acc, detail) => acc + detail.amount, 0);
+
+        const totalOmset = customers.reduce((acc, c) => acc + (Number(c.packagePrice) || 0), 0);
+        
+        const omsetBreakdown: { [key: string]: { subscriptionMbps: number; packagePrice: number; count: number; total: number } } = {};
+        customers.forEach(c => {
+            const packagePrice = Number(c.packagePrice) || 0;
+            const subscriptionMbps = Number(c.subscriptionMbps) || 0;
+            if (packagePrice > 0) {
+              const key = `${subscriptionMbps}-${packagePrice}`;
+              if (!omsetBreakdown[key]) {
+                  omsetBreakdown[key] = {
+                      subscriptionMbps: subscriptionMbps,
+                      packagePrice: packagePrice,
+                      count: 0,
+                      total: 0
+                  };
+              }
+              omsetBreakdown[key].count++;
+              omsetBreakdown[key].total += packagePrice;
+            }
+        });
+        const omsetDetails = Object.values(omsetBreakdown).sort((a,b) => b.total - a.total);
+
+        // --- CHART DATA ---
+        const thisMonthInvoices = invoices.filter(invoice => invoice.date && isThisMonth(parseISO(invoice.date)));
+        const paidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + (Number(inv.amount) || 0) }), { count: 0, amount: 0 });
+        const unpaidInvoicesStats = thisMonthInvoices.filter(i => i.status === 'belum lunas').reduce((acc, inv) => ({ count: acc.count + 1, amount: acc.amount + (Number(inv.amount) || 0) }), { count: 0, amount: 0 });
+        const pieData = [
+            { name: 'Lunas', value: paidInvoicesStats.amount, count: paidInvoicesStats.count },
+            { name: 'Belum Lunas', value: unpaidInvoicesStats.amount, count: unpaidInvoicesStats.count },
+        ];
+
+        const revenueDataByMonth: { [key: string]: number } = {};
+        const monthNames = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = subMonths(today, i);
+            const monthName = format(d, 'MMM', { locale: id });
+            monthNames.push(monthName);
+            revenueDataByMonth[monthName] = 0;
+        }
+
+        payments.forEach(p => {
+            if (p.paymentDate) {
+                const paymentDate = parseISO(p.paymentDate);
+                if ((today.getTime() - paymentDate.getTime()) < (6 * 30 * 24 * 60 * 60 * 1000)) {
+                    const monthName = format(paymentDate, 'MMM', { locale: id });
+                     if (revenueDataByMonth.hasOwnProperty(monthName)) {
+                        revenueDataByMonth[monthName] += (Number(p.totalPayment) || 0);
+                    }
+                }
+            }
+        });
+        const monthlyRevenueData = monthNames.map(month => ({ month, revenue: revenueDataByMonth[month] || 0 }));
+
+        setStats({
+            totalIncome,
+            totalExpense,
+            totalOtherIncome,
+            balance,
+            monthlyIncome,
+            monthlyExpense,
+            netProfit,
+            totalOmset,
+            totalArrears,
+            newCustomersCount: newCustomers.length,
+            monthlyRevenueData,
+            pieData,
+            arrearsDetails,
+            omsetDetails,
+            newCustomers,
         });
 
-    } catch (error: any) {
-        console.error("Error refreshing stats:", error);
+    } catch (error) {
+        console.error("Failed to fetch and calculate stats:", error);
         toast({
-            title: "Gagal Memperbarui Statistik",
-            description: error.message || "Terjadi kesalahan saat mencoba memperbarui data.",
+            title: "Gagal memuat data",
+            description: "Tidak dapat mengambil data keuangan.",
             variant: "destructive"
         });
+        setStats(null);
     } finally {
-        setIsRefreshing(false);
+        setLoading(false);
     }
-  };
-
-
+  }, [toast]);
+  
+  React.useEffect(() => {
+    calculateStats();
+  }, [calculateStats]);
+  
   if (loading) {
     return (
         <div className="flex justify-center items-center h-64">
@@ -105,15 +212,15 @@ export default function FinancePage() {
         <div className="flex flex-col gap-8 items-center justify-center h-96">
             <Card className="max-w-lg text-center">
                 <CardHeader>
-                    <CardTitle>Data Statistik Belum Tersedia</CardTitle>
+                    <CardTitle>Gagal Memuat Data</CardTitle>
                     <CardDescription>
-                       Data ringkasan keuangan dan statistik belum dibuat. Klik tombol di bawah untuk membuat data sekarang. Proses ini mungkin memakan waktu beberapa menit.
+                       Tidak dapat memuat data statistik. Coba segarkan halaman atau periksa koneksi Anda.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Button onClick={handleRefreshStats} disabled={isRefreshing}>
-                        {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        Buat Data Statistik Sekarang
+                    <Button onClick={calculateStats}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Coba Lagi
                     </Button>
                 </CardContent>
             </Card>
@@ -128,8 +235,8 @@ export default function FinancePage() {
             <h1 className="text-3xl font-bold tracking-tight">Keuangan & Statistik</h1>
             <p className="text-muted-foreground">Analisis keuangan bulanan dan total.</p>
         </div>
-        <Button onClick={handleRefreshStats} disabled={isRefreshing} variant="outline">
-            {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+        <Button onClick={calculateStats} disabled={loading} variant="outline">
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             Segarkan Data
         </Button>
       </div>

@@ -13,14 +13,6 @@ import * as admin from "firebase-admin";
 
 admin.initializeApp();
 
-
-// Import and export functions
-import { generateMonthlyInvoices } from "./invoice-generator";
-import { aggregateStats, manuallyAggregateStats } from "./data-aggregator";
-
-export { generateMonthlyInvoices, aggregateStats, manuallyAggregateStats };
-
-
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
 // traffic spikes by instead downgrading performance. This limit is a
