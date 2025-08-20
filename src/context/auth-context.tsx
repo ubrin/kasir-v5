@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, getDoc } from "firebase/firestore";
 import { auth, db } from '@/lib/firebase';
 import type { AppUser } from '@/lib/types';
 
@@ -21,38 +21,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      setFirebaseUser(user);
-      if (!user) {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setLoading(true);
+      if (user) {
+        setFirebaseUser(user);
+        const userDocRef = doc(db, 'users', user.uid);
+        try {
+          const docSnap = await getDoc(userDocRef);
+          if (docSnap.exists()) {
+            setAppUser(docSnap.data() as AppUser);
+          } else {
+            // User exists in Auth, but not in Firestore.
+            setAppUser(null);
+          }
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+            setAppUser(null);
+        } finally {
+            setLoading(false);
+        }
+      } else {
+        setFirebaseUser(null);
         setAppUser(null);
         setLoading(false);
       }
     });
-    return () => unsubscribeAuth();
-  }, []);
 
-  React.useEffect(() => {
-    let unsubscribeProfile: () => void = () => {};
-    if (firebaseUser) {
-      const userDocRef = doc(db, 'users', firebaseUser.uid);
-      unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
-        if (doc.exists()) {
-          setAppUser(doc.data() as AppUser);
-        } else {
-          // This case might happen if user record is deleted from firestore
-          // but auth record still exists.
-          setAppUser(null);
-        }
-        setLoading(false);
-      }, (error) => {
-        console.error("Error fetching user profile:", error);
-        setAppUser(null);
-        setLoading(false);
-      });
-    }
-    // Cleanup subscription on unmount or if firebaseUser changes
-    return () => unsubscribeProfile();
-  }, [firebaseUser]);
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
 
   const value = { firebaseUser, appUser, loading };
 
