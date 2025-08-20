@@ -37,7 +37,7 @@ export type Payment = {
   id: string; // Corresponds to Firestore document ID
   customerId: string;
   customerName: string;
-  paymentDate: string; // 'yyyy-MM-dd'
+  paymentDate: string; // 'yyyy-MM-dd HH:mm:ss'
   paidAmount: number;
   paymentMethod: 'cash' | 'bri' | 'dana';
   invoiceIds: string[];

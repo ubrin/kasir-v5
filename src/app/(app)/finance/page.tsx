@@ -6,12 +6,25 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, Coins, ArrowRight } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, Coins, ArrowRight, PieChartIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { format, isThisMonth, parseISO, startOfMonth } from "date-fns";
 import type { Payment, Expense, OtherIncome, Customer, Invoice } from "@/lib/types";
 import { InfoDialog } from "@/components/info-dialog";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import {
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts"
 
 type Stats = {
   monthlyIncome: number;
@@ -26,7 +39,24 @@ type Stats = {
   monthlyIncomeFromPayments: number;
   monthlyIncomeFromOther: number;
   monthlyExpenseByCategory: Record<string, number>;
+  invoiceStatusThisMonth: {
+      lunasCount: number;
+      lunasAmount: number;
+      belumLunasCount: number;
+      belumLunasAmount: number;
+  };
 };
+
+const chartConfig = {
+  lunas: {
+    label: "Lunas",
+    color: "hsl(var(--chart-2))",
+  },
+  belumLunas: {
+    label: "Belum Lunas",
+    color: "hsl(var(--chart-5))",
+  },
+} satisfies ChartConfig
 
 export default function FinancePage() {
   const { toast } = useToast();
@@ -48,11 +78,26 @@ export default function FinancePage() {
           getDocs(query(collection(db, "expenses"), where("date", "!=", null))),
           getDocs(collection(db, "otherIncomes")),
           getDocs(collection(db, "customers")),
-          getDocs(query(collection(db, "invoices"), where("status", "==", "belum lunas"))),
+          getDocs(collection(db, "invoices")), // Get all invoices first
         ]);
 
         const today = new Date();
         const startOfCurrentMonth = startOfMonth(today);
+
+        // Filter invoices for current month
+        const allInvoices = invoicesSnapshot.docs.map(doc => doc.data() as Invoice);
+        const thisMonthInvoices = allInvoices.filter(inv => isThisMonth(parseISO(inv.date)));
+
+        const invoiceStatusThisMonth = thisMonthInvoices.reduce((acc, inv) => {
+            if (inv.status === 'lunas') {
+                acc.lunasCount += 1;
+                acc.lunasAmount += inv.amount;
+            } else {
+                acc.belumLunasCount += 1;
+                acc.belumLunasAmount += inv.amount;
+            }
+            return acc;
+        }, { lunasCount: 0, lunasAmount: 0, belumLunasCount: 0, belumLunasAmount: 0 });
 
         const thisMonthPayments = paymentsSnapshot.docs
             .map(doc => doc.data() as Payment)
@@ -81,9 +126,8 @@ export default function FinancePage() {
         
         const customersList = customersSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Customer));
         const newCustomers = customersList.filter(c => c.installationDate && isThisMonth(parseISO(c.installationDate)));
-
-        const unpaidInvoices = invoicesSnapshot.docs.map(doc => doc.data() as Invoice);
-
+        
+        const unpaidInvoices = allInvoices.filter(inv => inv.status === 'belum lunas');
         const oldUnpaidInvoices = unpaidInvoices
             .filter(inv => inv.date && parseISO(inv.date) < startOfCurrentMonth);
             
@@ -120,7 +164,8 @@ export default function FinancePage() {
           delinquentCustomers: Array.from(delinquentCustomersMap.values()),
           monthlyIncomeFromPayments,
           monthlyIncomeFromOther,
-          monthlyExpenseByCategory
+          monthlyExpenseByCategory,
+          invoiceStatusThisMonth
         });
 
       } catch (error) {
@@ -138,6 +183,15 @@ export default function FinancePage() {
 
     fetchStats();
   }, [toast]);
+  
+  const chartData = React.useMemo(() => {
+    if (!stats) return [];
+    return [
+      { status: "lunas", count: stats.invoiceStatusThisMonth.lunasCount, total: stats.invoiceStatusThisMonth.lunasAmount, fill: "var(--color-lunas)" },
+      { status: "belumLunas", count: stats.invoiceStatusThisMonth.belumLunasCount, total: stats.invoiceStatusThisMonth.belumLunasAmount, fill: "var(--color-belumLunas)" },
+    ].filter(d => d.count > 0);
+  }, [stats]);
+
 
   if (loading) {
     return (
@@ -170,6 +224,60 @@ export default function FinancePage() {
                 <Link href="/reports">Total Keuangan <BookText className="ml-2 h-4 w-4"/></Link>
             </Button>
         </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+         <Card>
+            <CardHeader>
+              <CardTitle>Status Faktur Bulan Ini</CardTitle>
+              <CardDescription>Visualisasi faktur yang sudah dan belum dibayar bulan ini.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartData.length > 0 ? (
+                <ChartContainer
+                  config={chartConfig}
+                  className="mx-auto aspect-square h-[250px]"
+                >
+                  <PieChart>
+                    <ChartTooltip
+                      cursor={false}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          const label = chartConfig[data.status as keyof typeof chartConfig].label;
+                          return (
+                            <div className="min-w-[15rem] rounded-lg border bg-background p-2.5 text-sm shadow-sm">
+                              <p className="font-medium">{`${label} (${data.count} Faktur)`}</p>
+                              <p className="text-muted-foreground">Rp{data.total.toLocaleString('id-ID')}</p>
+                            </div>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Pie
+                      data={chartData}
+                      dataKey="count"
+                      nameKey="status"
+                      innerRadius={60}
+                      labelLine={false}
+                      label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    >
+                      {chartData.map((entry) => (
+                          <Cell key={entry.status} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[250px] text-center">
+                    <PieChartIcon className="w-12 h-12 text-muted-foreground" />
+                    <p className="mt-4 font-medium">Tidak ada data faktur bulan ini.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
       </div>
 
       <Card>
