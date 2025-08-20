@@ -6,7 +6,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, Coins, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { format, isThisMonth, parseISO, startOfMonth } from "date-fns";
@@ -162,6 +162,17 @@ export default function FinancePage() {
           <h1 className="text-3xl font-bold tracking-tight">Keuangan & Statistik</h1>
           <p className="text-muted-foreground">Ringkasan keuangan bulanan dan total.</p>
         </div>
+        <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+                <Link href="/other-incomes">Pemasukan Lainnya <Coins className="ml-2 h-4 w-4"/></Link>
+            </Button>
+            <Button asChild variant="outline">
+                <Link href="/expenses">Lihat Pengeluaran <TrendingDown className="ml-2 h-4 w-4"/></Link>
+            </Button>
+            <Button asChild variant="outline">
+                <Link href="/reports">Total Keuangan <BookText className="ml-2 h-4 w-4"/></Link>
+            </Button>
+        </div>
       </div>
 
       <Card>
@@ -214,12 +225,16 @@ export default function FinancePage() {
               }
             >
               <ul className="space-y-2">
-                {Object.entries(stats.monthlyExpenseByCategory).map(([category, amount]) => (
-                  <li key={category} className="flex justify-between items-center text-sm border-b pb-2">
-                    <span>{category}</span>
-                    <span className="font-semibold">Rp{amount.toLocaleString('id-ID')}</span>
-                  </li>
-                ))}
+                {Object.keys(stats.monthlyExpenseByCategory).length > 0 ? (
+                    Object.entries(stats.monthlyExpenseByCategory).map(([category, amount]) => (
+                    <li key={category} className="flex justify-between items-center text-sm border-b pb-2">
+                        <span>{category}</span>
+                        <span className="font-semibold">Rp{amount.toLocaleString('id-ID')}</span>
+                    </li>
+                    ))
+                ) : (
+                    <p className="text-sm text-muted-foreground text-center">Belum ada pengeluaran bulan ini.</p>
+                )}
               </ul>
             </InfoDialog>
 
@@ -254,12 +269,16 @@ export default function FinancePage() {
           }
         >
           <ul className="space-y-2">
-            {Object.entries(stats.omsetBreakdown).map(([key, value]) => (
-              <li key={key} className="flex justify-between items-center text-sm">
-                <span>{key}</span>
-                <span className="font-semibold">x{value}</span>
-              </li>
-            ))}
+            {Object.keys(stats.omsetBreakdown).length > 0 ? (
+                Object.entries(stats.omsetBreakdown).map(([key, value]) => (
+                <li key={key} className="flex justify-between items-center text-sm">
+                    <span>{key}</span>
+                    <span className="font-semibold">x{value}</span>
+                </li>
+                ))
+            ) : (
+                <p className="text-sm text-muted-foreground text-center">Tidak ada pelanggan aktif.</p>
+            )}
           </ul>
         </InfoDialog>
 
