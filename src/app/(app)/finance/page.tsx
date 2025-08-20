@@ -158,16 +158,13 @@ export default function FinancePage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Keuangan & Statistik</h1>
-          <p className="text-muted-foreground">Ringkasan keuangan bulanan dan total.</p>
-        </div>
+        <div className="flex-1"></div>
         <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
-                <Link href="/other-incomes">Pemasukan Lainnya <Coins className="ml-2 h-4 w-4"/></Link>
+                <Link href="/other-incomes">Input Pemasukan Lain <Coins className="ml-2 h-4 w-4"/></Link>
             </Button>
             <Button asChild variant="outline">
-                <Link href="/expenses">Lihat Pengeluaran <TrendingDown className="ml-2 h-4 w-4"/></Link>
+                <Link href="/expenses">Input Pengeluaran <TrendingDown className="ml-2 h-4 w-4"/></Link>
             </Button>
             <Button asChild variant="outline">
                 <Link href="/reports">Total Keuangan <BookText className="ml-2 h-4 w-4"/></Link>
