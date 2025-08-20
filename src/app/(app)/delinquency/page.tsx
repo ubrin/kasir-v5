@@ -71,14 +71,24 @@ export default function DelinquencyPage() {
     const fetchDelinquentData = React.useCallback(async () => {
         setLoading(true);
         try {
+            const customersQuery = collection(db, "customers");
             const invoicesQuery = query(collection(db, "invoices"), where("status", "==", "belum lunas"));
-            const overdueInvoicesSnapshot = await getDocs(invoicesQuery);
+
+            const [customersSnapshot, overdueInvoicesSnapshot] = await Promise.all([
+                getDocs(customersQuery),
+                getDocs(invoicesQuery)
+            ]);
             
             if (overdueInvoicesSnapshot.empty) {
                 setDelinquentCustomersList([]);
                 setLoading(false);
                 return;
             }
+
+            const allCustomersMap = new Map<string, Customer>();
+            customersSnapshot.docs.forEach(doc => {
+                allCustomersMap.set(doc.id, { id: doc.id, ...doc.data() } as Customer);
+            });
 
             const overdueInvoicesByCustomer = new Map<string, Invoice[]>();
             overdueInvoicesSnapshot.docs.forEach(doc => {
@@ -87,54 +97,28 @@ export default function DelinquencyPage() {
                 existing.push(invoice);
                 overdueInvoicesByCustomer.set(invoice.customerId, existing);
             });
-            
-            const delinquentCustomerIds = Array.from(overdueInvoicesByCustomer.keys());
-            if (delinquentCustomerIds.length === 0) {
-                 setDelinquentCustomersList([]);
-                 setLoading(false);
-                 return;
-            }
-
-            // Chunk customer IDs to avoid Firestore's 30-item limit for 'in' queries
-            const customerIdChunks: string[][] = [];
-            for (let i = 0; i < delinquentCustomerIds.length; i += 30) {
-                customerIdChunks.push(delinquentCustomerIds.slice(i, i + 30));
-            }
-
-            const customerPromises = customerIdChunks.map(chunk => 
-                getDocs(query(collection(db, "customers"), where("__name__", "in", chunk)))
-            );
-
-            const customerSnapshots = await Promise.all(customerPromises);
-            const allCustomers: Customer[] = [];
-            customerSnapshots.forEach(snapshot => {
-                snapshot.docs.forEach(doc => {
-                    allCustomers.push({ id: doc.id, ...doc.data() } as Customer);
-                });
-            });
-
 
             const startOfCurrentMonth = startOfMonth(new Date());
             const delinquents: DelinquentCustomer[] = [];
 
-            for (const customer of allCustomers) {
-                const customerInvoices = overdueInvoicesByCustomer.get(customer.id);
-                if (customerInvoices && customerInvoices.length > 0) {
-                    const totalInvoiceAmount = customerInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+            for (const [customerId, invoices] of overdueInvoicesByCustomer.entries()) {
+                const customer = allCustomersMap.get(customerId);
+                if (customer) {
+                    const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
                     const creditBalance = customer.creditBalance ?? 0;
                     const finalOverdueAmount = totalInvoiceAmount - creditBalance;
                     
                     if (finalOverdueAmount > 0) {
-                        const sortedDueDates = customerInvoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
+                        const sortedDueDates = invoices.map(d => parseISO(d.dueDate)).sort((a, b) => a.getTime() - b.getTime());
                         const nearestDueDate = sortedDueDates.length > 0 ? format(sortedDueDates[0], 'yyyy-MM-dd') : '';
-                        const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
+                        const hasArrears = invoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
 
                         delinquents.push({
                             ...customer,
                             overdueAmount: finalOverdueAmount,
-                            overdueInvoicesCount: customerInvoices.length,
+                            overdueInvoicesCount: invoices.length,
                             nearestDueDate: nearestDueDate,
-                            invoices: customerInvoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
+                            invoices: invoices.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()),
                             hasArrears: hasArrears,
                         });
                     }
