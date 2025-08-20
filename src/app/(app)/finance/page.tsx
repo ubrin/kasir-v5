@@ -168,16 +168,18 @@ export default function FinancePage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Omset Potensial</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
-            <p className="text-xs text-muted-foreground">Potensi pendapatan bulanan</p>
-          </CardContent>
-        </Card>
+        <Link href="/customers" className="block hover:bg-muted/50 transition-colors rounded-lg">
+          <Card className="h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Omset Potensial</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">Rp{stats.totalOmset.toLocaleString('id-ID')}</div>
+              <p className="text-xs text-muted-foreground">Potensi pendapatan bulanan</p>
+            </CardContent>
+          </Card>
+        </Link>
         <Link href="/customers?filter=new_this_month" className="block hover:bg-muted/50 transition-colors rounded-lg">
             <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
