@@ -1,57 +1,53 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Default deny all access
+    
+    // Default deny all
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Allow server-side admin access (for Cloud Functions)
-    match /{path=**}/documents/{doc} {
-       allow read, write: if request.auth == null;
-    }
-
-    // Allow authenticated users to read/write their own user document
+    // Allow logged-in users to read/write their own user document
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, update, write: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null;
     }
-    
-    // Customers: Admins can do anything, users can read only
-    match /customers/{customerId} {
-      allow read: if request.auth != null;
-      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    // Invoices: Admins can do anything, users can read only
-    match /invoices/{invoiceId} {
-       allow read: if request.auth != null;
-       allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    // Payments: Admins can do anything, users can read only
-    match /payments/{paymentId} {
-       allow read: if request.auth != null;
-       allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+    // Admins can do anything
+    match /{document=**} {
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Admins can manage all other data types
-    match /collectors/{collectorId} {
-       allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // Allow all authenticated users to read/write their own data
+    match /customers/{customerId} {
+      allow read, write: if request.auth != null;
     }
+    match /invoices/{invoiceId} {
+      allow read, write: if request.auth != null;
+    }
+    match /payments/{paymentId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Expenses and other incomes are admin-only
     match /expenses/{expenseId} {
-       allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     match /otherIncomes/{incomeId} {
-       allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-
-    // App Stats are read-only for all authenticated users, writeable only by admin/functions
-    match /app-stats/{statId} {
-      allow read: if request.auth != null;
-      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    
+    // Collectors can be read by any authenticated user, but only modified by admins
+    match /collectors/{collectorId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // App-stats can be read by admins
+     match /app-stats/{statId} {
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }
 }
