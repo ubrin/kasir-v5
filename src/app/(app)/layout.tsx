@@ -12,75 +12,60 @@ import Header from '@/components/layout/header';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OfflineIndicator } from '@/components/offline-indicator';
+import { Loader2 } from 'lucide-react';
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { firebaseUser, loading: authLoading, setAppUser } = useAuth();
+  const { firebaseUser, loading: authLoading, appUser, setAppUser } = useAuth();
   const [profileLoading, setProfileLoading] = React.useState(true);
   const router = useRouter();
 
+  // Effect for redirection based on auth state
   React.useEffect(() => {
     if (!authLoading && !firebaseUser) {
       router.push('/');
     }
   }, [firebaseUser, authLoading, router]);
 
+  // Effect for fetching user profile
   React.useEffect(() => {
     if (firebaseUser) {
-      const userDocRef = doc(db, 'users', firebaseUser.uid);
-      const unsubscribeSnapshot = onSnapshot(userDocRef, (doc) => {
+      const unsub = onSnapshot(doc(db, 'users', firebaseUser.uid), (doc) => {
         if (doc.exists()) {
           setAppUser(doc.data() as AppUser);
         } else {
-          setAppUser(null);
+          setAppUser(null); // Explicitly set to null if profile doesn't exist
         }
         setProfileLoading(false);
-      }, (error) => {
-        console.error("Error fetching user profile:", error);
-        setAppUser(null);
-        setProfileLoading(false);
       });
-      return () => unsubscribeSnapshot();
+      return () => unsub();
     } else if (!authLoading) {
-      // If there's no firebaseUser and auth is not loading, we're done.
+      // If no Firebase user and auth is not loading, we're not expecting a profile.
       setProfileLoading(false);
     }
   }, [firebaseUser, authLoading, setAppUser]);
 
 
   if (authLoading || profileLoading) {
-     return (
-        <div className="flex min-h-screen w-full">
-            <div className="hidden md:flex flex-col gap-4 p-4 border-r bg-card">
-                <Skeleton className="h-10 w-48" />
-                <div className="p-2 mt-4 space-y-2">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                </div>
-            </div>
-            <div className="flex-1 flex flex-col">
-                 <div className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
-                    <Skeleton className="h-8 w-8" />
-                    <div className="w-full flex-1"></div>
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                 </div>
-                <main className="flex-1 p-4 sm:p-6 md:p-8">
-                    <Skeleton className="h-96 w-full" />
-                </main>
-            </div>
-        </div>
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-16 w-16 animate-spin" />
+      </div>
     );
   }
 
-  if (!firebaseUser) {
-    // This can happen briefly before the redirect effect kicks in.
-    // Or if there's no user, in which case the redirect will handle it.
-    return null;
+  if (!firebaseUser || !appUser) {
+    // This state can be reached briefly before redirection or if the profile is missing.
+    // The redirect effect will handle routing the user away.
+    // Showing a loader here is safer than returning null.
+     return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-16 w-16 animate-spin" />
+      </div>
+    );
   }
 
   return (
