@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react";
@@ -49,13 +48,14 @@ import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import withAuth from "@/components/withAuth";
 
 type CustomerWithStatus = Customer & {
     nearestDueDate?: string;
     hasArrears?: boolean;
 };
 
-export default function CustomersPage() {
+function CustomersPage() {
   const [customers, setCustomers] = React.useState<CustomerWithStatus[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
@@ -637,3 +637,5 @@ export default function CustomersPage() {
     </div>
   )
 }
+
+export default withAuth(CustomersPage);

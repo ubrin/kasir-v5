@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react";
@@ -26,6 +25,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import withAuth from "@/components/withAuth";
 
 const payWajibSchema = z.object({
   amount: z.preprocess(
@@ -131,7 +131,7 @@ function PayWajibDialog({
 }
 
 
-export default function ExpensesPage() {
+function ExpensesPage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
   const [expenses, setExpenses] = React.useState<{ wajib: Expense[], angsuran: Expense[] }>({
@@ -819,3 +819,5 @@ export default function ExpensesPage() {
     </>
   );
 }
+
+export default withAuth(ExpensesPage);

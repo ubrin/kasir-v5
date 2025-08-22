@@ -3,9 +3,8 @@
 import Link from "next/link"
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useAuth } from "@/context/auth-context";
 
 import { Button } from "@/components/ui/button"
 import {
@@ -19,23 +18,27 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 
 
 export default function LoginPage() {
-    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [loading, setLoading] = React.useState(false);
+    const [authLoading, setAuthLoading] = React.useState(true);
     const [error, setError] = React.useState("");
 
     React.useEffect(() => {
-        if (!authLoading && user) {
-        router.push("/home");
-        }
-    }, [user, authLoading, router]);
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                router.push("/home");
+            } else {
+                setAuthLoading(false);
+            }
+        });
+        return () => unsubscribe();
+    }, [router]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -63,7 +66,7 @@ export default function LoginPage() {
         }
     };
     
-    if (authLoading || (!authLoading && user)) {
+    if (authLoading) {
         return (
              <div className="flex min-h-screen items-center justify-center bg-background p-4">
                 <Loader2 className="h-16 w-16 animate-spin" />

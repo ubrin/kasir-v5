@@ -17,21 +17,36 @@ import {Button} from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import * as React from 'react';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { signOut, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/auth-context';
 import { useSidebar } from '@/components/ui/sidebar';
+import type { AppUser } from '@/lib/types';
 
 
 export default function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const { appUser: user } = useAuth(); // Change to appUser
-  const { isMobile, setOpen, setOpenMobile } = useSidebar();
+  const [user, setUser] = React.useState<AppUser | null>(null);
+  const { isMobile, setOpenMobile } = useSidebar();
 
-  // Move menuItems inside the component to make it reactive to user role changes
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+            const userDocRef = doc(db, 'users', firebaseUser.uid);
+            const docSnap = await getDoc(userDocRef);
+            if (docSnap.exists()) {
+                setUser(docSnap.data() as AppUser);
+            }
+        } else {
+            setUser(null);
+        }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const menuItems = [
     { href: '/home', label: 'Home', icon: Home, roles: ['admin', 'user'] },
     {

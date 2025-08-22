@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -6,8 +5,9 @@ import { format, startOfMonth, endOfMonth, parseISO, getMonth, getYear } from 'd
 import { id } from 'date-fns/locale';
 import { collection, onSnapshot, query, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Payment, Collector } from '@/lib/types';
-import { useAuth } from '@/context/auth-context';
+import type { Payment, Collector, AppUser } from '@/lib/types';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import withAuth from '@/components/withAuth';
 
 type DailyCollection = {
     date: string;
@@ -35,9 +36,9 @@ type DailyCollection = {
     }
 }
 
-export default function PaymentReportPage() {
+function PaymentReportPage() {
   const { toast } = useToast();
-  const { appUser } = useAuth();
+  const [appUser, setAppUser] = React.useState<AppUser | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [collectors, setCollectors] = React.useState<Collector[]>([]);
@@ -51,6 +52,20 @@ export default function PaymentReportPage() {
     const years = new Set(payments.map(p => getYear(parseISO(p.paymentDate)).toString()));
     return Array.from(years).sort((a,b) => parseInt(b) - parseInt(a));
   }, [payments]);
+
+  React.useEffect(() => {
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', user.uid)));
+          if (!userDoc.empty) {
+            setAppUser(userDoc.docs[0].data() as AppUser);
+          }
+        } else {
+          setAppUser(null);
+        }
+      });
+      return () => unsubscribe();
+  }, []);
 
   React.useEffect(() => {
       const fetchData = async () => {
@@ -284,3 +299,5 @@ export default function PaymentReportPage() {
     </div>
   );
 }
+
+export default withAuth(PaymentReportPage);

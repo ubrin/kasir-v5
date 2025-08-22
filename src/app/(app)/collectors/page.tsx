@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react";
@@ -24,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import withAuth from "@/components/withAuth";
 
 function AddCollectorDialog({ onCollectorAdded }: { onCollectorAdded: () => void }) {
     const [open, setOpen] = React.useState(false);
@@ -85,7 +85,7 @@ type CollectorMonthlyTotal = {
     total: number;
 }
 
-export default function CollectorsPage() {
+function CollectorsPage() {
     const { toast } = useToast();
     const [loading, setLoading] = React.useState(true);
     const [allCollectors, setAllCollectors] = React.useState<Collector[]>([]);
@@ -301,4 +301,4 @@ export default function CollectorsPage() {
   );
 }
 
-    
+export default withAuth(CollectorsPage);

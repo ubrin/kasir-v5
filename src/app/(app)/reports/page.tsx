@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react";
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import type { Payment, Expense, OtherIncome } from "@/lib/types";
+import withAuth from "@/components/withAuth";
 
 type Stats = {
     totalIncome: number;
@@ -15,7 +15,7 @@ type Stats = {
     balance: number;
 };
 
-export default function ReportsPage() {
+function ReportsPage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
   const [stats, setStats] = React.useState<Stats | null>(null);
@@ -127,3 +127,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+export default withAuth(ReportsPage);

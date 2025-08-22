@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react";
@@ -17,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import withAuth from "@/components/withAuth";
 
 type DelinquentCustomer = Customer & {
   totalUnpaid: number;
@@ -25,7 +25,7 @@ type DelinquentCustomer = Customer & {
   hasArrears: boolean;
 };
 
-export default function DelinquencyPage() {
+function DelinquencyPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = React.useState(true);
@@ -273,3 +273,5 @@ export default function DelinquencyPage() {
     </div>
   );
 }
+
+export default withAuth(DelinquencyPage);

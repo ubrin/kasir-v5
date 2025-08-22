@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react";
@@ -25,6 +24,7 @@ import {
   Pie,
   Cell,
 } from "recharts"
+import withAuth from "@/components/withAuth";
 
 type Stats = {
   monthlyIncome: number;
@@ -58,7 +58,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export default function FinancePage() {
+function FinancePage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
   const [stats, setStats] = React.useState<Stats | null>(null);
@@ -450,3 +450,5 @@ export default function FinancePage() {
     </div>
   );
 }
+
+export default withAuth(FinancePage);

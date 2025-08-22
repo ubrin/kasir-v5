@@ -1,13 +1,40 @@
-
 'use client';
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileClock, FilePieChart, Users, Wallet } from "lucide-react";
-import { useAuth } from '@/context/auth-context';
+import { FileClock, FilePieChart, Users, Wallet, Loader2 } from "lucide-react";
+import * as React from 'react';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from '@/lib/firebase';
+import type { AppUser } from '@/lib/types';
+import withAuth from '@/components/withAuth';
 
-export default function HomePage() {
-  const { appUser } = useAuth();
+function HomePage() {
+  const [appUser, setAppUser] = React.useState<AppUser | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDocRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          setAppUser(docSnap.data() as AppUser);
+        }
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-64 w-full items-center justify-center">
+        <Loader2 className="h-16 w-16 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -79,3 +106,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+export default withAuth(HomePage);

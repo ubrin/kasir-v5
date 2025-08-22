@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from "react";
@@ -17,8 +16,9 @@ import { AddOtherIncomeDialog } from "@/components/add-other-income-dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import withAuth from "@/components/withAuth";
 
-export default function OtherIncomesPage() {
+function OtherIncomesPage() {
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
   const [history, setHistory] = React.useState<{ thisMonth: OtherIncome[], byMonth: Record<string, OtherIncome[]> }>({
@@ -269,3 +269,5 @@ export default function OtherIncomesPage() {
     </>
   );
 }
+
+export default withAuth(OtherIncomesPage);
