@@ -3,7 +3,7 @@
 
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { format, startOfMonth, getMonth, getYear } from "date-fns";
+import { format, startOfMonth, getMonth, getYear, isThisMonth, isThisYear, parseISO } from "date-fns";
 import { HttpsError } from "firebase-functions/v2/https";
 
 type Customer = {
@@ -28,27 +28,27 @@ async function runInvoiceGeneration() {
   const today = new Date();
   const currentMonth = getMonth(today);
   const currentYear = getYear(today);
-  const currentMonthStr = format(today, 'yyyy-MM'); // e.g., "2024-07"
-  const firstDayOfMonth = format(startOfMonth(today), 'yyyy-MM-dd');
+  const currentMonthStr = format(today, 'yyyy-MM');
 
-  const customersSnapshot = await db.collection("customers").get();
+  const [customersSnapshot, allInvoicesSnapshot] = await Promise.all([
+    db.collection("customers").get(),
+    db.collection("invoices").get() // Get all invoices
+  ]);
+
   if (customersSnapshot.empty) {
     functions.logger.info("No customers found. Exiting job.");
     return { success: true, message: "Tidak ada pelanggan yang ditemukan.", invoicesCreatedCount: 0 };
   }
-
-  // Fetch all invoices for the current month just once
-  const invoicesQuery = await db.collection("invoices")
-    .where("date", ">=", firstDayOfMonth)
-    .get();
-      
-  const existingInvoices = new Set<string>();
-  invoicesQuery.forEach(doc => {
-      const invoice = doc.data();
-      // Create a unique key for each existing invoice for the month
-      const invoiceMonth = format(new Date(invoice.date), 'yyyy-MM');
-      if (invoiceMonth === currentMonthStr) {
-        existingInvoices.add(`${invoice.customerId}_${currentMonthStr}`);
+  
+  // Filter invoices for the current month in code for reliability
+  const existingInvoicesForThisMonth = new Set<string>();
+  allInvoicesSnapshot.forEach(doc => {
+      const invoice = doc.data() as Invoice;
+      if (invoice.date) {
+        const invoiceDate = parseISO(invoice.date);
+        if (isThisMonth(invoiceDate) && isThisYear(invoiceDate)) {
+          existingInvoicesForThisMonth.add(invoice.customerId);
+        }
       }
   });
 
@@ -57,9 +57,9 @@ async function runInvoiceGeneration() {
 
   for (const doc of customersSnapshot.docs) {
     const customer = { id: doc.id, ...doc.data() } as Customer;
-    const customerInvoiceKey = `${customer.id}_${currentMonthStr}`;
 
-    if (existingInvoices.has(customerInvoiceKey)) {
+    // Check if an invoice for this customer already exists for this month
+    if (existingInvoicesForThisMonth.has(customer.id)) {
       functions.logger.info(`Invoice for customer ${customer.id} for ${currentMonthStr} already exists. Skipping.`);
       continue;
     }
