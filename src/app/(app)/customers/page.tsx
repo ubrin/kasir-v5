@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { collection, getDocs, writeBatch, doc, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db, app } from "@/lib/firebase";
 import {
   Table,
   TableBody,
@@ -21,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Loader2, Trash2, Search, X } from "lucide-react"
+import { MoreHorizontal, Loader2, Trash2, Search, X, FileText } from "lucide-react"
 import type { Customer, Invoice } from "@/lib/types"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -58,6 +59,7 @@ type CustomerWithStatus = Customer & {
 function CustomersPage() {
   const [customers, setCustomers] = React.useState<CustomerWithStatus[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [isGeneratingInvoices, setIsGeneratingInvoices] = React.useState(false);
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
   const [customerToDelete, setCustomerToDelete] = React.useState<Customer | null>(null);
   const [customersToDelete, setCustomersToDelete] = React.useState<Customer[]>([]);
@@ -162,6 +164,37 @@ function CustomersPage() {
   React.useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  const handleGenerateInvoices = async () => {
+    setIsGeneratingInvoices(true);
+    try {
+        const functions = getFunctions(app);
+        const generateInvoices = httpsCallable(functions, 'manuallyGenerateInvoices');
+        const result = await generateInvoices();
+        
+        const data = result.data as { success: boolean; message: string; invoicesCreatedCount?: number };
+
+        if (data.success) {
+            toast({
+                title: "Proses Selesai",
+                description: `${data.message} (${data.invoicesCreatedCount || 0} faktur baru dibuat). Data sedang diperbarui.`,
+            });
+            fetchCustomers(); // Refresh data
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error: any) {
+        console.error("Error generating invoices:", error);
+        toast({
+            title: "Gagal Menerbitkan Faktur",
+            description: error.message || "Terjadi kesalahan saat memanggil fungsi.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsGeneratingInvoices(false);
+    }
+  };
+
 
   const handleCustomerAdded = async (newCustomerData: Omit<Customer, 'id' | 'outstandingBalance' | 'paymentHistory' | 'creditBalance'>) => {
     try {
@@ -428,43 +461,49 @@ function CustomersPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h1 className="text-3xl font-bold tracking-tight">{getFilterTitle()}</h1>
             <div className="flex items-center gap-2">
-                <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Pilih grup" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Grup</SelectItem>
-                        {groupKeys.map(key => (
-                            <SelectItem key={key} value={key.toString()}>
-                                Tanggal {key}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <ImportCustomerDialog onSuccess={handleImportSuccess} />
+                <Button onClick={handleGenerateInvoices} disabled={isGeneratingInvoices}>
+                    {isGeneratingInvoices ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileText className="mr-2 h-4 w-4" />}
+                    Terbitkan Faktur Bulan Ini
+                </Button>
                 <AddCustomerDialog onCustomerAdded={handleCustomerAdded} />
             </div>
         </div>
 
-        <div className="relative w-full md:w-1/2 lg:w-1/3">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Cari pelanggan berdasarkan nama atau alamat..."
-              className="w-full appearance-none bg-background pl-8 shadow-none"
-              value={localSearchQuery}
-              onChange={(e) => setLocalSearchQuery(e.target.value)}
-            />
-            {localSearchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full"
-                onClick={() => setLocalSearchQuery('')}
-              >
-                <X className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            )}
+        <div className="flex items-center gap-2">
+            <div className="relative w-full md:w-1/2 lg:w-1/3">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Cari pelanggan berdasarkan nama atau alamat..."
+                  className="w-full appearance-none bg-background pl-8 shadow-none"
+                  value={localSearchQuery}
+                  onChange={(e) => setLocalSearchQuery(e.target.value)}
+                />
+                {localSearchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full"
+                    onClick={() => setLocalSearchQuery('')}
+                  >
+                    <X className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                )}
+            </div>
+            <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Pilih grup" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Semua Grup</SelectItem>
+                    {groupKeys.map(key => (
+                        <SelectItem key={key} value={key.toString()}>
+                            Tanggal {key}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <ImportCustomerDialog onSuccess={handleImportSuccess} />
         </div>
         
         {selectedCustomerIds.length > 0 && (

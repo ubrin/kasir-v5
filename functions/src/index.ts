@@ -17,4 +17,4 @@ setGlobalOptions({ maxInstances: 10 });
 
 // Export functions from other files
 export { aggregateStats, manuallyAggregateStats } from './data-aggregator';
-export { generateMonthlyInvoices } from './invoice-generator';
+export { generateMonthlyInvoices, manuallyGenerateInvoices } from './invoice-generator';
