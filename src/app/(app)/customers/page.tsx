@@ -45,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, startOfToday, differenceInDays, isThisMonth } from 'date-fns';
+import { format, parseISO, startOfMonth, differenceInCalendarMonths, addMonths, getDate, startOfToday, differenceInDays, isThisMonth, isThisYear, getMonth, getYear } from 'date-fns';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -167,12 +167,89 @@ function CustomersPage() {
 
   const handleGenerateInvoices = async () => {
     setIsGeneratingInvoices(true);
-    toast({
-        title: "Fungsi Dinonaktifkan",
-        description: "Fungsi ini dinonaktifkan sementara untuk perbaikan.",
-        variant: "destructive",
-    });
-    setIsGeneratingInvoices(false);
+    toast({ title: "Menerbitkan faktur...", description: "Mohon tunggu, proses ini mungkin memakan waktu beberapa saat." });
+
+    try {
+        const today = new Date();
+        const currentMonth = getMonth(today);
+        const currentYear = getYear(today);
+
+        const [customersSnapshot, allInvoicesSnapshot] = await Promise.all([
+            getDocs(collection(db, "customers")),
+            getDocs(collection(db, "invoices"))
+        ]);
+
+        const allCustomers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+
+        const existingInvoicesForThisMonth = new Set<string>();
+        allInvoicesSnapshot.forEach(doc => {
+            const invoice = doc.data() as Invoice;
+            if (invoice.date) {
+                const invoiceDate = parseISO(invoice.date);
+                if (isThisMonth(invoiceDate) && isThisYear(invoiceDate)) {
+                    existingInvoicesForThisMonth.add(invoice.customerId);
+                }
+            }
+        });
+
+        const batch = writeBatch(db);
+        let invoicesCreatedCount = 0;
+
+        for (const customer of allCustomers) {
+            if (existingInvoicesForThisMonth.has(customer.id)) {
+                continue; // Skip if invoice already exists
+            }
+
+            if (!customer.packagePrice || customer.packagePrice <= 0) {
+                continue; // Skip if no package price
+            }
+
+            const installationDate = new Date(customer.installationDate);
+            if (installationDate > today) {
+                continue; // Skip if installation is in the future
+            }
+
+            const invoiceDate = startOfMonth(today);
+            const invoiceDueDate = new Date(currentYear, currentMonth, customer.dueDateCode);
+
+            const newInvoice = {
+                customerId: customer.id,
+                customerName: customer.name,
+                date: format(invoiceDate, 'yyyy-MM-dd'),
+                dueDate: format(invoiceDueDate, 'yyyy-MM-dd'),
+                amount: customer.packagePrice,
+                status: 'belum lunas' as const,
+            };
+
+            const invoiceRef = doc(collection(db, "invoices"));
+            batch.set(invoiceRef, newInvoice);
+            invoicesCreatedCount++;
+        }
+
+        if (invoicesCreatedCount > 0) {
+            await batch.commit();
+            toast({
+                title: "Berhasil!",
+                description: `${invoicesCreatedCount} faktur baru telah berhasil diterbitkan.`,
+            });
+        } else {
+            toast({
+                title: "Tidak Ada Tindakan",
+                description: "Semua faktur untuk bulan ini sudah ada.",
+            });
+        }
+
+    } catch (error) {
+        console.error("Error generating invoices:", error);
+        toast({
+            title: "Gagal Menerbitkan Faktur",
+            description: "Terjadi kesalahan saat mencoba membuat faktur.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsGeneratingInvoices(false);
+        fetchCustomers(); // Refresh data
+    }
   };
 
 
