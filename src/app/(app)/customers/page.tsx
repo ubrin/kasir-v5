@@ -1,10 +1,10 @@
+
 'use client';
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { collection, getDocs, writeBatch, doc, query, where } from "firebase/firestore";
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db, app } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import {
   Table,
   TableBody,
@@ -167,32 +167,12 @@ function CustomersPage() {
 
   const handleGenerateInvoices = async () => {
     setIsGeneratingInvoices(true);
-    try {
-        const functions = getFunctions(app);
-        const generateInvoices = httpsCallable(functions, 'manuallyGenerateInvoices');
-        const result = await generateInvoices();
-        
-        const data = result.data as { success: boolean; message: string; invoicesCreatedCount?: number };
-
-        if (data.success) {
-            toast({
-                title: "Proses Selesai",
-                description: `${data.message} (${data.invoicesCreatedCount || 0} faktur baru dibuat). Data sedang diperbarui.`,
-            });
-            fetchCustomers(); // Refresh data
-        } else {
-            throw new Error(data.message);
-        }
-    } catch (error: any) {
-        console.error("Error generating invoices:", error);
-        toast({
-            title: "Gagal Menerbitkan Faktur",
-            description: error.message || "Terjadi kesalahan saat memanggil fungsi.",
-            variant: "destructive",
-        });
-    } finally {
-        setIsGeneratingInvoices(false);
-    }
+    toast({
+        title: "Fungsi Dinonaktifkan",
+        description: "Fungsi ini dinonaktifkan sementara untuk perbaikan.",
+        variant: "destructive",
+    });
+    setIsGeneratingInvoices(false);
   };
 
 
