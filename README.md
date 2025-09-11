@@ -1,4 +1,4 @@
-add .# Aplikasi Manajemen Tagihan Adit
+addit ad .# Aplikasi Manajemen Tagihan Adit
 
 Ini adalah aplikasi manajemen penagihan yang dibuat dengan Next.js dan Firebase di Firebase Studio.
 
