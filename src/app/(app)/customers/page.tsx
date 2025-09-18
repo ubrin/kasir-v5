@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { MoreHorizontal, Loader2, Trash2, Search, X, FileText } from "lucide-react"
-import type { Customer, Invoice } from "@/lib/types"
+import type { Customer, Invoice, Payment } from "@/lib/types"
 import { Card, CardContent } from "@/components/ui/card"
 import {
     Select,
@@ -55,6 +55,45 @@ type CustomerWithStatus = Customer & {
     nearestDueDate?: string;
     hasArrears?: boolean;
 };
+
+// Helper function to calculate remaining amounts for all invoices
+const calculateAllInvoiceRemainders = (
+    allInvoices: Invoice[],
+    allPayments: Payment[]
+): Map<string, number> => {
+    const invoiceRemainders = new Map<string, number>();
+    allInvoices.forEach(inv => invoiceRemainders.set(inv.id, inv.amount));
+
+    const sortedPayments = [...allPayments].sort((a, b) => 
+        parseISO(a.paymentDate).getTime() - parseISO(b.paymentDate).getTime()
+    );
+
+    for (const payment of sortedPayments) {
+        let paymentAmountToDistribute = payment.paidAmount - payment.changeAmount;
+        
+        const sortedInvoiceIds = payment.invoiceIds.sort((a, b) => {
+            const invA = allInvoices.find(i => i.id === a);
+            const invB = allInvoices.find(i => i.id === b);
+            if (!invA || !invB) return 0;
+            return parseISO(invA.date).getTime() - parseISO(b.date).getTime();
+        });
+
+        for (const invoiceId of sortedInvoiceIds) {
+            if (paymentAmountToDistribute <= 0) break;
+
+            const currentRemainder = invoiceRemainders.get(invoiceId);
+            if (currentRemainder === undefined || currentRemainder <= 0) continue;
+
+            const amountToPay = Math.min(paymentAmountToDistribute, currentRemainder);
+            
+            invoiceRemainders.set(invoiceId, currentRemainder - amountToPay);
+            paymentAmountToDistribute -= amountToPay;
+        }
+    }
+    
+    return invoiceRemainders;
+};
+
 
 function CustomersPage() {
   const [customers, setCustomers] = React.useState<CustomerWithStatus[]>([]);
@@ -105,49 +144,61 @@ function CustomersPage() {
   const fetchCustomers = React.useCallback(async () => {
     setLoading(true);
     try {
-      const customersCollection = collection(db, "customers");
-      const invoicesUnpaidQuery = query(collection(db, "invoices"), where("status", "==", "belum lunas"));
+        const [
+            customersSnapshot,
+            allInvoicesSnapshot,
+            allPaymentsSnapshot,
+        ] = await Promise.all([
+            getDocs(collection(db, "customers")),
+            getDocs(collection(db, "invoices")),
+            getDocs(collection(db, "payments")),
+        ]);
 
-      const [customersSnapshot, unpaidInvoicesSnapshot] = await Promise.all([
-        getDocs(customersCollection),
-        getDocs(invoicesUnpaidQuery),
-      ]);
+        const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+        customersList.sort((a, b) => {
+            const addressComparison = a.address.localeCompare(b.address);
+            if (addressComparison !== 0) return addressComparison;
+            return a.name.localeCompare(b.name);
+        });
 
-      const customersList = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-      customersList.sort((a, b) => {
-        const addressComparison = a.address.localeCompare(b.address);
-        if (addressComparison !== 0) {
-            return addressComparison;
-        }
-        return a.name.localeCompare(b.name);
-      });
+        const allInvoices = allInvoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
+        const allPayments = allPaymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 
-      const unpaidInvoicesByCustomer = new Map<string, Invoice[]>();
-      unpaidInvoicesSnapshot.docs.forEach(doc => {
-          const invoice = doc.data() as Invoice;
-          const existing = unpaidInvoicesByCustomer.get(invoice.customerId) || [];
-          existing.push(invoice);
-          unpaidInvoicesByCustomer.set(invoice.customerId, existing);
-      });
+        // Calculate the true remaining balance for every single invoice
+        const invoiceRemainders = calculateAllInvoiceRemainders(allInvoices, allPayments);
+
+        const invoicesWithRemainder = allInvoices
+            .map(invoice => ({
+                ...invoice,
+                remainingAmount: invoiceRemainders.get(invoice.id) ?? invoice.amount,
+            }))
+            .filter(invoice => invoice.remainingAmount > 0);
+
+        const unpaidInvoicesByCustomer = new Map<string, Invoice[]>();
+        invoicesWithRemainder.forEach(invoice => {
+            const existing = unpaidInvoicesByCustomer.get(invoice.customerId) || [];
+            existing.push(invoice);
+            unpaidInvoicesByCustomer.set(invoice.customerId, existing);
+        });
       
-      const startOfCurrentMonth = startOfMonth(new Date());
+        const startOfCurrentMonth = startOfMonth(new Date());
 
-      const customersWithStatus: CustomerWithStatus[] = customersList.map(customer => {
-        const customerInvoices = unpaidInvoicesByCustomer.get(customer.id);
-        if (!customerInvoices || customerInvoices.length === 0) {
-            return { ...customer, hasArrears: false, nearestDueDate: undefined };
-        }
-        
-        const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
+        const customersWithStatus: CustomerWithStatus[] = customersList.map(customer => {
+            const customerInvoices = unpaidInvoicesByCustomer.get(customer.id);
+            if (!customerInvoices || customerInvoices.length === 0) {
+                return { ...customer, hasArrears: false, nearestDueDate: undefined };
+            }
+            
+            const hasArrears = customerInvoices.some(inv => parseISO(inv.date) < startOfCurrentMonth);
 
-        const nearestDueDate = customerInvoices
-            .map(inv => inv.dueDate)
-            .sort((a,b) => new Date(a).getTime() - new Date(b).getTime())[0];
-        
-        return { ...customer, hasArrears, nearestDueDate };
-      });
+            const nearestDueDate = customerInvoices
+                .map(inv => inv.dueDate)
+                .sort((a,b) => new Date(a).getTime() - new Date(b).getTime())[0];
+            
+            return { ...customer, hasArrears, nearestDueDate };
+        });
 
-      setCustomers(customersWithStatus);
+        setCustomers(customersWithStatus);
 
     } catch (error) {
       console.error("Error fetching customers:", error);
@@ -735,3 +786,5 @@ function CustomersPage() {
 }
 
 export default withAuth(CustomersPage);
+
+    
