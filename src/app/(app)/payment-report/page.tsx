@@ -57,61 +57,60 @@ function PaymentReportPage() {
   }, [payments]);
 
   React.useEffect(() => {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          const userDocQuery = query(collection(db, 'users'), where('uid', '==', user.uid));
-          const userDoc = await getDocs(userDocQuery);
-          if (!userDoc.empty) {
-            setAppUser(userDoc.docs[0].data() as AppUser);
-          }
-        } else {
-          setAppUser(null);
-        }
-      });
-      return () => unsubscribe();
-  }, []);
+    setLoading(true);
 
-  React.useEffect(() => {
-      const fetchData = async () => {
-          setLoading(true);
-          try {
-              const paymentsQuery = query(collection(db, "payments"));
-              const collectorsQuery = query(collection(db, "collectors"));
-
-              const [paymentsSnapshot, collectorsSnapshot] = await Promise.all([
-                  getDocs(paymentsQuery),
-                  getDocs(collectorsQuery)
-              ]);
-
-              const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
-              setPayments(paymentsList);
-
-              const collectorsList = collectorsSnapshot.docs
-                  .map(doc => ({ id: doc.id, ...doc.data() } as Collector))
-                  .sort((a, b) => a.name.localeCompare(b.name));
-              setCollectors(collectorsList);
-
-              const aditCollector = collectorsList.find(c => c.name.toLowerCase() === 'adit');
-              if (aditCollector) {
-                  setAditCollectorId(aditCollector.id);
-                  if (appUser?.role === 'user') {
-                      setSelectedCollectorId(aditCollector.id);
-                  }
-              }
-
-          } catch (error) {
-              console.error("Error fetching data:", error);
-              toast({ title: "Gagal Memuat Data", variant: "destructive" });
-          } finally {
-              setLoading(false);
-          }
-      };
-      // Fetch data only after user role is determined
-      if (appUser !== null) {
-        fetchData();
+    const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setLoading(false);
+        setAppUser(null);
+        return;
       }
-  }, [toast, appUser]);
-  
+
+      try {
+        const userDocQuery = query(collection(db, 'users'), where('uid', '==', user.uid));
+        
+        const [userDoc, paymentsSnapshot, collectorsSnapshot] = await Promise.all([
+            getDocs(userDocQuery),
+            getDocs(query(collection(db, "payments"))),
+            getDocs(query(collection(db, "collectors")))
+        ]);
+
+        // Process User
+        let currentUser: AppUser | null = null;
+        if (!userDoc.empty) {
+          currentUser = userDoc.docs[0].data() as AppUser;
+          setAppUser(currentUser);
+        }
+
+        // Process Payments
+        const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+        setPayments(paymentsList);
+        
+        // Process Collectors
+        const collectorsList = collectorsSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Collector))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        setCollectors(collectorsList);
+
+        const aditCollector = collectorsList.find(c => c.name.toLowerCase() === 'adit');
+        if (aditCollector) {
+            setAditCollectorId(aditCollector.id);
+            if (currentUser?.role === 'user') {
+                setSelectedCollectorId(aditCollector.id);
+            }
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({ title: "Gagal Memuat Data", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      authUnsubscribe();
+    };
+  }, [toast]); // This useEffect runs only once
 
   const filteredPayments = payments.filter(payment => {
     const paymentDate = parseISO(payment.paymentDate);
