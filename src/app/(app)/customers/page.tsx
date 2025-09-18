@@ -75,7 +75,7 @@ const calculateAllInvoiceRemainders = (
             const invA = allInvoices.find(i => i.id === a);
             const invB = allInvoices.find(i => i.id === b);
             if (!invA || !invB) return 0;
-            return parseISO(invA.date).getTime() - parseISO(b.date).getTime();
+            return parseISO(invA.date).getTime() - parseISO(invB.date).getTime();
         });
 
         for (const invoiceId of sortedInvoiceIds) {
