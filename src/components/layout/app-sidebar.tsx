@@ -30,7 +30,7 @@ export default function AppSidebar() {
   const router = useRouter();
   const { toast } = useToast();
   const [user, setUser] = React.useState<AppUser | null>(null);
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state } = useSidebar();
 
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -106,6 +106,8 @@ export default function AppSidebar() {
     if (!subItems) return false;
     return subItems.some(sub => pathname.startsWith(sub.href!));
   }
+  
+  const expanded = state === 'expanded';
 
   return (
     <Sidebar className="dark:bg-background border-r dark:border-slate-800">
@@ -113,7 +115,7 @@ export default function AppSidebar() {
         <div className="flex items-center gap-2 p-2 justify-start">
             <Link href="/home" className="flex items-center gap-2">
                 <Image src="/icon-512x512.png" alt="Logo Aplikasi" width={40} height={40} />
-                <h1 className="text-lg font-semibold text-foreground hidden group-data-[state=expanded]:block">Tagihan Adit</h1>
+                <h1 className={cn("text-lg font-semibold text-foreground", expanded ? 'block' : 'hidden')}>Tagihan Adit</h1>
             </Link>
         </div>
       </SidebarHeader>
@@ -128,23 +130,23 @@ export default function AppSidebar() {
                          <Link href={item.href} onClick={handleItemClick}>
                              <div className="flex items-center gap-2">
                                 <item.icon className="h-5 w-5" />
-                                <span className="hidden group-data-[state=expanded]:inline">{item.label}</span>
+                                <span className={cn(expanded ? 'inline' : 'hidden')}>{item.label}</span>
                              </div>
-                             <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180 hidden group-data-[state=expanded]:inline" />
+                             <ChevronDown className={cn("h-4 w-4 transition-transform [&[data-state=open]]:rotate-180", expanded ? 'inline' : 'hidden')} />
                           </Link>
                        ) : (
                          <>
                             <div className="flex items-center gap-2">
                                 <item.icon className="h-5 w-5" />
-                                <span className="hidden group-data-[state=expanded]:inline">{item.label}</span>
+                                <span className={cn(expanded ? 'inline' : 'hidden')}>{item.label}</span>
                             </div>
-                            <ChevronDown className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-180 hidden group-data-[state=expanded]:inline" />
+                            <ChevronDown className={cn("h-4 w-4 transition-transform [&[data-state=open]]:rotate-180", expanded ? 'inline' : 'hidden')} />
                          </>
                        )}
                     </SidebarMenuButton>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <SidebarMenu className="pl-7 pt-1 hidden group-data-[state=expanded]:block">
+                  <SidebarMenu className={cn("pl-7 pt-1", expanded ? 'block' : 'hidden')}>
                     {item.subItems.filter(subItem => hasAccess(subItem.roles)).map((subItem) => (
                        <SidebarMenuItem key={subItem.href}>
                          <SidebarMenuButton asChild isActive={pathname.startsWith(subItem.href!)} size="sm">
@@ -163,7 +165,7 @@ export default function AppSidebar() {
                 <SidebarMenuButton asChild isActive={pathname === item.href!} tooltip={{children: item.label}}>
                   <Link href={item.href!} onClick={handleItemClick}>
                     <item.icon className="h-5 w-5" />
-                    <span className="hidden group-data-[state=expanded]:inline">{item.label}</span>
+                    <span className={cn(expanded ? 'inline' : 'hidden')}>{item.label}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -176,7 +178,7 @@ export default function AppSidebar() {
             <SidebarMenuItem>
                 <SidebarMenuButton onClick={handleLogout} tooltip={{children: 'Keluar'}}>
                     <LogOut className="h-5 w-5" />
-                    <span className="hidden group-data-[state=expanded]:inline">Keluar</span>
+                    <span className={cn(expanded ? 'inline' : 'hidden')}>Keluar</span>
                 </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
