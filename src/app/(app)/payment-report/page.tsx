@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -25,7 +26,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import withAuth from '@/components/withAuth';
 
-type DailyCollection = {
+type CollectorDailyCollection = {
+    collectorId: string;
+    collectorName: string;
     date: string;
     payments: Payment[];
     total: number;
@@ -121,25 +124,37 @@ function PaymentReportPage() {
     return isMonthMatch && isYearMatch && isCollectorMatch;
   });
 
-  const groupedByDate: { [date: string]: DailyCollection } = {};
+  const groupedByCollectorAndDate = filteredPayments.reduce((acc, payment) => {
+    const collectorId = payment.collectorId || 'unassigned';
+    const collectorName = payment.collectorName || 'Tidak Ditentukan';
+    const dateStr = payment.paymentDate.split(' ')[0]; // Group by YYYY-MM-DD
+    const key = `${collectorId}_${dateStr}`;
 
-    for (const payment of filteredPayments) {
-        const dateStr = payment.paymentDate;
-        if (!groupedByDate[dateStr]) {
-            groupedByDate[dateStr] = { 
-                date: dateStr, 
-                payments: [], 
-                total: 0,
-                paymentMethodTotals: { cash: 0, bri: 0, dana: 0 }
-            };
-        }
-        
-        groupedByDate[dateStr].payments.push(payment);
-        groupedByDate[dateStr].total += payment.totalPayment;
-        groupedByDate[dateStr].paymentMethodTotals[payment.paymentMethod] += payment.totalPayment;
+    if (!acc[key]) {
+        acc[key] = {
+            collectorId,
+            collectorName,
+            date: dateStr,
+            payments: [],
+            total: 0,
+            paymentMethodTotals: { cash: 0, bri: 0, dana: 0 }
+        };
     }
+    
+    acc[key].payments.push(payment);
+    acc[key].total += payment.totalPayment;
+    acc[key].paymentMethodTotals[payment.paymentMethod] += payment.totalPayment;
 
-  const sortedCollections = Object.values(groupedByDate).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return acc;
+  }, {} as { [key: string]: CollectorDailyCollection });
+
+
+  const sortedCollections = Object.values(groupedByCollectorAndDate).sort((a,b) => {
+      // Sort by date descending, then by collector name ascending
+      const dateComparison = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateComparison !== 0) return dateComparison;
+      return a.collectorName.localeCompare(b.collectorName);
+  });
   
   const getMethodBadge = (method: 'cash' | 'bri' | 'dana') => {
     switch(method) {
@@ -211,17 +226,21 @@ function PaymentReportPage() {
       {sortedCollections.length > 0 ? (
         <Card>
             <CardHeader>
-                <CardTitle>Rincian Harian</CardTitle>
+                <CardTitle>Rincian Setoran Penagih</CardTitle>
                 <CardDescription>Klik pada tanggal untuk melihat rincian transaksi.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Accordion type="multiple" className="w-full space-y-4" defaultValue={sortedCollections.length > 0 ? [sortedCollections[0].date] : []}>
+                <Accordion type="multiple" className="w-full space-y-4" defaultValue={sortedCollections.length > 0 ? [`${sortedCollections[0].collectorId}_${sortedCollections[0].date}`] : []}>
                     {sortedCollections.map((daily) => {
+                        const key = `${daily.collectorId}_${daily.date}`;
                         return (
-                             <AccordionItem value={daily.date} key={daily.date} className="border rounded-lg bg-card overflow-hidden">
+                             <AccordionItem value={key} key={key} className="border rounded-lg bg-card overflow-hidden">
                                 <AccordionTrigger className="bg-muted/50 hover:no-underline px-4 sm:px-6 py-3">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full">
-                                        <span className="font-semibold text-lg mb-2 sm:mb-0 text-left">{format(parseISO(daily.date), 'eeee, d MMMM yyyy', { locale: id })}</span>
+                                        <div className="text-left mb-2 sm:mb-0">
+                                            <p className="font-semibold text-lg">{daily.collectorName}</p>
+                                            <p className="text-sm text-muted-foreground">{format(parseISO(daily.date), 'eeee, d MMMM yyyy', { locale: id })}</p>
+                                        </div>
                                         <div className="flex flex-col items-start sm:items-end gap-2">
                                             <span className="font-bold text-lg text-primary sm:mr-4">Total: Rp{daily.total.toLocaleString('id-ID')}</span>
                                             <div className="flex flex-wrap gap-2 sm:mr-4">
@@ -256,7 +275,6 @@ function PaymentReportPage() {
                                         <TableHeader>
                                             <TableRow>
                                             <TableHead>Pelanggan</TableHead>
-                                            <TableHead>Penagih</TableHead>
                                             <TableHead>Metode Bayar</TableHead>
                                             <TableHead className="text-right">Jumlah Dibayar</TableHead>
                                             <TableHead className="text-right">Aksi</TableHead>
@@ -266,7 +284,6 @@ function PaymentReportPage() {
                                             {daily.payments.map(payment => (
                                             <TableRow key={payment.id}>
                                                 <TableCell className="font-medium">{payment.customerName}</TableCell>
-                                                <TableCell>{payment.collectorName || 'N/A'}</TableCell>
                                                 <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
                                                 <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
                                                 <TableCell className="text-right">
@@ -301,3 +318,5 @@ function PaymentReportPage() {
 }
 
 export default withAuth(PaymentReportPage);
+
+    
