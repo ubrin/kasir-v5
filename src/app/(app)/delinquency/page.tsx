@@ -8,7 +8,7 @@ import { db } from "@/lib/firebase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Search, FileText, X } from "lucide-react";
-import type { Customer, Invoice } from "@/lib/types";
+import type { Customer, Invoice, Payment } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payment-dialog";
 import { format, parseISO, startOfMonth, differenceInDays, startOfToday } from 'date-fns';
@@ -20,10 +20,50 @@ import withAuth from "@/components/withAuth";
 
 type DelinquentCustomer = Customer & {
   totalUnpaid: number;
-  invoices: Invoice[];
+  invoices: Invoice[]; // This will now be only invoices with remaining balances
   nearestDueDate?: string;
   hasArrears: boolean;
 };
+
+// Helper function to calculate remaining amounts for all invoices
+// This is crucial for handling partial payments correctly.
+const calculateAllInvoiceRemainders = (
+    allInvoices: Invoice[],
+    allPayments: Payment[]
+): Map<string, number> => {
+    const invoiceRemainders = new Map<string, number>();
+    allInvoices.forEach(inv => invoiceRemainders.set(inv.id, inv.amount));
+
+    const sortedPayments = [...allPayments].sort((a, b) => 
+        parseISO(a.paymentDate).getTime() - parseISO(b.paymentDate).getTime()
+    );
+
+    for (const payment of sortedPayments) {
+        let paymentAmountToDistribute = payment.paidAmount - payment.changeAmount;
+        
+        const sortedInvoiceIds = payment.invoiceIds.sort((a, b) => {
+            const invA = allInvoices.find(i => i.id === a);
+            const invB = allInvoices.find(i => i.id === b);
+            if (!invA || !invB) return 0;
+            return parseISO(invA.date).getTime() - parseISO(invB.date).getTime();
+        });
+
+        for (const invoiceId of sortedInvoiceIds) {
+            if (paymentAmountToDistribute <= 0) break;
+
+            const currentRemainder = invoiceRemainders.get(invoiceId);
+            if (currentRemainder === undefined || currentRemainder <= 0) continue;
+
+            const amountToPay = Math.min(paymentAmountToDistribute, currentRemainder);
+            
+            invoiceRemainders.set(invoiceId, currentRemainder - amountToPay);
+            paymentAmountToDistribute -= amountToPay;
+        }
+    }
+    
+    return invoiceRemainders;
+};
+
 
 function DelinquencyPage() {
   const { toast } = useToast();
@@ -41,26 +81,40 @@ function DelinquencyPage() {
   const fetchDelinquentData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const customersCollection = collection(db, "customers");
-      const invoicesUnpaidQuery = query(collection(db, "invoices"), where("status", "==", "belum lunas"));
-
-      const [customersSnapshot, unpaidInvoicesSnapshot] = await Promise.all([
-        getDocs(customersCollection),
-        getDocs(invoicesUnpaidQuery),
+      const [
+        customersSnapshot,
+        allInvoicesSnapshot,
+        allPaymentsSnapshot,
+      ] = await Promise.all([
+        getDocs(collection(db, "customers")),
+        getDocs(collection(db, "invoices")),
+        getDocs(collection(db, "payments")),
       ]);
 
       const allCustomers = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
       const customerMap = new Map(allCustomers.map(c => [c.id, c]));
       
-      const unpaidInvoices = unpaidInvoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
+      const allInvoices = allInvoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
+      const allPayments = allPaymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+
+      // Calculate the true remaining balance for every single invoice
+      const invoiceRemainders = calculateAllInvoiceRemainders(allInvoices, allPayments);
 
       const delinquentCustomersMap = new Map<string, DelinquentCustomer>();
       const startOfCurrent = startOfMonth(new Date());
 
-      for (const invoice of unpaidInvoices) {
+      for (const invoice of allInvoices) {
+        const remainingAmount = invoiceRemainders.get(invoice.id) ?? invoice.amount;
+        
+        // An invoice is considered delinquent if it has a remaining balance > 0
+        if (remainingAmount <= 0) {
+            continue;
+        }
+
         const customer = customerMap.get(invoice.customerId);
         if (!customer) continue;
-
+        
+        // Add customer to the map if they are not already there
         if (!delinquentCustomersMap.has(customer.id)) {
           delinquentCustomersMap.set(customer.id, {
             ...customer,
@@ -71,27 +125,25 @@ function DelinquencyPage() {
         }
 
         const delinquentCustomer = delinquentCustomersMap.get(customer.id)!;
-        delinquentCustomer.invoices.push(invoice);
-        delinquentCustomer.totalUnpaid += invoice.amount;
         
-        // Check for arrears (unpaid invoices from *before* the start of the current month)
+        // IMPORTANT: Create a *new* invoice object with the remaining amount as its amount
+        // This is what the payment dialog will see.
+        const invoiceWithRemainder = { ...invoice, amount: remainingAmount };
+        delinquentCustomer.invoices.push(invoiceWithRemainder);
+        delinquentCustomer.totalUnpaid += remainingAmount;
+        
         if (parseISO(invoice.date) < startOfCurrent) {
             delinquentCustomer.hasArrears = true;
         }
       }
 
       const delinquentCustomersList = Array.from(delinquentCustomersMap.values()).map(customer => {
-        // Sort invoices by date to find the nearest due date accurately
         customer.invoices.sort((a,b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
-        
         const nearestDueDate = customer.invoices.length > 0 ? customer.invoices[0].dueDate : undefined;
-            
         return {...customer, nearestDueDate};
       });
 
-      // Sort customers by address
       delinquentCustomersList.sort((a, b) => a.address.localeCompare(b.address));
-
       setCustomers(delinquentCustomersList);
 
     } catch (error) {
@@ -138,16 +190,14 @@ function DelinquencyPage() {
   const formatDueDateStatus = (dueDate?: string, hasArrears?: boolean) => {
     if (!isClient) return null;
     
-    // Arrears take the highest priority. If they have old debt, always show "Menunggak".
     if (hasArrears) {
       return <Badge variant="destructive">Menunggak</Badge>;
     }
     
-    if (!dueDate) return null; // Should not happen in this page as we only show unpaid
+    if (!dueDate) return null;
     
     const daysDiff = differenceInDays(parseISO(dueDate), startOfToday());
   
-    // For bills due this month that are past their due date
     if (daysDiff < 0) return <Badge variant="outline" className="border-red-500 text-red-500">Lewat</Badge>;
     if (daysDiff === 0) return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Jatuh Tempo</Badge>;
     return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">{daysDiff + 1} hari lagi</Badge>;
