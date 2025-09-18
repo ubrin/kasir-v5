@@ -24,6 +24,42 @@ type InvoiceWithRemaining = Invoice & {
     remainingAmount: number;
 };
 
+// New helper function to calculate remaining amounts accurately
+const calculateInvoiceRemainders = (invoices: Invoice[], payments: Payment[]): Map<string, number> => {
+    const invoiceRemainders = new Map<string, number>();
+    invoices.forEach(inv => invoiceRemainders.set(inv.id, inv.amount));
+
+    // Sort payments oldest to newest to apply them chronologically
+    const sortedPayments = [...payments].sort((a, b) => parseISO(a.paymentDate).getTime() - parseISO(b.paymentDate).getTime());
+
+    for (const payment of sortedPayments) {
+        let paymentAmountToDistribute = payment.paidAmount - payment.changeAmount;
+        
+        // Sort the invoices within the payment oldest to newest
+        const sortedInvoiceIds = payment.invoiceIds.sort((a,b) => {
+            const invA = invoices.find(i => i.id === a);
+            const invB = invoices.find(i => i.id === b);
+            if (!invA || !invB) return 0;
+            return parseISO(invA.date).getTime() - parseISO(invB.date).getTime();
+        });
+
+        for (const invoiceId of sortedInvoiceIds) {
+            if (paymentAmountToDistribute <= 0) break;
+
+            const currentRemainder = invoiceRemainders.get(invoiceId);
+            if (currentRemainder === undefined || currentRemainder <= 0) continue;
+
+            const amountToPay = Math.min(paymentAmountToDistribute, currentRemainder);
+            
+            invoiceRemainders.set(invoiceId, currentRemainder - amountToPay);
+            paymentAmountToDistribute -= amountToPay;
+        }
+    }
+    
+    return invoiceRemainders;
+};
+
+
 export default function CustomerDetailPage() {
   const params = useParams();
   const customerId = params.id as string;
@@ -84,55 +120,35 @@ export default function CustomerDetailPage() {
     fetchCustomerData();
   }, [customerId, toast]);
 
-    const invoicesWithPayments: InvoiceWithRemaining[] = useMemo(() => {
+    const invoiceRemainders = useMemo(() => {
         const sourceInvoices = isEditing ? editableInvoices : customerInvoices;
-        
-        return sourceInvoices.map(invoice => {
-            const paymentsForInvoice = customerPayments.filter(p => p.invoiceIds.includes(invoice.id));
-            const totalPaidForInvoice = paymentsForInvoice.reduce((sum, p) => {
-                const numInvoicesInPayment = p.invoiceIds.length;
-                return sum + (p.paidAmount / numInvoicesInPayment); // Simplified allocation
-            }, 0);
-            
-            let remaining = invoice.amount - totalPaidForInvoice;
-
-            // Simplified logic: If a payment covers multiple invoices, assume equal split for now
-            // A more complex logic would be needed for exact allocation but this is a good start
-            const relevantPayments = customerPayments.filter(p => p.invoiceIds.includes(invoice.id));
-            const totalPaid = relevantPayments.reduce((acc, p) => acc + p.paidAmount - p.changeAmount, 0);
-            
-            // This is a simplified view, actual remaining amount is complex.
-            // For now, let's use the invoice's own status as the primary source of truth in edit mode
-            // And calculate a more robust remaining amount for display mode
-            const finalRemaining = Math.max(0, invoice.amount - totalPaid);
-
-            return {
-                ...invoice,
-                // A better approach: calculate remaining based on payments
-                // For simplicity, we stick to status for now but this is where to improve
-                remainingAmount: invoice.status === 'lunas' ? 0 : invoice.amount, 
-            };
-        });
+        return calculateInvoiceRemainders(sourceInvoices, customerPayments);
     }, [customerInvoices, customerPayments, isEditing, editableInvoices]);
 
+    const invoicesWithPayments: InvoiceWithRemaining[] = useMemo(() => {
+        const sourceInvoices = isEditing ? editableInvoices : customerInvoices;
+        return sourceInvoices.map(invoice => ({
+            ...invoice,
+            remainingAmount: invoiceRemainders.get(invoice.id) ?? invoice.amount,
+        }));
+    }, [customerInvoices, isEditing, editableInvoices, invoiceRemainders]);
 
     const { totalArrears, hasArrears, hasUnpaidCurrentMonth } = useMemo(() => {
         const startOfCurrent = startOfMonth(new Date());
         
-        const unpaidInvoices = (isEditing ? editableInvoices : customerInvoices).filter(inv => inv.status === 'belum lunas');
+        const arrearsInvoices = invoicesWithPayments.filter(inv => inv.remainingAmount > 0);
 
-        const calculatedArrears = unpaidInvoices
-            .filter(inv => parseISO(inv.date) < startOfCurrent)
-            .reduce((sum, inv) => sum + inv.amount, 0);
-
-        const currentMonthUnpaid = unpaidInvoices.some(inv => parseISO(inv.date) >= startOfCurrent);
+        const calculatedArrears = arrearsInvoices.reduce((sum, inv) => sum + inv.remainingAmount, 0);
+        
+        const hasArrearsFromPast = arrearsInvoices.some(inv => parseISO(inv.date) < startOfCurrent);
+        const hasArrearsFromCurrentMonth = arrearsInvoices.some(inv => parseISO(inv.date) >= startOfCurrent);
 
         return {
             totalArrears: calculatedArrears,
-            hasArrears: calculatedArrears > 0,
-            hasUnpaidCurrentMonth: currentMonthUnpaid,
+            hasArrears: hasArrearsFromPast, // True arrears are from past months
+            hasUnpaidCurrentMonth: hasArrearsFromCurrentMonth,
         };
-    }, [customerInvoices, isEditing, editableInvoices]);
+    }, [invoicesWithPayments]);
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,17 +211,26 @@ export default function CustomerDetailPage() {
     setIsEditing(false);
   }
 
-  const getInvoiceBadgeClasses = (status: 'lunas' | 'belum lunas', dueDate: string) => {
-    const isOverdue = new Date() > new Date(dueDate) && status === 'belum lunas';
-    if (status === 'lunas') return 'bg-green-100 text-green-800';
-    return isOverdue ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800';
-  };
-  
-  const translateInvoiceStatus = (status: 'lunas' | 'belum lunas', dueDate: string) => {
-    if (status === 'lunas') return 'Lunas';
-    const isOverdue = new Date() > new Date(dueDate);
-    return isOverdue ? 'Jatuh Tempo' : 'Belum Lunas';
-  };
+    const getInvoiceStatus = (invoice: InvoiceWithRemaining) => {
+        const isOverdue = new Date() > new Date(invoice.dueDate) && invoice.remainingAmount > 0;
+        
+        if (invoice.remainingAmount <= 0) {
+            return {
+                text: 'Lunas',
+                classes: 'bg-green-100 text-green-800'
+            };
+        }
+        if (isOverdue) {
+            return {
+                text: `Jatuh Tempo (sisa Rp${invoice.remainingAmount.toLocaleString('id-ID')})`,
+                classes: 'bg-red-100 text-red-800'
+            };
+        }
+        return {
+            text: `Belum Lunas (sisa Rp${invoice.remainingAmount.toLocaleString('id-ID')})`,
+            classes: 'bg-yellow-100 text-yellow-800'
+        };
+    };
 
   const getMethodBadge = (method: 'cash' | 'bri' | 'dana') => {
     switch(method) {
@@ -323,13 +348,13 @@ export default function CustomerDetailPage() {
                 <div className="grid gap-x-6 gap-y-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                     <div className="grid gap-1">
                         <p className="text-sm font-medium text-muted-foreground">Status</p>
-                        <Badge variant={hasArrears || hasUnpaidCurrentMonth ? "destructive" : "secondary"} className={`${!(hasArrears || hasUnpaidCurrentMonth) ? "bg-green-100 text-green-800" : ""} w-fit`}>
+                        <Badge variant={totalArrears > 0 ? "destructive" : "secondary"} className={`${totalArrears <= 0 ? "bg-green-100 text-green-800" : ""} w-fit`}>
                             {hasArrears ? "Menunggak" : hasUnpaidCurrentMonth ? "Belum Lunas" : "Lunas"}
                         </Badge>
                     </div>
-                    {hasArrears && (
+                    {totalArrears > 0 && (
                         <div className="grid gap-1">
-                            <p className="text-sm font-medium text-muted-foreground">Tunggakan</p>
+                            <p className="text-sm font-medium text-muted-foreground">Total Tunggakan</p>
                             <p className="font-semibold text-destructive">Rp{totalArrears.toLocaleString('id-ID')}</p>
                         </div>
                     )}
@@ -438,32 +463,35 @@ export default function CustomerDetailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoicesWithPayments.length > 0 ? invoicesWithPayments.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell className="font-medium">{format(parseISO(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
-                  <TableCell className="text-right">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
-                  <TableCell className="text-center">
-                    {isEditing ? (
-                        <Select
-                            value={invoice.status}
-                            onValueChange={(value: 'lunas' | 'belum lunas') => handleInvoiceStatusChange(invoice.id, value)}
-                        >
-                            <SelectTrigger className="w-[150px] mx-auto">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="lunas">Lunas</SelectItem>
-                                <SelectItem value="belum lunas">Belum Lunas</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    ) : (
-                        <Badge variant="outline" className={getInvoiceBadgeClasses(invoice.status, invoice.dueDate)}>
-                            {translateInvoiceStatus(invoice.status, invoice.dueDate)}
-                        </Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              )) : (
+              {invoicesWithPayments.length > 0 ? invoicesWithPayments.map((invoice) => {
+                const statusInfo = getInvoiceStatus(invoice);
+                return (
+                    <TableRow key={invoice.id}>
+                    <TableCell className="font-medium">{format(parseISO(invoice.date), "MMMM yyyy", { locale: id })}</TableCell>
+                    <TableCell className="text-right">Rp{invoice.amount.toLocaleString('id-ID')}</TableCell>
+                    <TableCell className="text-center">
+                        {isEditing ? (
+                             <Select
+                                value={invoice.status} // This might need adjustment if status is purely calculated
+                                onValueChange={(value: 'lunas' | 'belum lunas') => handleInvoiceStatusChange(invoice.id, value)}
+                            >
+                                <SelectTrigger className="w-[150px] mx-auto">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="lunas">Lunas</SelectItem>
+                                    <SelectItem value="belum lunas">Belum Lunas</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                             <Badge variant="outline" className={statusInfo.classes}>
+                                {statusInfo.text}
+                            </Badge>
+                        )}
+                    </TableCell>
+                    </TableRow>
+                )
+                }) : (
                 <TableRow>
                     <TableCell colSpan={3} className="text-center h-24">
                         Tidak ada riwayat faktur.
@@ -477,5 +505,3 @@ export default function CustomerDetailPage() {
     </div>
   )
 }
-
-    
