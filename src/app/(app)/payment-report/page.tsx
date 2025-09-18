@@ -45,7 +45,6 @@ function PaymentReportPage() {
   const [loading, setLoading] = React.useState(true);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [collectors, setCollectors] = React.useState<Collector[]>([]);
-  const [aditCollectorId, setAditCollectorId] = React.useState<string | null>(null);
   const [selectedCollectorId, setSelectedCollectorId] = React.useState<string>('all');
   const [selectedMonth, setSelectedMonth] = React.useState<string>(String(getMonth(new Date())));
   const [selectedYear, setSelectedYear] = React.useState<string>(String(getYear(new Date())));
@@ -55,6 +54,10 @@ function PaymentReportPage() {
     const years = new Set(payments.map(p => getYear(parseISO(p.paymentDate)).toString()));
     return Array.from(years).sort((a,b) => parseInt(b) - parseInt(a));
   }, [payments]);
+
+  const aditCollectorId = React.useMemo(() => {
+      return collectors.find(c => c.name.toLowerCase() === 'adit')?.id || null;
+  }, [collectors]);
 
   React.useEffect(() => {
     setLoading(true);
@@ -75,29 +78,25 @@ function PaymentReportPage() {
             getDocs(query(collection(db, "collectors")))
         ]);
 
-        // Process User
         let currentUser: AppUser | null = null;
         if (!userDoc.empty) {
           currentUser = userDoc.docs[0].data() as AppUser;
           setAppUser(currentUser);
         }
 
-        // Process Payments
         const paymentsList = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
         setPayments(paymentsList);
         
-        // Process Collectors
         const collectorsList = collectorsSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as Collector))
             .sort((a, b) => a.name.localeCompare(b.name));
         setCollectors(collectorsList);
 
         const aditCollector = collectorsList.find(c => c.name.toLowerCase() === 'adit');
-        if (aditCollector) {
-            setAditCollectorId(aditCollector.id);
-            if (currentUser?.role === 'user') {
-                setSelectedCollectorId(aditCollector.id);
-            }
+        if (currentUser?.role === 'user' && aditCollector) {
+            setSelectedCollectorId(aditCollector.id);
+        } else {
+            setSelectedCollectorId('all');
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -107,12 +106,10 @@ function PaymentReportPage() {
       }
     });
 
-    return () => {
-      authUnsubscribe();
-    };
-  }, [toast]); // This useEffect runs only once
+    return () => authUnsubscribe();
+  }, [toast]);
 
-  const filteredPayments = payments.filter(payment => {
+  const filteredPayments = React.useMemo(() => payments.filter(payment => {
     const paymentDate = parseISO(payment.paymentDate);
     const isMonthMatch = getMonth(paymentDate).toString() === selectedMonth;
     const isYearMatch = getYear(paymentDate).toString() === selectedYear;
@@ -120,26 +117,25 @@ function PaymentReportPage() {
     let isCollectorMatch = false;
     if (selectedCollectorId === 'all') {
         isCollectorMatch = true;
-    } else if (selectedCollectorId === 'unassigned') {
+    } else if (selectedCollectorId === 'bayar-sendiri') {
         isCollectorMatch = !payment.collectorId;
     } else {
         isCollectorMatch = payment.collectorId === selectedCollectorId;
     }
     
-    // Override for basic user role to only see 'Adit'
     if (appUser?.role === 'user' && aditCollectorId) {
         return isMonthMatch && isYearMatch && payment.collectorId === aditCollectorId;
     }
 
     return isMonthMatch && isYearMatch && isCollectorMatch;
-  });
+  }), [payments, selectedMonth, selectedYear, selectedCollectorId, appUser, aditCollectorId]);
 
-  const groupedByCollectorAndDate = filteredPayments.reduce((acc, payment) => {
-    const collectorId = payment.collectorId || 'unassigned';
+  const groupedByCollectorAndDate = React.useMemo(() => filteredPayments.reduce((acc, payment) => {
+    const collectorId = payment.collectorId || 'bayar-sendiri';
     const collector = collectors.find(c => c.id === collectorId);
     const collectorName = collector ? collector.name : 'Bayar Sendiri';
 
-    const dateStr = payment.paymentDate.split(' ')[0]; // Group by YYYY-MM-DD
+    const dateStr = payment.paymentDate.split(' ')[0];
     const key = `${collectorId}_${dateStr}`;
 
     if (!acc[key]) {
@@ -154,11 +150,12 @@ function PaymentReportPage() {
     }
     
     acc[key].payments.push(payment);
-    acc[key].total += payment.totalPayment;
-    acc[key].paymentMethodTotals[payment.paymentMethod] += payment.totalPayment;
+    // FIX: Sum the paidAmount, not the totalPayment (bill amount)
+    acc[key].total += payment.paidAmount;
+    acc[key].paymentMethodTotals[payment.paymentMethod] += payment.paidAmount;
 
     return acc;
-  }, {} as { [key: string]: CollectorDailyCollection });
+  }, {} as { [key: string]: CollectorDailyCollection }), [filteredPayments, collectors]);
 
 
   const sortedCollections = Object.values(groupedByCollectorAndDate).sort((a,b) => {
@@ -173,6 +170,37 @@ function PaymentReportPage() {
         case 'bri': return <Badge className="bg-blue-600 text-white hover:bg-blue-700">BRI</Badge>;
         case 'dana': return <Badge className="bg-sky-500 text-white hover:bg-sky-600">DANA</Badge>;
     }
+  }
+
+  const renderTabs = () => {
+      if (appUser?.role === 'user') return null; // Don't show tabs for basic user
+
+      const tabs = [];
+      const adit = collectors.find(c => c.name.toLowerCase() === 'adit');
+      if (adit) {
+          tabs.push({ id: adit.id, name: adit.name });
+      }
+
+      tabs.push({ id: 'bayar-sendiri', name: 'Bayar Sendiri' });
+
+      const otherCollectors = collectors
+          .filter(c => c.name.toLowerCase() !== 'adit')
+          .sort((a,b) => a.name.localeCompare(b.name));
+      
+      tabs.push(...otherCollectors);
+      
+      return (
+          <div className="border-b">
+              <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+                <TabsTrigger value="all" onClick={() => setSelectedCollectorId('all')}>Semua</TabsTrigger>
+                {tabs.map(tab => (
+                    <TabsTrigger key={tab.id} value={tab.id} onClick={() => setSelectedCollectorId(tab.id)}>
+                        {tab.name}
+                    </TabsTrigger>
+                ))}
+              </TabsList>
+          </div>
+      );
   }
 
   if (loading) {
@@ -205,7 +233,7 @@ function PaymentReportPage() {
                       {collectors.map(c => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
-                      <SelectItem value="unassigned">Bayar Sendiri</SelectItem>
+                      <SelectItem value="bayar-sendiri">Bayar Sendiri</SelectItem>
                   </SelectContent>
               </Select>
             )}
@@ -329,5 +357,3 @@ function PaymentReportPage() {
 }
 
 export default withAuth(PaymentReportPage);
-
-    
