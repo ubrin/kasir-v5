@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { format, startOfMonth, endOfMonth, parseISO, getMonth, getYear } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { collection, onSnapshot, query, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Payment, Collector, AppUser } from '@/lib/types';
 import { auth } from '@/lib/firebase';
