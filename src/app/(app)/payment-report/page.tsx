@@ -59,7 +59,8 @@ function PaymentReportPage() {
   React.useEffect(() => {
       const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
-          const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', user.uid)));
+          const userDocQuery = query(collection(db, 'users'), where('uid', '==', user.uid));
+          const userDoc = await getDocs(userDocQuery);
           if (!userDoc.empty) {
             setAppUser(userDoc.docs[0].data() as AppUser);
           }
@@ -105,8 +106,11 @@ function PaymentReportPage() {
               setLoading(false);
           }
       };
-      fetchData();
-  }, [toast, appUser?.role]);
+      // Fetch data only after user role is determined
+      if (appUser !== null) {
+        fetchData();
+      }
+  }, [toast, appUser]);
   
 
   const filteredPayments = payments.filter(payment => {
@@ -114,11 +118,18 @@ function PaymentReportPage() {
     const isMonthMatch = getMonth(paymentDate).toString() === selectedMonth;
     const isYearMatch = getYear(paymentDate).toString() === selectedYear;
 
-    let isCollectorMatch = selectedCollectorId === 'all' || (payment.collectorId || 'unassigned') === selectedCollectorId;
+    let isCollectorMatch = false;
+    if (selectedCollectorId === 'all') {
+        isCollectorMatch = true;
+    } else if (selectedCollectorId === 'unassigned') {
+        isCollectorMatch = !payment.collectorId;
+    } else {
+        isCollectorMatch = payment.collectorId === selectedCollectorId;
+    }
     
-    // Force filter for user role, regardless of selection
+    // Override for basic user role to only see 'Adit'
     if (appUser?.role === 'user' && aditCollectorId) {
-        isCollectorMatch = (payment.collectorId || 'unassigned') === aditCollectorId;
+        return isMonthMatch && isYearMatch && payment.collectorId === aditCollectorId;
     }
 
     return isMonthMatch && isYearMatch && isCollectorMatch;
@@ -126,7 +137,9 @@ function PaymentReportPage() {
 
   const groupedByCollectorAndDate = filteredPayments.reduce((acc, payment) => {
     const collectorId = payment.collectorId || 'unassigned';
-    const collectorName = payment.collectorName || 'Tidak Ditentukan';
+    const collector = collectors.find(c => c.id === collectorId);
+    const collectorName = collector ? collector.name : 'Bayar Sendiri';
+
     const dateStr = payment.paymentDate.split(' ')[0]; // Group by YYYY-MM-DD
     const key = `${collectorId}_${dateStr}`;
 
@@ -150,7 +163,6 @@ function PaymentReportPage() {
 
 
   const sortedCollections = Object.values(groupedByCollectorAndDate).sort((a,b) => {
-      // Sort by date descending, then by collector name ascending
       const dateComparison = new Date(b.date).getTime() - new Date(a.date).getTime();
       if (dateComparison !== 0) return dateComparison;
       return a.collectorName.localeCompare(b.collectorName);
@@ -194,7 +206,7 @@ function PaymentReportPage() {
                       {collectors.map(c => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
-                      <SelectItem value="unassigned">Tidak Ditentukan</SelectItem>
+                      <SelectItem value="unassigned">Bayar Sendiri</SelectItem>
                   </SelectContent>
               </Select>
             )}

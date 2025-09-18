@@ -200,6 +200,7 @@ const Sidebar = React.forwardRef<
             data-sidebar="sidebar"
             data-state="expanded" 
             data-mobile="true"
+            data-state="expanded" 
             className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
