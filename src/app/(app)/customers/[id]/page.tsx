@@ -81,12 +81,12 @@ export default function CustomerDetailPage() {
         setLoading(true);
         try {
             const customerDocRef = doc(db, "customers", customerId);
-            const allInvoicesQuery = query(collection(db, "invoices"), where("customerId", "==", customerId));
+            const invoicesQuery = query(collection(db, "invoices"), where("customerId", "==", customerId));
             const paymentsQuery = query(collection(db, "payments"), where("customerId", "==", customerId));
 
             const [customerDocSnap, invoicesSnapshot, paymentsSnapshot] = await Promise.all([
                 getDoc(customerDocRef),
-                getDocs(allInvoicesQuery),
+                getDocs(invoicesQuery),
                 getDocs(paymentsQuery)
             ]);
 
@@ -505,3 +505,5 @@ export default function CustomerDetailPage() {
     </div>
   )
 }
+
+    
