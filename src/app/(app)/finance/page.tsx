@@ -38,6 +38,11 @@ type Stats = {
   delinquentCustomers: { name: string; amount: number }[];
   monthlyIncomeFromPayments: number;
   monthlyIncomeFromOther: number;
+  monthlyIncomeByMethod: {
+      cash: number;
+      bri: number;
+      dana: number;
+  };
   monthlyExpenseByCategory: Record<string, number>;
   invoiceStatusThisMonth: {
       lunasCount: number;
@@ -105,6 +110,12 @@ function FinancePage() {
         
         const monthlyIncomeFromPayments = thisMonthPayments.reduce((sum, p) => sum + (p.totalPayment || 0), 0);
 
+        const monthlyIncomeByMethod = thisMonthPayments.reduce((acc, payment) => {
+            const method = payment.paymentMethod;
+            acc[method] = (acc[method] || 0) + (payment.totalPayment || 0);
+            return acc;
+        }, { cash: 0, bri: 0, dana: 0 });
+
         const thisMonthOtherIncomes = otherIncomesSnapshot.docs
             .map(doc => doc.data() as OtherIncome)
             .filter(oi => oi.date && isThisMonth(parseISO(oi.date)));
@@ -164,6 +175,7 @@ function FinancePage() {
           delinquentCustomers: Array.from(delinquentCustomersMap.values()),
           monthlyIncomeFromPayments,
           monthlyIncomeFromOther,
+          monthlyIncomeByMethod,
           monthlyExpenseByCategory,
           invoiceStatusThisMonth
         });
@@ -248,13 +260,30 @@ function FinancePage() {
                 </div>
               }
             >
-              <ul className="space-y-2">
-                <li className="flex justify-between items-center text-sm border-b pb-2">
-                  <span>Pembayaran Pelanggan</span>
-                  <span className="font-semibold">Rp{stats.monthlyIncomeFromPayments.toLocaleString('id-ID')}</span>
+              <ul className="space-y-4">
+                <li className="space-y-2 pb-2">
+                  <span className="font-semibold text-base">Pembayaran Pelanggan</span>
+                  <ul className="space-y-1 pl-4 text-sm">
+                    <li className="flex justify-between items-center">
+                      <span>- Cash</span>
+                      <span>Rp{stats.monthlyIncomeByMethod.cash.toLocaleString('id-ID')}</span>
+                    </li>
+                     <li className="flex justify-between items-center">
+                      <span>- BRI</span>
+                      <span>Rp{stats.monthlyIncomeByMethod.bri.toLocaleString('id-ID')}</span>
+                    </li>
+                     <li className="flex justify-between items-center">
+                      <span>- DANA</span>
+                      <span>Rp{stats.monthlyIncomeByMethod.dana.toLocaleString('id-ID')}</span>
+                    </li>
+                  </ul>
+                  <div className="flex justify-between items-center font-medium pt-1 border-t">
+                    <span>Subtotal Pembayaran</span>
+                    <span>Rp{stats.monthlyIncomeFromPayments.toLocaleString('id-ID')}</span>
+                  </div>
                 </li>
-                <li className="flex justify-between items-center text-sm">
-                  <span>Pemasukan Lainnya</span>
+                <li className="flex justify-between items-center text-sm pt-2 border-t">
+                  <span className="font-semibold text-base">Pemasukan Lainnya</span>
                   <span className="font-semibold">Rp{stats.monthlyIncomeFromOther.toLocaleString('id-ID')}</span>
                 </li>
               </ul>
@@ -452,3 +481,5 @@ function FinancePage() {
 }
 
 export default withAuth(FinancePage);
+
+    
