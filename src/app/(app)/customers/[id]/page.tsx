@@ -33,9 +33,8 @@ const calculateInvoiceRemainders = (invoices: Invoice[], payments: Payment[]): M
     const sortedPayments = [...payments].sort((a, b) => parseISO(a.paymentDate).getTime() - parseISO(b.paymentDate).getTime());
 
     for (const payment of sortedPayments) {
-        // CORRECT FIX: Use totalPayment which is (totalBill - discount)
-        // This ensures discount is treated as part of the payment.
-        let paymentAmountToDistribute = payment.totalPayment;
+        // THE REAL FIX: The amount to distribute is the cash paid PLUS the discount given.
+        let paymentAmountToDistribute = payment.paidAmount + payment.discount;
         
         // Sort the invoices within the payment oldest to newest
         const sortedInvoiceIds = payment.invoiceIds.sort((a,b) => {
@@ -507,7 +506,3 @@ export default function CustomerDetailPage() {
     </div>
   )
 }
-
-    
-
-    
