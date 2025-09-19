@@ -295,7 +295,9 @@ function PaymentReportPage() {
                                         {daily.payments.map(payment => (
                                             <div key={payment.id} className="p-4">
                                                 <div className="flex justify-between items-start">
-                                                    <p className="font-medium">{payment.customerName}</p>
+                                                    <Link href={`/customers/${payment.customerId}`} className="font-medium hover:underline">
+                                                        {payment.customerName}
+                                                    </Link>
                                                     {getMethodBadge(payment.paymentMethod)}
                                                 </div>
                                                 <div className="flex justify-between items-center mt-2 pt-2 border-t">
@@ -322,7 +324,11 @@ function PaymentReportPage() {
                                         <TableBody>
                                             {daily.payments.map(payment => (
                                             <TableRow key={payment.id}>
-                                                <TableCell className="font-medium">{payment.customerName}</TableCell>
+                                                <TableCell className="font-medium">
+                                                    <Link href={`/customers/${payment.customerId}`} className="hover:underline">
+                                                        {payment.customerName}
+                                                    </Link>
+                                                </TableCell>
                                                 <TableCell>{getMethodBadge(payment.paymentMethod)}</TableCell>
                                                 <TableCell className="text-right">Rp{payment.paidAmount.toLocaleString('id-ID')}</TableCell>
                                                 <TableCell className="text-right">
