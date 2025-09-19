@@ -138,6 +138,8 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   // This is the core fix. It listens to any changes that affect the final bill
   // and intelligently updates the `paidAmount` field.
   React.useEffect(() => {
+    // This effect runs when the bill total, discount, or credit changes.
+    // It resets the `paidAmount` to the new correct total.
     setValue('paidAmount', Math.round(totalPayment));
   }, [totalPayment, setValue]);
 
@@ -466,7 +468,5 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     </Dialog>
   );
 }
-
-    
 
     
