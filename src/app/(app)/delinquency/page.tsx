@@ -39,7 +39,8 @@ const calculateAllInvoiceRemainders = (
     );
 
     for (const payment of sortedPayments) {
-        let paymentAmountToDistribute = payment.paidAmount - payment.changeAmount;
+        // THE REAL FIX: The amount to distribute is the cash paid PLUS the discount given.
+        let paymentAmountToDistribute = payment.paidAmount + payment.discount;
         
         const sortedInvoiceIds = payment.invoiceIds.sort((a, b) => {
             const invA = allInvoices.find(i => i.id === a);
