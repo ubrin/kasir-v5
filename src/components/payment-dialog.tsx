@@ -134,6 +134,13 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
   const creditApplied = Math.min(creditBalance, billAfterDiscount);
   const totalPayment = Math.max(0, billAfterDiscount - creditApplied);
   const paymentDifference = paidAmount - totalPayment;
+  
+  // This is the core fix. It listens to any changes that affect the final bill
+  // and intelligently updates the `paidAmount` field.
+  React.useEffect(() => {
+    setValue('paidAmount', Math.round(totalPayment));
+  }, [totalPayment, setValue]);
+
 
   const handlePaidAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value;
@@ -141,10 +148,6 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     setValue('paidAmount', isNaN(numberValue) ? 0 : numberValue);
     e.target.value = isNaN(numberValue) ? '' : numberValue.toLocaleString('id-ID');
   };
-
-  React.useEffect(() => {
-    setValue('paidAmount', Math.round(totalPayment));
-  }, [totalPayment, setValue]);
 
   const onSubmit = async (data: PaymentFormValues) => {
     const selectedCollector = collectors.find(c => c.id === data.collectorId);
@@ -463,5 +466,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     </Dialog>
   );
 }
+
+    
 
     
