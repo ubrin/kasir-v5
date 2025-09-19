@@ -2,13 +2,13 @@
 'use client';
 import { useState, useEffect, useMemo } from "react";
 import { notFound, useRouter, useParams } from "next/navigation";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch, deleteDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, Invoice, Payment } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Edit, Save, X, Loader2, CalendarIcon } from "lucide-react"
+import { ArrowLeft, Edit, Save, X, Loader2, CalendarIcon, MoreHorizontal, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
 
 type InvoiceWithRemaining = Invoice & {
     remainingAmount: number;
@@ -74,11 +77,9 @@ export default function CustomerDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editableCustomer, setEditableCustomer] = useState<Customer | null>(null);
   const [editableInvoices, setEditableInvoices] = useState<Invoice[]>([]);
+  const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
 
-  useEffect(() => {
-    if (!customerId) return;
-
-    const fetchCustomerData = async () => {
+  const fetchCustomerData = async () => {
         setLoading(true);
         try {
             const customerDocRef = doc(db, "customers", customerId);
@@ -118,6 +119,9 @@ export default function CustomerDetailPage() {
         }
     };
 
+
+  useEffect(() => {
+    if (!customerId) return;
     fetchCustomerData();
   }, [customerId, toast]);
 
@@ -211,6 +215,51 @@ export default function CustomerDetailPage() {
     setEditableInvoices(customerInvoices);
     setIsEditing(false);
   }
+
+  const handleCancelPayment = async () => {
+    if (!paymentToDelete || !customer) return;
+
+    try {
+      const batch = writeBatch(db);
+
+      // 1. Rollback invoice statuses
+      paymentToDelete.invoiceIds.forEach(invoiceId => {
+        const invoiceRef = doc(db, "invoices", invoiceId);
+        batch.update(invoiceRef, { status: "belum lunas" });
+      });
+
+      // 2. Rollback customer balance
+      const customerRef = doc(db, "customers", customer.id);
+      const creditApplied = Math.min(customer.creditBalance ?? 0, paymentToDelete.totalBill - paymentToDelete.discount);
+      const balanceUpdate = (paymentToDelete.totalBill - paymentToDelete.discount) + creditApplied - paymentToDelete.changeAmount;
+      batch.update(customerRef, {
+        creditBalance: increment(-(paymentToDelete.paidAmount - (paymentToDelete.totalBill - paymentToDelete.discount))),
+        outstandingBalance: increment(paymentToDelete.totalBill)
+      });
+      
+
+      // 3. Delete the payment document
+      const paymentRef = doc(db, "payments", paymentToDelete.id);
+      batch.delete(paymentRef);
+
+      await batch.commit();
+      
+      toast({
+        title: "Pembayaran Dibatalkan",
+        description: `Pembayaran sebesar Rp${paymentToDelete.paidAmount.toLocaleString('id-ID')} telah dibatalkan.`,
+      });
+      fetchCustomerData(); // Refresh all data
+    } catch (error) {
+      console.error("Error cancelling payment:", error);
+      toast({
+        title: "Gagal Membatalkan Pembayaran",
+        variant: "destructive",
+      });
+    } finally {
+      setPaymentToDelete(null);
+    }
+  };
+
 
     const getInvoiceStatus = (invoice: InvoiceWithRemaining) => {
         const isOverdue = new Date() > new Date(invoice.dueDate) && invoice.remainingAmount > 0;
@@ -409,6 +458,7 @@ export default function CustomerDetailPage() {
                 <TableHead className="text-right">Diskon</TableHead>
                 <TableHead className="text-right">Jumlah Dibayar</TableHead>
                 <TableHead className="text-right">Kekurangan/Saldo</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -436,10 +486,30 @@ export default function CustomerDetailPage() {
                       'Rp0'
                     )}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Buka menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                          onClick={() => setPaymentToDelete(payment)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Batalkan Pembayaran
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               )}) : (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">
+                    <TableCell colSpan={7} className="text-center h-24">
                         Belum ada riwayat pembayaran.
                     </TableCell>
                 </TableRow>
@@ -503,6 +573,29 @@ export default function CustomerDetailPage() {
           </Table>
         </CardContent>
       </Card>
+
+       <AlertDialog open={!!paymentToDelete} onOpenChange={(isOpen) => !isOpen && setPaymentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anda yakin ingin membatalkan pembayaran ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pembayaran sebesar <span className="font-bold">Rp{paymentToDelete?.paidAmount.toLocaleString('id-ID')}</span> pada tanggal <span className="font-bold">{paymentToDelete ? format(parseISO(paymentToDelete.paymentDate), 'd MMM yyyy') : ''}</span> akan dihapus. Status faktur dan saldo pelanggan akan dikembalikan. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPaymentToDelete(null)}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelPayment}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Ya, Batalkan Pembayaran
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   )
 }
+
+    
