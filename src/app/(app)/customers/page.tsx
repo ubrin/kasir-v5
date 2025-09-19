@@ -69,7 +69,8 @@ const calculateAllInvoiceRemainders = (
     );
 
     for (const payment of sortedPayments) {
-        let paymentAmountToDistribute = payment.paidAmount - payment.changeAmount;
+        // CORRECT FIX: Use totalPayment which includes discount, not just the cash paid.
+        let paymentAmountToDistribute = payment.totalPayment;
         
         const sortedInvoiceIds = payment.invoiceIds.sort((a, b) => {
             const invA = allInvoices.find(i => i.id === a);
@@ -786,5 +787,7 @@ function CustomersPage() {
 }
 
 export default withAuth(CustomersPage);
+
+    
 
     
