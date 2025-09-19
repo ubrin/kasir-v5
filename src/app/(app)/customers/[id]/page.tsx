@@ -272,7 +272,7 @@ export default function CustomerDetailPage() {
         }
         if (isOverdue) {
             return {
-                text: `Jatuh Tempo (sisa Rp${invoice.remainingAmount.toLocaleString('id-ID')})`,
+                text: `Menunggak (sisa Rp${invoice.remainingAmount.toLocaleString('id-ID')})`,
                 classes: 'bg-red-100 text-red-800'
             };
         }
@@ -597,5 +597,7 @@ export default function CustomerDetailPage() {
     </div>
   )
 }
+
+    
 
     
