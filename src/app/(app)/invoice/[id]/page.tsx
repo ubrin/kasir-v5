@@ -6,6 +6,7 @@ import { notFound, useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, Invoice } from '@/lib/types';
+import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -285,6 +286,19 @@ export default function InvoicePage() {
                                 </div>
                             </div>
                         </div>
+                        
+                        <div className="mt-16 grid grid-cols-2">
+                            <div>{/* Spacer */}</div>
+                            <div className="text-center">
+                                <p>Hormat kami,</p>
+                                <div className="relative h-24 w-48 mx-auto">
+                                    <Image src="/stamp.png" layout="fill" objectFit="contain" alt="Cap Perusahaan" />
+                                </div>
+                                <p className="font-bold border-t pt-2 mt-2">Aditya</p>
+                                <p className="text-sm text-muted-foreground">Direktur</p>
+                            </div>
+                        </div>
+
                     </CardContent>
                     <CardFooter className="p-4 sm:p-6 text-xs text-muted-foreground text-center">
                         <p>Terima kasih telah menggunakan layanan kami. Mohon lakukan pembayaran sebelum tanggal jatuh tempo untuk menghindari gangguan layanan.</p>
@@ -330,3 +344,5 @@ export default function InvoicePage() {
         </div>
     );
 }
+
+    
