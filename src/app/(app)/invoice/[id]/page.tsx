@@ -76,45 +76,59 @@ export default function InvoicePage() {
     const creditUsed = Math.min(customer?.creditBalance ?? 0, subTotal);
     const totalAmount = subTotal - creditUsed;
 
-    const handleDownloadPdf = () => {
+    const handleDownloadPdf = async () => {
         const input = invoiceRef.current;
         if (!input || !customer) return;
     
-        html2canvas(input, {
-          scale: 2,
-          useCORS: true,
-          logging: false
-        }).then((canvas) => {
-          const imgData = canvas.toDataURL('image/png');
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          const canvasWidth = canvas.width;
-          const canvasHeight = canvas.height;
-          const ratio = canvasWidth / canvasHeight;
-          let imgWidth = pdfWidth - 20; // with margin
-          let imgHeight = imgWidth / ratio;
-          
-          if (imgHeight > pdfHeight - 20) {
-              imgHeight = pdfHeight - 20;
-              imgWidth = imgHeight * ratio;
-          }
-          
-          const x = (pdfWidth - imgWidth) / 2;
-          const y = 10;
-
-          pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-          
-          const fileName = `Invoice-${customer.name.replace(/ /g, '_')}-${format(new Date(), 'yyyyMMdd')}.pdf`;
-          pdf.save(fileName);
-        }).catch(() => {
-          toast({
-            title: "Gagal membuat PDF",
-            description: "Terjadi kesalahan saat membuat PDF. Coba lagi.",
-            variant: "destructive"
-          });
-        });
-      };
+        try {
+            const canvas = await html2canvas(input, {
+                scale: 2,
+                useCORS: true,
+                onclone: (document) => {
+                    const images = document.getElementsByTagName('img');
+                    const promises = Array.from(images).map(img => {
+                        if (img.complete) return Promise.resolve();
+                        return new Promise<void>(resolve => {
+                            img.onload = () => resolve();
+                            img.onerror = () => resolve(); // Also resolve on error to not block forever
+                        });
+                    });
+                    return Promise.all(promises);
+                }
+            });
+    
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+    
+            let imgWidth = pdfWidth - 20; // Margin 10mm on each side
+            let imgHeight = imgWidth / ratio;
+    
+            if (imgHeight > pdfHeight - 20) {
+                imgHeight = pdfHeight - 20; // Margin 10mm top/bottom
+                imgWidth = imgHeight * ratio;
+            }
+    
+            const x = (pdfWidth - imgWidth) / 2;
+            const y = (pdfHeight - imgHeight) / 2;
+    
+            pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+            const fileName = `Invoice-${customer.name.replace(/ /g, '_')}-${format(new Date(), 'yyyyMMdd')}.pdf`;
+            pdf.save(fileName);
+        } catch (error) {
+            console.error("Error creating PDF:", error);
+            toast({
+                title: "Gagal membuat PDF",
+                description: "Terjadi kesalahan saat membuat PDF. Coba lagi.",
+                variant: "destructive"
+            });
+        }
+    };
 
     const handleSendWhatsApp = async () => {
         if (!customer || !invoiceRef.current) return;
@@ -210,9 +224,9 @@ export default function InvoicePage() {
                 </div>
                 <div ref={invoiceRef} className="bg-white p-4 sm:p-8 shadow-lg border rounded-lg">
                     <header className="flex justify-between items-start mb-10">
-                        <div className="flex items-center gap-2">
-                             <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={40} height={40} />
-                            <div className="text-left">
+                        <div className="w-1/2">
+                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={40} height={40} />
+                            <div className="text-left mt-2">
                                 <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
                                 <p className="text-xs">suport by NAVAZ</p>
                             </div>
