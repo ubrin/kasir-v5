@@ -80,15 +80,11 @@ export default function InvoicePage() {
         const input = invoiceRef.current;
         if (!input || !customer) return;
     
-        // Temporarily make it look like the web version for PDF generation
-        input.classList.add('pdf-render-web');
-    
         html2canvas(input, {
           scale: 2,
           useCORS: true,
           logging: false
         }).then((canvas) => {
-          input.classList.remove('pdf-render-web');
           const imgData = canvas.toDataURL('image/png');
           const pdf = new jsPDF('p', 'mm', 'a4');
           const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -112,8 +108,11 @@ export default function InvoicePage() {
           const fileName = `Invoice-${customer.name.replace(/ /g, '_')}-${format(new Date(), 'yyyyMMdd')}.pdf`;
           pdf.save(fileName);
         }).catch(() => {
-          // Ensure class is removed even if html2canvas fails
-          input.classList.remove('pdf-render-web');
+          toast({
+            title: "Gagal membuat PDF",
+            description: "Terjadi kesalahan saat membuat PDF. Coba lagi.",
+            variant: "destructive"
+          });
         });
       };
 
@@ -211,8 +210,12 @@ export default function InvoicePage() {
                 </div>
                 <div ref={invoiceRef} className="bg-white p-4 sm:p-8 shadow-lg border rounded-lg">
                     <header className="flex justify-between items-start mb-10">
-                        <div className="w-1/2">
-                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={120} height={40} className="mb-4"/>
+                        <div className="flex items-center gap-2">
+                             <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={40} height={40} />
+                            <div className="text-left">
+                                <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
+                                <p className="text-xs">suport by NAVAZ</p>
+                            </div>
                         </div>
                         <div className="w-1/2 text-right">
                             <h1 className="text-4xl font-bold text-blue-700 uppercase mb-4">Invoice</h1>
