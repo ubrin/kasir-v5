@@ -6,7 +6,6 @@ import { notFound, useRouter, useParams } from 'next/navigation';
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Customer, Invoice } from '@/lib/types';
-import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -82,7 +81,7 @@ export default function InvoicePage() {
     
         try {
             const canvas = await html2canvas(input, {
-                scale: 2,
+                scale: 2, // Higher scale for better quality
                 useCORS: true,
                 onclone: (document) => {
                     const images = document.getElementsByTagName('img');
@@ -90,7 +89,7 @@ export default function InvoicePage() {
                         if (img.complete) return Promise.resolve();
                         return new Promise<void>(resolve => {
                             img.onload = () => resolve();
-                            img.onerror = () => resolve(); // Also resolve on error to not block forever
+                            img.onerror = () => resolve(); // Don't block forever
                         });
                     });
                     return Promise.all(promises);
@@ -109,6 +108,7 @@ export default function InvoicePage() {
             let imgWidth = pdfWidth - 20; // Margin 10mm on each side
             let imgHeight = imgWidth / ratio;
     
+            // If the image height is greater than the page height, scale it down
             if (imgHeight > pdfHeight - 20) {
                 imgHeight = pdfHeight - 20; // Margin 10mm top/bottom
                 imgWidth = imgHeight * ratio;
@@ -129,6 +129,7 @@ export default function InvoicePage() {
             });
         }
     };
+    
 
     const handleSendWhatsApp = async () => {
         if (!customer || !invoiceRef.current) return;
@@ -223,33 +224,39 @@ export default function InvoicePage() {
                     </div>
                 </div>
                 <div ref={invoiceRef} className="bg-white p-4 sm:p-8 shadow-lg border rounded-lg">
-                    <header className="flex justify-between items-start mb-10">
-                        <div className="w-1/2">
-                            <Image src="/icon-512x512.png" alt="Logo Perusahaan" width={40} height={40} />
-                            <div className="text-left mt-2">
-                                <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
-                                <p className="text-xs">suport by NAVAZ</p>
-                            </div>
-                        </div>
-                        <div className="w-1/2 text-right">
-                            <h1 className="text-4xl font-bold text-blue-700 uppercase mb-4">Invoice</h1>
-                            <table className="w-full text-sm">
-                                <tbody>
-                                    <tr>
-                                        <td className="font-bold text-gray-600 pr-4">Referensi</td>
-                                        <td>{invoiceNumber}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="font-bold text-gray-600 pr-4">Tanggal</td>
-                                        <td>{format(new Date(), "dd/MM/yyyy", { locale: id })}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="font-bold text-gray-600 pr-4">Tgl. Jatuh Tempo</td>
-                                        <td>{format(new Date(new Date().getFullYear(), new Date().getMonth(), customer.dueDateCode), "dd/MM/yyyy", { locale: id })}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <header className="mb-10">
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody>
+                                <tr>
+                                    <td style={{ width: '50%', verticalAlign: 'top' }}>
+                                        <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '40px', height: '40px' }} />
+                                        <div style={{ marginTop: '8px' }}>
+                                            <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
+                                            <p className="text-xs">suport by NAVAZ</p>
+                                        </div>
+                                    </td>
+                                    <td style={{ width: '50%', verticalAlign: 'top', textAlign: 'right' }}>
+                                        <h1 className="text-4xl font-bold text-blue-700 uppercase mb-4">Invoice</h1>
+                                        <table style={{ width: '100%', textAlign: 'right' }} className="text-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <td className="font-bold text-gray-600 pr-4">Referensi</td>
+                                                    <td>{invoiceNumber}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="font-bold text-gray-600 pr-4">Tanggal</td>
+                                                    <td>{format(new Date(), "dd/MM/yyyy", { locale: id })}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="font-bold text-gray-600 pr-4">Tgl. Jatuh Tempo</td>
+                                                    <td>{format(new Date(new Date().getFullYear(), new Date().getMonth(), customer.dueDateCode), "dd/MM/yyyy", { locale: id })}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </header>
 
                     <section className="flex justify-between mb-10 text-sm">
