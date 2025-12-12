@@ -81,19 +81,8 @@ export default function InvoicePage() {
     
         try {
             const canvas = await html2canvas(input, {
-                scale: 2, // Higher scale for better quality
+                scale: 2, 
                 useCORS: true,
-                onclone: (document) => {
-                    const images = document.getElementsByTagName('img');
-                    const promises = Array.from(images).map(img => {
-                        if (img.complete) return Promise.resolve();
-                        return new Promise<void>(resolve => {
-                            img.onload = () => resolve();
-                            img.onerror = () => resolve(); // Don't block forever
-                        });
-                    });
-                    return Promise.all(promises);
-                }
             });
     
             const imgData = canvas.toDataURL('image/png');
@@ -105,12 +94,11 @@ export default function InvoicePage() {
             const canvasHeight = canvas.height;
             const ratio = canvasWidth / canvasHeight;
     
-            let imgWidth = pdfWidth - 20; // Margin 10mm on each side
+            let imgWidth = pdfWidth - 20; 
             let imgHeight = imgWidth / ratio;
     
-            // If the image height is greater than the page height, scale it down
             if (imgHeight > pdfHeight - 20) {
-                imgHeight = pdfHeight - 20; // Margin 10mm top/bottom
+                imgHeight = pdfHeight - 20;
                 imgWidth = imgHeight * ratio;
             }
     
@@ -229,7 +217,7 @@ export default function InvoicePage() {
                             <tbody>
                                 <tr>
                                     <td style={{ width: '50%', verticalAlign: 'top' }}>
-                                        <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '40px', height: '40px' }} />
+                                        <img src="/icon-512x512.png" alt="Logo Perusahaan" style={{ width: '60px', height: '60px' }} />
                                         <div style={{ marginTop: '8px' }}>
                                             <h1 className="text-base font-bold">PT CYBERNETWORK CORP</h1>
                                             <p className="text-xs">suport by NAVAZ</p>
