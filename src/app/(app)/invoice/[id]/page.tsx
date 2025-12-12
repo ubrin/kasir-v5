@@ -323,7 +323,7 @@ export default function InvoicePage() {
                         </div>
                         <div className="w-1/2 text-center">
                             <p className="mb-20">Hormat Kami,</p>
-                            <p className="font-bold border-t pt-2 mt-2">Ubrin Octari Sandi</p>
+                            <p className="font-bold border-t pt-2 mt-2">haris trianto</p>
                         </div>
                     </section>
                 </div>
