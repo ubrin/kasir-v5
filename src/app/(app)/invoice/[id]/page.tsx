@@ -103,7 +103,7 @@ export default function InvoicePage() {
             }
     
             const x = (pdfWidth - imgWidth) / 2;
-            const y = (pdfHeight - imgHeight) / 2;
+            const y = 10;
     
             pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
             const fileName = `Invoice-${customer.name.replace(/ /g, '_')}-${format(new Date(), 'yyyyMMdd')}.pdf`;
@@ -341,13 +341,6 @@ export default function InvoicePage() {
                 </div>
             </div>
             <style jsx global>{`
-                @media (max-width: 640px) {
-                    div.bg-white {
-                        padding: 0;
-                        box-shadow: none;
-                        border: none;
-                    }
-                }
                 .pdf-render-web {
                     padding: 2rem;
                     box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
