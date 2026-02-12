@@ -17,6 +17,16 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import withAuth from "@/components/withAuth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type DelinquentCustomer = Customer & {
   totalUnpaid: number;
@@ -74,6 +84,8 @@ function DelinquencyPage() {
   const [selectedGroup, setSelectedGroup] = React.useState<string>("all");
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isClient, setIsClient] = React.useState(false);
+  const [lastPaymentId, setLastPaymentId] = React.useState<string | null>(null);
+  const [showReceiptDialog, setShowReceiptDialog] = React.useState(false);
 
   React.useEffect(() => {
     setIsClient(true);
@@ -162,11 +174,13 @@ function DelinquencyPage() {
     fetchDelinquentData();
   }, [fetchDelinquentData]);
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = (paymentId: string) => {
     toast({
       title: 'Pembayaran Berhasil',
       description: 'Data pembayaran telah berhasil disimpan.',
     });
+    setLastPaymentId(paymentId);
+    setShowReceiptDialog(true);
     fetchDelinquentData();
   };
 
@@ -321,6 +335,22 @@ function DelinquencyPage() {
                 </CardContent>
             </Card>
         )}
+        <AlertDialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Pembayaran Berhasil!</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Apakah Anda ingin melihat struk pembayaran sekarang?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setShowReceiptDialog(false)}>Tutup</AlertDialogCancel>
+                    <AlertDialogAction asChild>
+                        <Link href={`/receipt/${lastPaymentId}`}>Lihat Struk</Link>
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

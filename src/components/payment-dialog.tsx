@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -75,7 +74,7 @@ type DelinquentCustomer = Customer & {
 
 interface PaymentDialogProps {
   customer: DelinquentCustomer;
-  onPaymentSuccess: () => void;
+  onPaymentSuccess: (paymentId: string) => void;
 }
 
 export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps) {
@@ -193,7 +192,7 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
         });
 
         await batch.commit();
-        onPaymentSuccess();
+        onPaymentSuccess(paymentId);
         setOpen(false);
         reset();
     } catch (error) {
@@ -468,5 +467,3 @@ export function PaymentDialog({ customer, onPaymentSuccess }: PaymentDialogProps
     </Dialog>
   );
 }
-
-    
