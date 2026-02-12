@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -15,6 +14,7 @@ import { Download, ArrowLeft, Loader2, Send, Printer } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
+import Image from 'next/image';
 
 const downloadImage = (blob: Blob, fileName: string) => {
     const link = document.createElement('a');
@@ -78,44 +78,52 @@ export default function InvoicePage() {
     const handleDownloadPdf = async () => {
         const input = invoiceRef.current;
         if (!input || !customer) return;
+
+        input.classList.add('pdf-render-force-width');
     
-        try {
-            const canvas = await html2canvas(input, {
-                scale: 2, 
-                useCORS: true,
-            });
-    
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-    
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
-    
-            let imgWidth = pdfWidth - 20; 
-            let imgHeight = imgWidth / ratio;
-    
-            if (imgHeight > pdfHeight - 20) {
-                imgHeight = pdfHeight - 20;
-                imgWidth = imgHeight * ratio;
+        // Use a short timeout to allow the browser to apply the new width and reflow the content
+        setTimeout(async () => {
+            try {
+                const canvas = await html2canvas(input, {
+                    scale: 2, 
+                    useCORS: true,
+                });
+        
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const ratio = canvasWidth / canvasHeight;
+        
+                let imgWidth = pdfWidth - 20; // Margin 10mm on each side
+                let imgHeight = imgWidth / ratio;
+        
+                if (imgHeight > pdfHeight - 20) {
+                    imgHeight = pdfHeight - 20;
+                    imgWidth = imgHeight * ratio;
+                }
+        
+                const x = (pdfWidth - imgWidth) / 2;
+                const y = 10;
+        
+                pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+                const fileName = `Invoice-${customer.name.replace(/ /g, '_')}-${format(new Date(), 'yyyyMMdd')}.pdf`;
+                pdf.save(fileName);
+            } catch (error) {
+                console.error("Error creating PDF:", error);
+                toast({
+                    title: "Gagal membuat PDF",
+                    description: "Terjadi kesalahan saat membuat PDF. Coba lagi.",
+                    variant: "destructive"
+                });
+            } finally {
+                // Clean up the class
+                input.classList.remove('pdf-render-force-width');
             }
-    
-            const x = (pdfWidth - imgWidth) / 2;
-            const y = 10;
-    
-            pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-            const fileName = `Invoice-${customer.name.replace(/ /g, '_')}-${format(new Date(), 'yyyyMMdd')}.pdf`;
-            pdf.save(fileName);
-        } catch (error) {
-            console.error("Error creating PDF:", error);
-            toast({
-                title: "Gagal membuat PDF",
-                description: "Terjadi kesalahan saat membuat PDF. Coba lagi.",
-                variant: "destructive"
-            });
-        }
+        }, 100);
     };
     
 
@@ -194,7 +202,7 @@ export default function InvoicePage() {
 
     return (
         <>
-            <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 bg-background">
+            <div className="max-w-4xl mx-auto p-8 bg-background">
                 <div className="flex justify-between items-center mb-6 print:hidden">
                     <Button variant="outline" onClick={() => router.back()}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -211,7 +219,7 @@ export default function InvoicePage() {
                         </Button>
                     </div>
                 </div>
-                <div ref={invoiceRef} className="bg-white p-4 sm:p-8 shadow-lg border rounded-lg">
+                <div ref={invoiceRef} className="bg-white p-8 shadow-lg border rounded-lg">
                     <header className="mb-10">
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <tbody>
@@ -341,11 +349,8 @@ export default function InvoicePage() {
                 </div>
             </div>
             <style jsx global>{`
-                .pdf-render-web {
-                    padding: 2rem;
-                    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-                    border-radius: 0.5rem;
-                    border: 1px solid #e5e7eb;
+                .pdf-render-force-width {
+                    width: 820px !important;
                 }
                 @media print {
                     body, html {
