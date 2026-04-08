@@ -3,9 +3,11 @@
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, CalendarIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +28,12 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { Expense } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,6 +63,7 @@ const addExpenseSchema = z.object({
     (val) => (String(val).trim() === '' ? undefined : Number(val)),
     z.number({invalid_type_error: "Harus berupa angka"}).min(1, "Tanggal minimal 1").max(31, "Tanggal maksimal 31").optional()
   ),
+  date: z.date().optional(),
 }).refine(data => {
     if (data.category === 'angsuran') {
         return data.tenor !== undefined && data.tenor > 0;
@@ -79,6 +88,14 @@ const addExpenseSchema = z.object({
 }, {
     message: "Jumlah wajib diisi untuk kategori ini.",
     path: ["amount"],
+}).refine(data => {
+    if (data.category === 'lainnya') {
+        return data.date !== undefined;
+    }
+    return true;
+}, {
+    message: "Tanggal wajib diisi untuk pengeluaran lainnya.",
+    path: ["date"],
 });
 
 type AddExpenseFormValues = z.infer<typeof addExpenseSchema>;
@@ -97,6 +114,7 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
       category: undefined,
       tenor: '' as any,
       dueDateDay: '' as any,
+      date: new Date(),
     },
   });
 
@@ -109,6 +127,7 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
         amount: data.category !== 'utama' ? Number(data.amount) : undefined,
         tenor: data.category === 'angsuran' ? Number(data.tenor) : undefined,
         dueDateDay: data.category === 'lainnya' ? undefined : Number(data.dueDateDay),
+        date: data.category === 'lainnya' && data.date ? format(data.date, 'yyyy-MM-dd') : undefined,
     };
     
     onExpenseAdded(expenseData);
@@ -119,6 +138,7 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
         category: undefined,
         tenor: '' as any,
         dueDateDay: '' as any,
+        date: new Date(),
     });
     setOpen(false);
   };
@@ -148,7 +168,7 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
             <DialogHeader className="p-6 pb-4">
               <DialogTitle>Tambah Pengeluaran</DialogTitle>
               <DialogDescription>
-                Isi rincian di bawah. Untuk 'Lainnya', data akan langsung tercatat sebagai pengeluaran hari ini.
+                Isi rincian di bawah. Pilih tanggal yang sesuai agar laporan keuangan tercatat dengan benar.
               </DialogDescription>
             </DialogHeader>
             <ScrollArea className="h-[60vh]">
@@ -239,6 +259,50 @@ export function AddExpenseDialog({ onExpenseAdded }: AddExpenseDialogProps) {
                                     />
                                 </FormControl>
                                 <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+
+                    {watchCategory === 'lainnya' && (
+                        <FormField
+                            control={form.control}
+                            name="date"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>Tanggal Pengeluaran</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-full pl-3 text-left font-normal",
+                                                        !field.value && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {field.value ? (
+                                                        format(field.value, "PPP", { locale: id })
+                                                    ) : (
+                                                        <span>Pilih tanggal</span>
+                                                    )}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                                mode="single"
+                                                selected={field.value}
+                                                onSelect={field.onChange}
+                                                disabled={(date) =>
+                                                    date > new Date() || date < new Date("1900-01-01")
+                                                }
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />

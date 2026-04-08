@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from "react";
@@ -276,7 +277,8 @@ function ExpensesPage() {
         }
         
         if (newExpenseData.category === 'lainnya') {
-            dataToAdd.date = format(new Date(), 'yyyy-MM-dd');
+            // Gunakan tanggal yang dipilih dari dialog, jika tidak ada baru gunakan hari ini
+            dataToAdd.date = newExpenseData.date || format(new Date(), 'yyyy-MM-dd');
         } else {
             if (newExpenseData.category === 'angsuran') {
                 dataToAdd.tenor = newExpenseData.tenor;
