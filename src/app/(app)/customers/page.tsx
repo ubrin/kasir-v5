@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Loader2, Trash2, Search, X, FileText } from "lucide-react"
+import { MoreHorizontal, Loader2, Trash2, Search, X, FileText, FileDown } from "lucide-react"
 import type { Customer, Invoice, Payment } from "@/lib/types"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -50,6 +50,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import withAuth from "@/components/withAuth";
+import * as XLSX from 'xlsx';
 
 type CustomerWithStatus = Customer & {
     nearestDueDate?: string;
@@ -69,7 +70,6 @@ const calculateAllInvoiceRemainders = (
     );
 
     for (const payment of sortedPayments) {
-        // CORRECT FIX: Use totalPayment which includes discount, not just the cash paid.
         let paymentAmountToDistribute = payment.totalPayment;
         
         const sortedInvoiceIds = payment.invoiceIds.sort((a, b) => {
@@ -131,11 +131,10 @@ function CustomersPage() {
       const search = current.toString();
       const query = search ? `?${search}` : '';
 
-      // Only push if the query is different to avoid redundant re-renders
       if (`/customers${query}` !== window.location.pathname + window.location.search) {
          router.push(`/customers${query}`);
       }
-    }, 300); // 300ms debounce
+    }, 300);
 
     return () => {
       clearTimeout(handler);
@@ -165,7 +164,6 @@ function CustomersPage() {
         const allInvoices = allInvoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Invoice));
         const allPayments = allPaymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 
-        // Calculate the true remaining balance for every single invoice
         const invoiceRemainders = calculateAllInvoiceRemainders(allInvoices, allPayments);
 
         const invoicesWithRemainder = allInvoices
@@ -249,16 +247,16 @@ function CustomersPage() {
 
         for (const customer of allCustomers) {
             if (existingInvoicesForThisMonth.has(customer.id)) {
-                continue; // Skip if invoice already exists
+                continue;
             }
 
             if (!customer.packagePrice || customer.packagePrice <= 0) {
-                continue; // Skip if no package price
+                continue;
             }
 
             const installationDate = new Date(customer.installationDate);
             if (installationDate > today) {
-                continue; // Skip if installation is in the future
+                continue;
             }
 
             const invoiceDate = startOfMonth(today);
@@ -300,7 +298,7 @@ function CustomersPage() {
         });
     } finally {
         setIsGeneratingInvoices(false);
-        fetchCustomers(); // Refresh data
+        fetchCustomers();
     }
   };
 
@@ -426,7 +424,7 @@ function CustomersPage() {
     } catch (error) {
         console.error("Error deleting customer and associated data:", error);
         toast({
-            title: "Gagal Menghapus",
+            title: "Gagal Menapus",
             description: "Terjadi kesalahan saat menghapus data pelanggan.",
             variant: "destructive",
         });
@@ -467,7 +465,6 @@ function CustomersPage() {
     : groupKeys.filter(key => key.toString() === selectedGroup);
 
   const handleRowClick = (customerId: string, e: React.MouseEvent) => {
-    // Prevent navigation if a checkbox or dropdown is clicked
     const target = e.target as HTMLElement;
     if (target.closest('[role="checkbox"]') || target.closest('[role="menu"]')) {
         return;
@@ -483,15 +480,55 @@ function CustomersPage() {
     fetchCustomers();
   };
 
+  const handleExportExcel = () => {
+    if (filteredCustomers.length === 0) {
+        toast({ title: "Tidak ada data untuk diekspor", variant: "destructive" });
+        return;
+    }
+
+    const exportData = filteredCustomers.map(c => {
+        let status = 'Lunas';
+        if (c.hasArrears) status = 'Menunggak';
+        else if (c.nearestDueDate) {
+            const daysDiff = differenceInDays(parseISO(c.nearestDueDate), startOfToday());
+            if (daysDiff < 0) status = 'Lewat Jatuh Tempo';
+            else if (daysDiff === 0) status = 'Jatuh Tempo Hari Ini';
+            else status = `Akan Datang (${daysDiff + 1} hari lagi)`;
+        }
+
+        return {
+            'Nama Pelanggan': c.name,
+            'Alamat': c.address,
+            'No. WhatsApp': c.phone || '-',
+            'Paket (Mbps)': c.subscriptionMbps,
+            'Harga Paket (Rp)': c.packagePrice,
+            'Tgl Jatuh Tempo': c.dueDateCode,
+            'Tanggal Pemasangan': c.installationDate,
+            'Saldo (Rp)': c.creditBalance || 0,
+            'Status Tagihan': status
+        };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Pelanggan");
+
+    const fileName = `Data_Pelanggan_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+
+    toast({
+        title: "Ekspor Berhasil",
+        description: `File ${fileName} telah diunduh.`,
+    });
+  };
+
   const formatDueDateStatus = (dueDate?: string, hasArrears?: boolean) => {
     if (!isClient) return null;
   
-    // If there's no due date, it means no unpaid invoices exist, so the customer is considered paid up.
     if (!dueDate) {
       return <Badge variant="secondary" className="bg-green-100 text-green-800">Lunas</Badge>;
     }
   
-    // If there are arrears from previous months, show "Menunggak" regardless of the nearest due date.
     if (hasArrears) {
       return <Badge variant="destructive">Menunggak</Badge>;
     }
@@ -578,7 +615,7 @@ function CustomersPage() {
             </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-full md:w-1/2 lg:w-1/3">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -612,7 +649,12 @@ function CustomersPage() {
                     ))}
                 </SelectContent>
             </Select>
-            <ImportCustomerDialog onSuccess={handleImportSuccess} />
+            <div className="flex gap-2">
+                <ImportCustomerDialog onSuccess={handleImportSuccess} />
+                <Button variant="outline" onClick={handleExportExcel}>
+                    <FileDown className="mr-2 h-4 w-4" /> Ekspor ke Excel
+                </Button>
+            </div>
         </div>
         
         {selectedCustomerIds.length > 0 && (
@@ -660,7 +702,6 @@ function CustomersPage() {
                                 </AccordionTrigger>
                             </div>
                             <AccordionContent className="p-0">
-                                {/* Desktop Table */}
                                 <div className="hidden md:block">
                                     <Table>
                                         <TableHeader>
@@ -706,7 +747,6 @@ function CustomersPage() {
                                     </Table>
                                 </div>
 
-                                {/* Mobile List */}
                                 <div className="md:hidden divide-y divide-border">
                                     {groupedCustomers[code].map((customer) => (
                                         <div key={customer.id} className="p-4">
@@ -787,7 +827,3 @@ function CustomersPage() {
 }
 
 export default withAuth(CustomersPage);
-
-    
-
-    
