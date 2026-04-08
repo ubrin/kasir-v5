@@ -200,7 +200,7 @@ function FinancePage() {
 
         // --- CALCULATION FOR MONTHLY RECAP TABLE ---
         const monthlyRecap: MonthlyRecap[] = [];
-        for (let m = 0; i < 12; i++) {
+        for (let i = 0; i < 12; i++) {
             const monthName = format(new Date(currentYear, i, 1), 'MMMM', { locale: id });
             
             const target = allInvoices
