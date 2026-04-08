@@ -5,7 +5,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, Coins, ArrowRight, PieChartIcon, Wifi, ChevronRight, CalendarDays } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, Coins, ArrowRight, PieChartIcon, Wifi, ChevronRight, CalendarDays, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { format, isSameMonth, isSameYear, isThisMonth, parseISO, startOfMonth, getMonth, getYear } from "date-fns";
@@ -41,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Separator } from "@/components/ui/separator";
 
 type OmsetGroup = {
   price: number;
@@ -55,6 +56,8 @@ type MonthlyRecap = {
   income: number;
   expense: number;
   net: number;
+  incomeDetails: { name: string; amount: number }[];
+  expenseDetails: { name: string; amount: number }[];
 };
 
 type Stats = {
@@ -210,32 +213,38 @@ function FinancePage() {
                 })
                 .reduce((sum, inv) => sum + (inv.amount || 0), 0);
 
-            const monthIncome = allPayments
+            const monthPayments = allPayments
                 .filter(p => {
                     const d = parseISO(p.paymentDate);
                     return getMonth(d) === i && getYear(d) === currentYear;
-                })
-                .reduce((sum, p) => sum + (p.totalPayment || 0), 0) +
-                allOtherIncomes
+                });
+            const monthIncomeFromPayments = monthPayments.reduce((sum, p) => sum + (p.totalPayment || 0), 0);
+
+            const monthOtherIncomes = allOtherIncomes
                 .filter(oi => {
                     const d = parseISO(oi.date);
                     return getMonth(d) === i && getYear(d) === currentYear;
-                })
-                .reduce((sum, oi) => sum + (oi.amount || 0), 0);
+                });
+            const monthIncomeFromOther = monthOtherIncomes.reduce((sum, oi) => sum + (oi.amount || 0), 0);
 
-            const monthExpense = allExpenses
+            const monthExpenses = allExpenses
                 .filter(e => {
                     const d = parseISO(e.date!);
                     return getMonth(d) === i && getYear(d) === currentYear;
-                })
-                .reduce((sum, e) => sum + (e.amount || 0), 0);
+                });
+            const monthExpenseTotal = monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
             monthlyRecap.push({
                 monthName,
                 target,
-                income: monthIncome,
-                expense: monthExpense,
-                net: monthIncome - monthExpense
+                income: monthIncomeFromPayments + monthIncomeFromOther,
+                expense: monthExpenseTotal,
+                net: (monthIncomeFromPayments + monthIncomeFromOther) - monthExpenseTotal,
+                incomeDetails: [
+                    { name: "Tagihan Pelanggan (Lunas)", amount: monthIncomeFromPayments },
+                    ...monthOtherIncomes.map(oi => ({ name: oi.name, amount: oi.amount }))
+                ].filter(d => d.amount > 0),
+                expenseDetails: monthExpenses.map(e => ({ name: e.name, amount: e.amount || 0 })).filter(d => d.amount > 0)
             });
         }
 
@@ -602,7 +611,7 @@ function FinancePage() {
           </Card>
       </div>
 
-      {/* NEW RECAPITULATION TABLE SECTION */}
+      {/* RECAPITULATION TABLE SECTION */}
       <Card>
         <CardHeader className="flex flex-row items-center gap-4 space-y-0">
           <div className="bg-blue-50 p-2.5 rounded-xl border border-blue-100">
@@ -611,7 +620,7 @@ function FinancePage() {
           <div className="flex flex-col">
             <CardTitle className="text-xl">Tabel Rekapitulasi</CardTitle>
             <CardDescription>
-              Performa keuangan per bulan tahun {getYear(new Date())}.
+              Performa keuangan per bulan tahun {getYear(new Date())}. Klik pada nama bulan untuk melihat rincian.
             </CardDescription>
           </div>
         </CardHeader>
@@ -630,7 +639,70 @@ function FinancePage() {
               <TableBody>
                 {stats.monthlyRecap.map((recap, idx) => (
                   <TableRow key={idx} className="hover:bg-muted/20">
-                    <TableCell className="font-bold py-4">{recap.monthName}</TableCell>
+                    <TableCell className="font-bold py-4">
+                        <InfoDialog
+                            title={`Rincian ${recap.monthName} ${getYear(new Date())}`}
+                            description="Berikut adalah ringkasan pemasukan dan pengeluaran bulan ini."
+                            trigger={
+                                <div className="flex items-center gap-2 cursor-pointer text-blue-600 hover:underline">
+                                    {recap.monthName}
+                                    <ChevronRight className="h-3 w-3" />
+                                </div>
+                            }
+                        >
+                            <div className="space-y-6 py-2">
+                                <div>
+                                    <h3 className="font-bold text-green-600 flex items-center gap-2 mb-3">
+                                        <TrendingUp className="h-4 w-4" /> Pemasukan
+                                    </h3>
+                                    <ul className="space-y-2">
+                                        {recap.incomeDetails.length > 0 ? (
+                                            recap.incomeDetails.map((item, iIdx) => (
+                                                <li key={iIdx} className="flex justify-between items-center text-sm border-b border-dashed pb-2 last:border-0">
+                                                    <span className="text-muted-foreground">{item.name}</span>
+                                                    <span className="font-medium text-foreground">Rp{item.amount.toLocaleString('id-ID')}</span>
+                                                </li>
+                                            ))
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground italic">Tidak ada pemasukan tercatat.</p>
+                                        )}
+                                    </ul>
+                                    {recap.incomeDetails.length > 0 && (
+                                        <div className="flex justify-between items-center mt-3 pt-2 border-t font-bold text-sm">
+                                            <span>Total Pemasukan</span>
+                                            <span className="text-green-600">Rp{recap.income.toLocaleString('id-ID')}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <Separator />
+
+                                <div>
+                                    <h3 className="font-bold text-red-500 flex items-center gap-2 mb-3">
+                                        <TrendingDown className="h-4 w-4" /> Pengeluaran
+                                    </h3>
+                                    <ul className="space-y-2">
+                                        {recap.expenseDetails.length > 0 ? (
+                                            recap.expenseDetails.map((item, eIdx) => (
+                                                <li key={eIdx} className="flex justify-between items-center text-sm border-b border-dashed pb-2 last:border-0">
+                                                    <span className="text-muted-foreground">{item.name}</span>
+                                                    <span className="font-medium text-foreground">Rp{item.amount.toLocaleString('id-ID')}</span>
+                                                </li>
+                                            ))
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground italic">Tidak ada pengeluaran tercatat.</p>
+                                        )}
+                                    </ul>
+                                    {recap.expenseDetails.length > 0 && (
+                                        <div className="flex justify-between items-center mt-3 pt-2 border-t font-bold text-sm">
+                                            <span>Total Pengeluaran</span>
+                                            <span className="text-red-500">Rp{recap.expense.toLocaleString('id-ID')}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </InfoDialog>
+                    </TableCell>
                     <TableCell className="font-bold text-blue-600 py-4">
                       Rp {recap.target.toLocaleString('id-ID')}
                     </TableCell>
