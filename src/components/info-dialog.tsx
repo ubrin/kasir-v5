@@ -25,12 +25,12 @@ export function InfoDialog({ trigger, title, description, children }: InfoDialog
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-72 w-full rounded-md border p-4">
+        <ScrollArea className="h-[500px] w-full rounded-md border p-4">
           {children}
         </ScrollArea>
       </DialogContent>
