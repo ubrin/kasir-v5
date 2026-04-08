@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from "react";
@@ -51,13 +52,12 @@ type OmsetGroup = {
 };
 
 type MonthlyRecap = {
+  monthIndex: number;
   monthName: string;
   target: number;
   income: number;
   expense: number;
   net: number;
-  incomeDetails: { name: string; amount: number }[];
-  expenseDetails: { name: string; amount: number }[];
 };
 
 type Stats = {
@@ -235,16 +235,12 @@ function FinancePage() {
             const monthExpenseTotal = monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
             monthlyRecap.push({
+                monthIndex: i,
                 monthName,
                 target,
                 income: monthIncomeFromPayments + monthIncomeFromOther,
                 expense: monthExpenseTotal,
                 net: (monthIncomeFromPayments + monthIncomeFromOther) - monthExpenseTotal,
-                incomeDetails: [
-                    { name: "Tagihan Pelanggan (Lunas)", amount: monthIncomeFromPayments },
-                    ...monthOtherIncomes.map(oi => ({ name: oi.name, amount: oi.amount }))
-                ].filter(d => d.amount > 0),
-                expenseDetails: monthExpenses.map(e => ({ name: e.name, amount: e.amount || 0 })).filter(d => d.amount > 0)
             });
         }
 
@@ -620,7 +616,7 @@ function FinancePage() {
           <div className="flex flex-col">
             <CardTitle className="text-xl">Tabel Rekapitulasi</CardTitle>
             <CardDescription>
-              Performa keuangan per bulan tahun {getYear(new Date())}. Klik pada nama bulan untuk melihat rincian.
+              Performa keuangan per bulan tahun {getYear(new Date())}. Klik pada nama bulan untuk melihat rincian di halaman penuh.
             </CardDescription>
           </div>
         </CardHeader>
@@ -640,68 +636,13 @@ function FinancePage() {
                 {stats.monthlyRecap.map((recap, idx) => (
                   <TableRow key={idx} className="hover:bg-muted/20">
                     <TableCell className="font-bold py-4">
-                        <InfoDialog
-                            title={`Rincian ${recap.monthName} ${getYear(new Date())}`}
-                            description="Berikut adalah ringkasan pemasukan dan pengeluaran bulan ini."
-                            trigger={
-                                <div className="flex items-center gap-2 cursor-pointer text-blue-600 hover:underline">
-                                    {recap.monthName}
-                                    <ChevronRight className="h-3 w-3" />
-                                </div>
-                            }
+                        <Link 
+                            href={`/finance/recap/${getYear(new Date())}/${recap.monthIndex}`}
+                            className="flex items-center gap-2 cursor-pointer text-blue-600 hover:underline"
                         >
-                            <div className="space-y-6 py-2">
-                                <div>
-                                    <h3 className="font-bold text-green-600 flex items-center gap-2 mb-3">
-                                        <TrendingUp className="h-4 w-4" /> Pemasukan
-                                    </h3>
-                                    <ul className="space-y-2">
-                                        {recap.incomeDetails.length > 0 ? (
-                                            recap.incomeDetails.map((item, iIdx) => (
-                                                <li key={iIdx} className="flex justify-between items-center text-sm border-b border-dashed pb-2 last:border-0">
-                                                    <span className="text-muted-foreground">{item.name}</span>
-                                                    <span className="font-medium text-foreground">Rp{item.amount.toLocaleString('id-ID')}</span>
-                                                </li>
-                                            ))
-                                        ) : (
-                                            <p className="text-xs text-muted-foreground italic">Tidak ada pemasukan tercatat.</p>
-                                        )}
-                                    </ul>
-                                    {recap.incomeDetails.length > 0 && (
-                                        <div className="flex justify-between items-center mt-3 pt-2 border-t font-bold text-sm">
-                                            <span>Total Pemasukan</span>
-                                            <span className="text-green-600">Rp{recap.income.toLocaleString('id-ID')}</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <Separator />
-
-                                <div>
-                                    <h3 className="font-bold text-red-500 flex items-center gap-2 mb-3">
-                                        <TrendingDown className="h-4 w-4" /> Pengeluaran
-                                    </h3>
-                                    <ul className="space-y-2">
-                                        {recap.expenseDetails.length > 0 ? (
-                                            recap.expenseDetails.map((item, eIdx) => (
-                                                <li key={eIdx} className="flex justify-between items-center text-sm border-b border-dashed pb-2 last:border-0">
-                                                    <span className="text-muted-foreground">{item.name}</span>
-                                                    <span className="font-medium text-foreground">Rp{item.amount.toLocaleString('id-ID')}</span>
-                                                </li>
-                                            ))
-                                        ) : (
-                                            <p className="text-xs text-muted-foreground italic">Tidak ada pengeluaran tercatat.</p>
-                                        )}
-                                    </ul>
-                                    {recap.expenseDetails.length > 0 && (
-                                        <div className="flex justify-between items-center mt-3 pt-2 border-t font-bold text-sm">
-                                            <span>Total Pengeluaran</span>
-                                            <span className="text-red-500">Rp{recap.expense.toLocaleString('id-ID')}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </InfoDialog>
+                            {recap.monthName}
+                            <ChevronRight className="h-3 w-3" />
+                        </Link>
                     </TableCell>
                     <TableCell className="font-bold text-blue-600 py-4">
                       Rp {recap.target.toLocaleString('id-ID')}
