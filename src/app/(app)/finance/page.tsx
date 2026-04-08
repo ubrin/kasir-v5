@@ -5,7 +5,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, Coins, ArrowRight, PieChartIcon } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, Coins, ArrowRight, PieChartIcon, Wifi, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { format, isThisMonth, parseISO, startOfMonth } from "date-fns";
@@ -25,6 +25,20 @@ import {
   Cell,
 } from "recharts"
 import withAuth from "@/components/withAuth";
+import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
+type OmsetGroup = {
+  price: number;
+  count: number;
+  total: number;
+  customers: { name: string; address: string }[];
+};
 
 type Stats = {
   monthlyIncome: number;
@@ -33,7 +47,8 @@ type Stats = {
   totalOmset: number;
   totalArrears: number;
   newCustomersCount: number;
-  omsetBreakdown: { [key: string]: number };
+  totalCustomers: number;
+  omsetGroups: OmsetGroup[];
   newCustomers: Pick<Customer, 'name' | 'address'>[];
   delinquentCustomers: { name: string; amount: number }[];
   monthlyIncomeFromPayments: number;
@@ -83,13 +98,12 @@ function FinancePage() {
           getDocs(query(collection(db, "expenses"), where("date", "!=", null))),
           getDocs(collection(db, "otherIncomes")),
           getDocs(collection(db, "customers")),
-          getDocs(collection(db, "invoices")), // Get all invoices first
+          getDocs(collection(db, "invoices")),
         ]);
 
         const today = new Date();
         const startOfCurrentMonth = startOfMonth(today);
 
-        // Filter invoices for current month
         const allInvoices = invoicesSnapshot.docs.map(doc => doc.data() as Invoice);
         const thisMonthInvoices = allInvoices.filter(inv => isThisMonth(parseISO(inv.date)));
 
@@ -156,12 +170,18 @@ function FinancePage() {
 
         const totalOmset = customersList.reduce((sum, c) => sum + (c.packagePrice || 0), 0);
 
-        const omsetBreakdown = customersList.reduce((acc, customer) => {
-            const key = `${customer.subscriptionMbps}mb @${(customer.packagePrice / 1000).toFixed(0)}rb`;
-            acc[key] = (acc[key] || 0) + 1;
-            return acc;
-        }, {} as { [key: string]: number });
+        // Grouping for the new visual breakdown
+        const omsetGroupsMap = new Map<number, OmsetGroup>();
+        customersList.forEach(customer => {
+            const price = customer.packagePrice || 0;
+            const current = omsetGroupsMap.get(price) || { price, count: 0, total: 0, customers: [] };
+            current.count += 1;
+            current.total += price;
+            current.customers.push({ name: customer.name, address: customer.address });
+            omsetGroupsMap.set(price, current);
+        });
 
+        const omsetGroups = Array.from(omsetGroupsMap.values()).sort((a, b) => b.price - a.price);
 
         setStats({
           monthlyIncome,
@@ -170,7 +190,8 @@ function FinancePage() {
           totalOmset,
           totalArrears,
           newCustomersCount: newCustomers.length,
-          omsetBreakdown,
+          totalCustomers: customersList.length,
+          omsetGroups,
           newCustomers: newCustomers.map(c => ({name: c.name, address: c.address})),
           delinquentCustomers: Array.from(delinquentCustomersMap.values()),
           monthlyIncomeFromPayments,
@@ -333,8 +354,8 @@ function FinancePage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <InfoDialog
-          title="Rincian Omset Potensial"
-          description="Berikut adalah rincian paket aktif yang dimiliki pelanggan Anda."
+          title=""
+          description=""
           trigger={
             <Card className="h-full cursor-pointer hover:bg-muted/50 transition-colors">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -348,18 +369,65 @@ function FinancePage() {
             </Card>
           }
         >
-          <ul className="space-y-2">
-            {Object.keys(stats.omsetBreakdown).length > 0 ? (
-                Object.entries(stats.omsetBreakdown).map(([key, value]) => (
-                <li key={key} className="flex justify-between items-center text-sm">
-                    <span>{key}</span>
-                    <span className="font-semibold">x{value}</span>
-                </li>
-                ))
-            ) : (
-                <p className="text-sm text-muted-foreground text-center">Tidak ada pelanggan aktif.</p>
-            )}
-          </ul>
+          <div className="flex flex-col gap-6 py-2">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 text-sky-500">
+                <Wifi className="h-6 w-6" />
+                <h2 className="text-xl font-bold">Rincian Omset Paket</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Daftar rincian harga paket langganan saat ini.
+              </p>
+            </div>
+
+            <Accordion type="single" collapsible className="flex flex-col gap-3">
+              {stats.omsetGroups.map((group, idx) => (
+                <AccordionItem value={`item-${idx}`} key={idx} className="border-none">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/30 px-5 py-4 transition-all hover:bg-blue-50/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">HARGA PAKET</span>
+                        <span className="text-xl font-extrabold text-blue-600">
+                          Rp {group.price.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge className="bg-blue-600 hover:bg-blue-700 px-3 py-0.5 text-[10px] font-bold rounded-full text-white">
+                            {group.count} Org
+                          </Badge>
+                          <span className="text-[11px] text-muted-foreground font-medium">
+                            Total: Rp {group.total.toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                        <AccordionTrigger className="p-0 hover:no-underline [&>svg]:h-5 [&>svg]:w-5 [&>svg]:text-muted-foreground" />
+                      </div>
+                    </div>
+                    <AccordionContent className="pt-4 border-t border-blue-100 mt-4">
+                      <ul className="grid grid-cols-1 gap-2">
+                        {group.customers.map((c, cIdx) => (
+                          <li key={cIdx} className="text-xs flex flex-col border-b border-blue-50 pb-2 last:border-0 last:pb-0">
+                            <span className="font-semibold text-blue-900">{c.name}</span>
+                            <span className="text-muted-foreground text-[10px]">{c.address}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </AccordionContent>
+                  </div>
+                </AccordionItem>
+              ))}
+            </Accordion>
+
+            <div className="rounded-2xl bg-blue-600 p-6 text-white shadow-lg flex justify-between items-center mt-4">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold tracking-widest uppercase opacity-80">TOTAL OMSET</span>
+                <span className="text-xs font-medium opacity-90">{stats.totalCustomers} Pelanggan</span>
+              </div>
+              <span className="text-2xl font-black">
+                Rp {stats.totalOmset.toLocaleString('id-ID')}
+              </span>
+            </div>
+          </div>
         </InfoDialog>
 
         <InfoDialog
@@ -481,5 +549,3 @@ function FinancePage() {
 }
 
 export default withAuth(FinancePage);
-
-    
