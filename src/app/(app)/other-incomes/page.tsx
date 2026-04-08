@@ -70,12 +70,12 @@ function OtherIncomesPage() {
     fetchIncomes();
   }, [fetchIncomes]);
 
-  const handleIncomeAdded = async (newIncomeData: { name: string, amount: number }) => {
+  const handleIncomeAdded = async (newIncomeData: { name: string, amount: number, date: Date }) => {
      try {
         await addDoc(collection(db, "otherIncomes"), {
             name: newIncomeData.name,
             amount: newIncomeData.amount,
-            date: format(new Date(), 'yyyy-MM-dd'),
+            date: format(newIncomeData.date, 'yyyy-MM-dd'),
         });
         
         toast({
@@ -256,7 +256,9 @@ function OtherIncomesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIncomeToDelete(null)}>Batal</AlertDialogCancel>
+            <Popover>
+              <AlertDialogCancel onClick={() => setIncomeToDelete(null)}>Batal</AlertDialogCancel>
+            </Popover>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive hover:bg-destructive/90"
