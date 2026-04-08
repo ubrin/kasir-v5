@@ -5,10 +5,11 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, Coins, ArrowRight, PieChartIcon, Wifi, ChevronRight } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Wallet, Users, FileClock, DollarSign, BookText, Coins, ArrowRight, PieChartIcon, Wifi, ChevronRight, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { format, isThisMonth, parseISO, startOfMonth } from "date-fns";
+import { format, isSameMonth, isSameYear, isThisMonth, parseISO, startOfMonth, getMonth, getYear } from "date-fns";
+import { id } from "date-fns/locale";
 import type { Payment, Expense, OtherIncome, Customer, Invoice } from "@/lib/types";
 import { InfoDialog } from "@/components/info-dialog";
 import {
@@ -32,12 +33,28 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 type OmsetGroup = {
   price: number;
   count: number;
   total: number;
   customers: { name: string; address: string }[];
+};
+
+type MonthlyRecap = {
+  monthName: string;
+  target: number;
+  income: number;
+  expense: number;
+  net: number;
 };
 
 type Stats = {
@@ -65,6 +82,7 @@ type Stats = {
       belumLunasCount: number;
       belumLunasAmount: number;
   };
+  monthlyRecap: MonthlyRecap[];
 };
 
 const chartConfig = {
@@ -102,10 +120,11 @@ function FinancePage() {
         ]);
 
         const today = new Date();
+        const currentYear = getYear(today);
         const startOfCurrentMonth = startOfMonth(today);
 
         const allInvoices = invoicesSnapshot.docs.map(doc => doc.data() as Invoice);
-        const thisMonthInvoices = allInvoices.filter(inv => isThisMonth(parseISO(inv.date)));
+        const thisMonthInvoices = allInvoices.filter(inv => inv.date && isThisMonth(parseISO(inv.date)));
 
         const invoiceStatusThisMonth = thisMonthInvoices.reduce((acc, inv) => {
             if (inv.status === 'lunas') {
@@ -118,9 +137,8 @@ function FinancePage() {
             return acc;
         }, { lunasCount: 0, lunasAmount: 0, belumLunasCount: 0, belumLunasAmount: 0 });
 
-        const thisMonthPayments = paymentsSnapshot.docs
-            .map(doc => doc.data() as Payment)
-            .filter(p => p.paymentDate && isThisMonth(parseISO(p.paymentDate)));
+        const allPayments = paymentsSnapshot.docs.map(doc => doc.data() as Payment);
+        const thisMonthPayments = allPayments.filter(p => p.paymentDate && isThisMonth(parseISO(p.paymentDate)));
         
         const monthlyIncomeFromPayments = thisMonthPayments.reduce((sum, p) => sum + (p.totalPayment || 0), 0);
 
@@ -130,16 +148,14 @@ function FinancePage() {
             return acc;
         }, { cash: 0, bri: 0, dana: 0 });
 
-        const thisMonthOtherIncomes = otherIncomesSnapshot.docs
-            .map(doc => doc.data() as OtherIncome)
-            .filter(oi => oi.date && isThisMonth(parseISO(oi.date)));
+        const allOtherIncomes = otherIncomesSnapshot.docs.map(doc => doc.data() as OtherIncome);
+        const thisMonthOtherIncomes = allOtherIncomes.filter(oi => oi.date && isThisMonth(parseISO(oi.date)));
             
         const monthlyIncomeFromOther = thisMonthOtherIncomes.reduce((sum, oi) => sum + (oi.amount || 0), 0);
         const monthlyIncome = monthlyIncomeFromPayments + monthlyIncomeFromOther;
 
-        const thisMonthExpenses = expensesSnapshot.docs
-            .map(doc => doc.data() as Expense)
-            .filter(e => e.date && isThisMonth(parseISO(e.date)));
+        const allExpenses = expensesSnapshot.docs.map(doc => doc.data() as Expense);
+        const thisMonthExpenses = allExpenses.filter(e => e.date && isThisMonth(parseISO(e.date)));
             
         const monthlyExpense = thisMonthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
@@ -170,7 +186,6 @@ function FinancePage() {
 
         const totalOmset = customersList.reduce((sum, c) => sum + (c.packagePrice || 0), 0);
 
-        // Grouping for the new visual breakdown
         const omsetGroupsMap = new Map<number, OmsetGroup>();
         customersList.forEach(customer => {
             const price = customer.packagePrice || 0;
@@ -182,6 +197,47 @@ function FinancePage() {
         });
 
         const omsetGroups = Array.from(omsetGroupsMap.values()).sort((a, b) => b.price - a.price);
+
+        // --- CALCULATION FOR MONTHLY RECAP TABLE ---
+        const monthlyRecap: MonthlyRecap[] = [];
+        for (let m = 0; i < 12; i++) {
+            const monthName = format(new Date(currentYear, i, 1), 'MMMM', { locale: id });
+            
+            const target = allInvoices
+                .filter(inv => {
+                    const d = parseISO(inv.date);
+                    return getMonth(d) === i && getYear(d) === currentYear;
+                })
+                .reduce((sum, inv) => sum + (inv.amount || 0), 0);
+
+            const monthIncome = allPayments
+                .filter(p => {
+                    const d = parseISO(p.paymentDate);
+                    return getMonth(d) === i && getYear(d) === currentYear;
+                })
+                .reduce((sum, p) => sum + (p.totalPayment || 0), 0) +
+                allOtherIncomes
+                .filter(oi => {
+                    const d = parseISO(oi.date);
+                    return getMonth(d) === i && getYear(d) === currentYear;
+                })
+                .reduce((sum, oi) => sum + (oi.amount || 0), 0);
+
+            const monthExpense = allExpenses
+                .filter(e => {
+                    const d = parseISO(e.date!);
+                    return getMonth(d) === i && getYear(d) === currentYear;
+                })
+                .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+            monthlyRecap.push({
+                monthName,
+                target,
+                income: monthIncome,
+                expense: monthExpense,
+                net: monthIncome - monthExpense
+            });
+        }
 
         setStats({
           monthlyIncome,
@@ -198,7 +254,8 @@ function FinancePage() {
           monthlyIncomeFromOther,
           monthlyIncomeByMethod,
           monthlyExpenseByCategory,
-          invoiceStatusThisMonth
+          invoiceStatusThisMonth,
+          monthlyRecap
         });
 
       } catch (error) {
@@ -544,6 +601,55 @@ function FinancePage() {
             </CardContent>
           </Card>
       </div>
+
+      {/* NEW RECAPITULATION TABLE SECTION */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-4 space-y-0">
+          <div className="bg-blue-50 p-2.5 rounded-xl border border-blue-100">
+            <CalendarDays className="h-6 w-6 text-blue-600" />
+          </div>
+          <div className="flex flex-col">
+            <CardTitle className="text-xl">Tabel Rekapitulasi</CardTitle>
+            <CardDescription>
+              Performa keuangan per bulan tahun {getYear(new Date())}.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0 sm:p-6 sm:pt-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow>
+                  <TableHead className="font-bold text-foreground py-4">Bulan</TableHead>
+                  <TableHead className="font-bold text-foreground py-4">Target</TableHead>
+                  <TableHead className="font-bold text-foreground py-4">Pemasukan</TableHead>
+                  <TableHead className="font-bold text-foreground py-4">Pengeluaran</TableHead>
+                  <TableHead className="font-bold text-foreground text-right py-4">Total Bersih</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.monthlyRecap.map((recap, idx) => (
+                  <TableRow key={idx} className="hover:bg-muted/20">
+                    <TableCell className="font-bold py-4">{recap.monthName}</TableCell>
+                    <TableCell className="font-bold text-blue-600 py-4">
+                      Rp {recap.target.toLocaleString('id-ID')}
+                    </TableCell>
+                    <TableCell className="font-bold text-green-600 py-4">
+                      Rp {recap.income.toLocaleString('id-ID')}
+                    </TableCell>
+                    <TableCell className="font-bold text-red-500 py-4">
+                      Rp {recap.expense.toLocaleString('id-ID')}
+                    </TableCell>
+                    <TableCell className="font-bold text-emerald-600 text-right py-4">
+                      Rp {recap.net.toLocaleString('id-ID')}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
